@@ -17,13 +17,13 @@ export function getAuriDeliveries(_username: string): PiperDelivery[] {
           id: "auri_hello_2",
           from: "Auri Park",
           timestamp: "",
-          body: "I've been kind of holding the fort on the data side since Chen left — it's been a lot, honestly. Really glad to have another engineer around.",
+          body: "I've been kind of holding the fort on the data side since Chen left. It's been a lot, honestly. Really glad to have another engineer around.",
         },
         {
           id: "auri_hello_3",
           from: "Auri Park",
           timestamp: "",
-          body: "Small ask while you're getting set up — Chen left a bunch of stuff in the handoff folder. Start by checking what's in /srv/engineering/chen-handoff/ — ls -lh shows file sizes. And read todo.txt to see what's still open.",
+          body: "Small ask while you're getting set up. Chen left a bunch of stuff in the handoff folder. Start by checking what's in /srv/engineering/chen-handoff/ — ls -lh shows file sizes. And read todo.txt to see what's still open.",
         },
         {
           id: "auri_hello_4",

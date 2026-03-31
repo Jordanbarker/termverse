@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { checkEmailDeliveries, GameEvent } from "../delivery";
 import { VirtualFS } from "../../filesystem/VirtualFS";
-import { createFilesystem } from "../../../story/filesystem/nexacorp";
+import { createNexacorpFilesystem } from "../../../story/filesystem/nexacorp";
 
 const USERNAME = "testplayer";
 
 function makeFS(): VirtualFS {
-  const root = createFilesystem(USERNAME);
+  const root = createNexacorpFilesystem(USERNAME);
   return new VirtualFS(root, `/home/${USERNAME}`, `/home/${USERNAME}`);
 }
 

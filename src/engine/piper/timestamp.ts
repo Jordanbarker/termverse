@@ -83,6 +83,50 @@ export function getSegmentById(id: SegmentId): Segment {
 }
 
 // ---------------------------------------------------------------------------
+// Total delivery counts per segment (for proportional interpolation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Count all non-reply deliveries per segment across ALL definitions.
+ * Used as the denominator so timestamps scale proportionally to how many
+ * deliveries the player has triggered vs. the total possible.
+ */
+function countTotalDeliveriesPerSegment(
+  defMap: Map<string, PiperDelivery>
+): Map<SegmentId, number> {
+  const currentSegment: Record<string, SegmentId> = { ...INITIAL_SEGMENTS };
+  const boundaryIdx: Record<string, number> = { nexacorp: 0, home: 0 };
+  const counts = new Map<SegmentId, number>();
+
+  for (const def of defMap.values()) {
+    const computer = def.computer ?? "nexacorp";
+    const clockKey = computer === "home" ? "home" : "nexacorp";
+    const triggers = Array.isArray(def.trigger) ? def.trigger : [def.trigger];
+
+    const boundaries = SEGMENT_BOUNDARIES[clockKey] ?? [];
+    const idx = boundaryIdx[clockKey] ?? 0;
+    if (idx < boundaries.length) {
+      const hasBoundaryFlag = triggers.some(
+        (t) =>
+          t.type === "after_story_flag" && t.flag === boundaries[idx].flag
+      );
+      if (hasBoundaryFlag) {
+        currentSegment[clockKey] = boundaries[idx].nextSegment;
+        boundaryIdx[clockKey] = idx + 1;
+      }
+    }
+
+    const isReplyFollowUp = triggers.some((t) => t.type === "after_piper_reply");
+    if (isReplyFollowUp) continue;
+
+    const segId = currentSegment[clockKey];
+    counts.set(segId, (counts.get(segId) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+// ---------------------------------------------------------------------------
 // Interpolation
 // ---------------------------------------------------------------------------
 
@@ -154,13 +198,17 @@ export function interpolateDeliveries(
   }
 
   // Pass 2: interpolate within each segment
+  // Use total possible deliveries as denominator so timestamps scale
+  // proportionally — few deliveries = early in the day, not end-of-day.
+  const totalPerSegment = countTotalDeliveriesPerSegment(defMap);
   const deliveryMinutes = new Map<string, number>();
   for (const [segId, ids] of segmentBuckets) {
     const seg = getSegmentById(segId);
+    const total = totalPerSegment.get(segId) ?? ids.length;
     const n = ids.length;
     for (let i = 0; i < n; i++) {
       const t =
-        seg.startMinutes + (i / Math.max(n - 1, 1)) * seg.duration;
+        seg.startMinutes + (i / Math.max(total - 1, 1)) * seg.duration;
       deliveryMinutes.set(ids[i], Math.floor(t));
     }
   }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { serializeFS, deserializeFS, SerializedFS } from "../serialization";
 import { VirtualFS } from "../VirtualFS";
-import { createFilesystem } from "../../../story/filesystem/nexacorp";
+import { createNexacorpFilesystem } from "../../../story/filesystem/nexacorp";
 import { DirectoryNode } from "../types";
 
 function makeSimpleFS(): VirtualFS {
@@ -107,7 +107,7 @@ describe("round-trip serialization", () => {
   });
 
   it("works with the full game filesystem", () => {
-    const root = createFilesystem("testplayer");
+    const root = createNexacorpFilesystem("testplayer");
     const original = new VirtualFS(root, "/home/testplayer", "/home/testplayer");
 
     const data = serializeFS(original);

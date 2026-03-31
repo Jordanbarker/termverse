@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { createFilesystem } from "../../../story/filesystem/nexacorp";
+import { createNexacorpFilesystem } from "../../../story/filesystem/nexacorp";
 import { createDevcontainerFilesystem } from "../../../story/filesystem/devcontainer";
 import { VirtualFS } from "../VirtualFS";
 
 const USERNAME = "testplayer";
 
 function makeFS(): VirtualFS {
-  const root = createFilesystem(USERNAME);
+  const root = createNexacorpFilesystem(USERNAME);
   return new VirtualFS(root, `/home/${USERNAME}`, `/home/${USERNAME}`);
 }
 
-describe("createFilesystem", () => {
+describe("createNexacorpFilesystem", () => {
   const fs = makeFS();
 
   describe("top-level structure", () => {
@@ -152,7 +152,7 @@ describe("createFilesystem", () => {
     });
 
     it("works with a different username", () => {
-      const root2 = createFilesystem("alice");
+      const root2 = createNexacorpFilesystem("alice");
       const fs2 = new VirtualFS(root2, "/home/alice", "/home/alice");
       expect(fs2.getNode("/home/alice")?.type).toBe("directory");
       const result = fs2.readFile("/var/log/system.log");
@@ -215,7 +215,7 @@ describe("createFilesystem", () => {
     });
 
     it("does not include nexacorp-analytics on NexaCorp workstation", () => {
-      const root = createFilesystem(USERNAME, { dbt_project_cloned: true });
+      const root = createNexacorpFilesystem(USERNAME, { dbt_project_cloned: true });
       const fs = new VirtualFS(root, `/home/${USERNAME}`, `/home/${USERNAME}`);
       expect(fs.getNode(`/home/${USERNAME}/nexacorp-analytics`)).toBeNull();
     });

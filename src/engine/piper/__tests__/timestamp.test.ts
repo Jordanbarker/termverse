@@ -137,6 +137,26 @@ describe("interpolateDeliveries", () => {
     expect(deliveryMinutes.get("msg")).toBe(510);
   });
 
+  it("scales timestamps proportionally to total possible deliveries", () => {
+    // 5 total definitions but only 2 delivered
+    const defs: PiperDelivery[] = [
+      makeDef("a", { type: "immediate" }),
+      makeDef("b", { type: "after_command", command: "ls" }),
+      makeDef("c", { type: "after_command", command: "cat" }),
+      makeDef("d", { type: "after_command", command: "pwd" }),
+      makeDef("e", { type: "after_command", command: "echo" }),
+    ];
+    const defMap = new Map(defs.map((d) => [d.id, d]));
+    const { deliveryMinutes } = interpolateDeliveries(["a", "b"], defMap);
+
+    // With 5 total, gap = 585 / 4 = 146.25
+    // a at i=0: 510
+    // b at i=1: 510 + 146.25 = 656
+    expect(deliveryMinutes.get("a")).toBe(510);
+    expect(deliveryMinutes.get("b")).toBe(656);
+    // Crucially, b should NOT be at 1095 (end of day)
+  });
+
   it("maps devcontainer deliveries to nexacorp clock", () => {
     const defs: PiperDelivery[] = [
       makeDef("nc", { type: "immediate" }),

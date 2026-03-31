@@ -64,6 +64,3 @@ Authorized access only. All activity is monitored.
   tmp: dir("tmp", {}),
 });
 }
-
-/** Alias for backward compat in tests */
-export const createFilesystem = createNexacorpFilesystem;

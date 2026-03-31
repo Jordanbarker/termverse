@@ -45,6 +45,35 @@ const XTERM_OPTIONS = {
   allowProposedApi: true,
 };
 
+/** Handle macOS-style scroll shortcuts. Returns false to block xterm, true to pass through. */
+function handleScrollShortcut(e: KeyboardEvent, term: XTerm): boolean | null {
+  if (e.type !== 'keydown') return null;
+
+  const { key, metaKey, altKey, shiftKey } = e;
+
+  // Shift+PageUp/Down — scroll by page (universal terminal convention)
+  if (shiftKey && !metaKey && !altKey) {
+    if (key === 'PageUp') { e.preventDefault(); term.scrollPages(-1); return false; }
+    if (key === 'PageDown') { e.preventDefault(); term.scrollPages(1); return false; }
+  }
+
+  // Cmd+Opt+PageUp/Down — scroll by line
+  if (metaKey && altKey) {
+    if (key === 'PageUp') { e.preventDefault(); term.scrollLines(-1); return false; }
+    if (key === 'PageDown') { e.preventDefault(); term.scrollLines(1); return false; }
+  }
+
+  // Cmd+PageUp/Down — scroll by page
+  if (metaKey && !altKey) {
+    if (key === 'PageUp') { e.preventDefault(); term.scrollPages(-1); return false; }
+    if (key === 'PageDown') { e.preventDefault(); term.scrollPages(1); return false; }
+    if (key === 'Home') { e.preventDefault(); term.scrollToTop(); return false; }
+    if (key === 'End') { e.preventDefault(); term.scrollToBottom(); return false; }
+  }
+
+  return null;
+}
+
 interface TabInstance {
   term: XTerm;
   fitAddon: FitAddon;
@@ -173,8 +202,11 @@ export default function TabManager() {
     term.open(containerEl);
     fitAddon.fit();
 
-    // Intercept raw DOM key events for Ctrl+B digit shortcuts (1-5)
+    // Intercept raw DOM key events for scroll shortcuts and Ctrl+B digit shortcuts (1-5)
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      const scrollResult = handleScrollShortcut(e, term);
+      if (scrollResult !== null) return scrollResult;
+
       if (ctrlBPrefixRef.current && e.type === 'keydown' && e.key >= '1' && e.key <= '5') {
         if (e.ctrlKey) {
           // Ctrl held throughout — Ctrl+digit produces no ASCII, so onData won't fire.

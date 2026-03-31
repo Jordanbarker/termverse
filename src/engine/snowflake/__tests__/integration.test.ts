@@ -265,7 +265,6 @@ describe("Integration — SQL string to formatted output", () => {
 
   // ─── Complex Queries ──────────────────────────────────────────────
 
-  // TODO: Re-enable once QUALIFY + window function evaluation is fixed in the executor.
   it("window function + QUALIFY integration", () => {
     const { output } = runAndFormat(
       "SELECT name, dept_id, salary FROM employees QUALIFY ROW_NUMBER() OVER (PARTITION BY dept_id ORDER BY salary DESC) = 1",
