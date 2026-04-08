@@ -281,6 +281,18 @@ describe("help", () => {
     expect(result.output).toContain("cat");
   });
 
+  it("always shows command line and scrollback shortcuts", () => {
+    const result = execute("help", [], {}, ctx());
+    expect(result.output).toContain("Keyboard shortcuts");
+    expect(result.output).toContain("Tab");
+    expect(result.output).toContain("Ctrl+C");
+    expect(result.output).toContain("Ctrl+W");
+    expect(result.output).toContain("Shift+PgUp/Down");
+    expect(result.output).toContain("Cmd+Home/End");
+    expect(result.output).toContain("Fn+Shift+Up/Down");
+    expect(result.output).toContain("Fn+Cmd+Left/Right");
+  });
+
   it("shows tab shortcuts when tabs_unlocked is set", () => {
     const result = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
     expect(result.output).toContain("Terminal tabs");

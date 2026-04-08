@@ -211,6 +211,14 @@ export const CHAPTERS: ChapterDefinition[] = [
         group: "edward_onboarding",
       },
       {
+        id: "reply_edward_chip_intro",
+        description: "Reply to Edward on Piper",
+        check: { source: "completedObjective", key: "replied_edward_chip_intro" },
+        hidden: true,
+        visibleWhen: { source: "storyFlag", key: "read_team_info" },
+        group: "edward_onboarding",
+      },
+      {
         id: "try_chip",
         description: "Try running Chip",
         check: { source: "storyFlag", key: "chip_error_seen" },

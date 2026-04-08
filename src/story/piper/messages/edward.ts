@@ -19,6 +19,7 @@ export function getEdwardDeliveries(_username: string): PiperDelivery[] {
         {
           label: "Sounds good, I'll give it a try!",
           messageBody: "Sounds good, I'll give it a try!",
+          triggerEvents: [{ type: "objective_completed", detail: "replied_edward_chip_intro" }],
         },
       ],
     },
@@ -50,13 +51,13 @@ export function getEdwardDeliveries(_username: string): PiperDelivery[] {
           id: "edward_dm_fix_1",
           from: "Edward Torres",
           timestamp: "",
-          body: "Ah yeah, that happens with new accounts sometimes. IT adds the credentials to your shell config but they don't load automatically.",
+          body: "Ah, IT must not have provisioned your key yet — they've been backed up. No worries, I'll just give it to you directly.",
         },
         {
           id: "edward_dm_fix_2",
           from: "Edward Torres",
           timestamp: "",
-          body: "Try `printenv` to see what's currently set in your environment. If `CHIP_API_KEY` isn't there, just run `source ~/.zshrc` to reload your config. That should pick it up.",
+          body: "Your Chip API key is `nxa_live_7f3k9m2x`. Open `~/.zshrc` in nano and add this line at the bottom:\n\n    export CHIP_API_KEY=nxa_live_7f3k9m2x\n\nThen run `source ~/.zshrc` to load it. You can double-check it's set with `printenv | grep CHIP`.",
         },
       ],
       trigger: { type: "after_piper_reply", deliveryId: "edward_chip_error" },

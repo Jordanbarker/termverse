@@ -29,7 +29,7 @@ src/story/
 ├── piper/
 │   ├── channels.ts        # PIPER_CHANNELS array (channel/DM definitions)
 │   └── messages.ts        # getPiperDeliveries() — all Piper message definitions with triggers
-├── fsEffects.ts           # STORY_FS_EFFECTS — filesystem effects applied when story flags are set (e.g., adding CHIP_API_KEY to .zshrc after sourced_nexacorp_zshrc)
+├── fsEffects.ts           # STORY_FS_EFFECTS — filesystem effects applied when story flags are set (registry; currently empty)
 ├── checkpoints.ts         # Checkpoint definitions — checkpoint loading also applies FS effects
 └── filesystem/
     ├── paths.ts           # HOME_PATHS and NEXACORP_PATHS constants for story flag trigger paths

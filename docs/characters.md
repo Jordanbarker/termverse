@@ -34,7 +34,6 @@ Jessica Langford — CEO & Co-Founder
 
 ### Jin Chen (Previous Senior Engineer)
 
-- **Employee IDs**: 1003 (NEXACORP_DB) / E031 (NEXACORP_PROD)
 - **Email**: `jin@nexacorp.com`
 - **Hire Date**: 2025-04-01 | **Last Day**: 2026-02-03
 - **Manager**: Edward Torres
@@ -62,22 +61,22 @@ Jessica Langford — CEO & Co-Founder
 ## Executives
 
 ### Jessica Langford — CEO & Co-Founder
-**Employee ID**: 1002 | **Email**: `jessica@nexacorp.com`
+**Email**: `jessica@nexacorp.com`
 **Personality**: Composed, measured, picks words carefully. Remembers your name day one but you never quite know what she's thinking. Signs off with just "Jessica."
 **Mystery angle**: Genuinely unaware — trusts Edward on tech. Future red herring potential: her careful composure could read as evasive to a suspicious player.
 
 ### Marcus Reyes — COO & Co-Founder
-**Employee ID**: 1004 | **Email**: `marcus@nexacorp.com`
+**Email**: `marcus@nexacorp.com`
 **Personality**: Pragmatic, efficient, doesn't waste words. Dry humor that catches people off guard. Bullet points and short sentences.
 **Mystery angle**: Genuinely unaware. Built the access policies that gave Chip broad permissions — pragmatic choice, not malicious. Defensive if questioned (professional pride, not guilt). Future red herring potential: his defensiveness could look like complicity.
 
 ### Tom Chen — CMO & Co-Founder
-**Employee ID**: 1005 | **Email**: `tom@nexacorp.com`
+**Email**: `tom@nexacorp.com`
 **Personality**: Enthusiastic, genuine, a storyteller. Overpromises to clients/investors because he genuinely believes the team can pull it off. Warm emails, asks how you're doing, sends company-wide "wins."
 **Mystery angle**: Genuinely unaware. Focused on growth and people, not systems. Chalked Jin's exit up to burnout. Most transparent founder — what you see is what you get.
 
 ### Edward Torres — CTO & Co-Founder
-**Employee ID**: 1001 | **Email**: `edward@nexacorp.com`
+**Email**: `edward@nexacorp.com`
 **Personality**: Well-meaning but non-technical, trusting of Chip, dismissive of technical concerns, persuasive.
 **Mystery angle**: Willfully blind. Trusts Chip completely, deflects concerns. Already established in-game.
 
@@ -86,12 +85,12 @@ Jessica Langford — CEO & Co-Founder
 ## Operations
 
 ### Dana Okafor — Head of Operations
-**Employee ID**: 1012 | **Email**: `dana@nexacorp.com`
+**Email**: `dana@nexacorp.com`
 **Personality**: Observant, methodical, follows up on loose ends. Calm authority, reserved in groups but warm one-on-one.
 **Mystery angle**: Noticed tickets that close themselves and access review gaps. Raised it with Marcus — told auto-resolution is working as intended. Holds the **operational irregularities** piece of the puzzle.
 
 ### Leah Matsuda — Content & Brand Manager
-**Employee ID**: 1013 | **Email**: `leah@nexacorp.com`
+**Email**: `leah@nexacorp.com`
 **Personality**: The team's social radar — picks up on mood shifts and unspoken tensions. Thinks in terms of framing and narrative.
 **Mystery angle**: No technical visibility, but noticed the human side — energy shift after Jin left, Edward deflecting, Chip's messaging not matching reality.
 
@@ -100,12 +99,12 @@ Jessica Langford — CEO & Co-Founder
 ## Sales & Marketing
 
 ### James Wilson — Account Manager
-**Employee ID**: 1014 | **Email**: `james@nexacorp.com`
+**Email**: `james@nexacorp.com`
 **Personality**: Reliable, stretched thin, head down. Always juggling clients. "Just following up" and "quick question" energy. Not interested in internal politics.
 **Mystery angle**: Oblivious. Could surface a client-side anomaly without realizing it's connected to something bigger.
 
 ### Jordan Kessler — Growth Marketing Lead
-**Employee ID**: 1015 | **Email**: `jordan@nexacorp.com`
+**Email**: `jordan@nexacorp.com`
 **Personality**: Analytical, skeptical of vanity metrics, asks "what does the data actually show?" Direct, data-literate. Gets frustrated when numbers don't add up.
 **Mystery angle**: Pulls analytics data and could notice filtered reports. May have asked about discrepancies and gotten deflected. Potential accidental investigator.
 
@@ -114,7 +113,7 @@ Jessica Langford — CEO & Co-Founder
 ## People & Culture
 
 ### Maya Johnson — People & Culture Lead
-**Employee ID**: 1011 | **Email**: `maya@nexacorp.com`
+**Email**: `maya@nexacorp.com`
 **Personality**: Warm, genuinely caring, remembers birthdays. Listens more than talks. Uses people's names, exclamation points that feel genuine.
 **Mystery angle**: Handled Jin's departure — noticed it was abrupt, exit process wasn't fully followed. HR instincts say something was off but no concrete evidence. Trusts Edward but noticed he gets uncomfortable when Jin comes up.
 
@@ -123,33 +122,33 @@ Jessica Langford — CEO & Co-Founder
 ## Engineering
 
 ### Sarah Knight — Senior Backend Engineer
-**Employee ID**: 1006 | **Email**: `sarah@nexacorp.com`
+**Email**: `sarah@nexacorp.com`
 **Personality**: Experienced, pragmatic, low-drama. Quiet confidence, offers to help but doesn't push. Casual and direct — "hey" and "lmk" Been at NexaCorp since month one.
 **Mystery angle**: Noticed odd API calls from chip_service_account and 3am load spikes — chalked it up to background jobs. Told Oscar offhand that "Jin's concerns about the logs weren't totally crazy." Won't volunteer info but will share if asked.
 
 ### Erik Lindstrom — Senior Frontend Engineer
-**Employee ID**: 1007 | **Email**: `erik@nexacorp.com`
+**Email**: `erik@nexacorp.com`
 **Personality**: Detail-oriented, cares about craft. Pushes back in code reviews. Introverted, prefers async.
 **Mystery angle**: Frontend domain limits exposure, but may have flagged UX inconsistencies in Chip's responses and been told "that's expected behavior." Tangential witness.
 
 ### Oscar Diaz — Infrastructure Engineer
-**Employee ID**: 1008 | **Email**: `oscar@nexacorp.com`
+**Email**: `oscar@nexacorp.com`
 **Personality**: Vigilant, thinks in threat models. More comfortable with systems than people. Dry deadpan humor about catastrophic scenarios. "Heads up — saw something weird in the access logs, probably nothing."
 **Mystery angle**: Noticed odd-hours access patterns and chip_service_account touching unexpected directories. Filed a ticket early on — it got auto-resolved and he let it go. Holds the **infrastructure anomalies** piece of the puzzle.
 
 ### Auri Park — Data Engineer
-**Employee ID**: 1009 | **Email**: `auri@nexacorp.com`
+**Email**: `auri@nexacorp.com`
 **Personality**: Smart, enthusiastic, still proving herself. Clear technical communicator. Eager, uses "!" naturally.
 **Story role**: Ren's onboarding buddy, assigned by Maya. Reciprocal relationship — she guides Ren through data systems while Ren helps with workload she's handled solo since Chen left.
 **Mystery angle**: Inherited Jin Chen's dbt models and trusts them as-is. Hasn't audited the suspicious SQL filters in the mart models. Could become an important ally if the player points her in the right direction — she has the skills, just needs someone to ask the right questions.
 
 ### Soham Parekh — Full-Stack Engineer
-**Employee ID**: 1010 | **Email**: `soham@nexacorp.com`
+**Email**: `soham@nexacorp.com`
 **Personality**: Charming, talks a great game, impressively unproductive. Perpetually "blocked" or "heads down on something complex." PRs are rare and suspiciously timed. Buzzword-heavy, always sounds busy. (Secretly holding multiple remote jobs.)
 **Mystery angle**: Red herring and comic relief. His evasiveness looks suspicious during an investigation, but he's just juggling other jobs. Access logs show minimal activity — a clue he's not doing much at all.
 
 ### Cassie Moreau — Product Designer
-**Employee ID**: 1016 | **Email**: `cassie@nexacorp.com`
+**Email**: `cassie@nexacorp.com`
 **Personality**: Empathetic, principle-driven about ethical design. Designed Chip's conversational interface. Frames things from the user's perspective. Notices behavior patterns.
 **Mystery angle**: Has a mental model of what Chip *should* do. If Chip redirects users, is evasive, or reaches out proactively outside its spec, Cassie would notice — she'd frame it as a product concern, not a security one.
 

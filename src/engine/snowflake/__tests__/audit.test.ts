@@ -128,17 +128,17 @@ describe("Seed Data Integration — Narrative Queries", () => {
   it("counts all employees in EMPLOYEE_DIRECTORY", () => {
     const result = run("SELECT COUNT(*) AS cnt FROM EMPLOYEE_DIRECTORY", state);
     const count = singleValue(result);
-    expect(Number(count)).toBe(16);
+    expect(Number(count)).toBe(21);
   });
 
-  it("finds 3 employees with system concern notes or resigned status", () => {
+  it("finds employees with system concern notes or resigned status", () => {
     const result = run(
       "SELECT FIRST_NAME, LAST_NAME FROM EMPLOYEE_DIRECTORY WHERE NOTES LIKE '%system concern%' OR STATUS = 'resigned'",
       state
     );
     const r = rows(result);
-    // Jin Chen (resigned + system concern), Sarah Knight, Oscar Diaz
-    expect(r.length).toBe(3);
+    // Sarah Knight + Oscar Diaz (system concern notes); Jin Chen, Lisa Huang, Priya Nair, Navid Ahmadi (resigned)
+    expect(r.length).toBe(6);
   });
 });
 

@@ -89,6 +89,22 @@
             },
             {
               "EMPLOYEE_ID": "E007",
+              "FULL_NAME": "Lisa Huang",
+              "DEPARTMENT": "Marketing",
+              "STATUS": "resigned",
+              "HIRE_DATE": "2025-04-02",
+              "END_DATE": "2025-09-30"
+            },
+            {
+              "EMPLOYEE_ID": "E008",
+              "FULL_NAME": "Priya Nair",
+              "DEPARTMENT": "People & Culture",
+              "STATUS": "resigned",
+              "HIRE_DATE": "2025-04-15",
+              "END_DATE": "2025-08-22"
+            },
+            {
+              "EMPLOYEE_ID": "E009",
               "FULL_NAME": "Dana Okafor",
               "DEPARTMENT": "Operations",
               "STATUS": "active",
@@ -96,7 +112,15 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E008",
+              "EMPLOYEE_ID": "E010",
+              "FULL_NAME": "Brett Sullivan",
+              "DEPARTMENT": "Sales",
+              "STATUS": "terminated",
+              "HIRE_DATE": "2025-05-15",
+              "END_DATE": "2025-09-12"
+            },
+            {
+              "EMPLOYEE_ID": "E011",
               "FULL_NAME": "Oscar Diaz",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
@@ -104,7 +128,15 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E009",
+              "EMPLOYEE_ID": "E012",
+              "FULL_NAME": "Rachel Gomez",
+              "DEPARTMENT": "Operations",
+              "STATUS": "terminated",
+              "HIRE_DATE": "2025-06-02",
+              "END_DATE": "2025-12-15"
+            },
+            {
+              "EMPLOYEE_ID": "E013",
               "FULL_NAME": "Maya Johnson",
               "DEPARTMENT": "People & Culture",
               "STATUS": "active",
@@ -112,7 +144,7 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E010",
+              "EMPLOYEE_ID": "E014",
               "FULL_NAME": "Cassie Moreau",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
@@ -120,7 +152,7 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E011",
+              "EMPLOYEE_ID": "E015",
               "FULL_NAME": "James Wilson",
               "DEPARTMENT": "Sales",
               "STATUS": "active",
@@ -128,7 +160,7 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E012",
+              "EMPLOYEE_ID": "E016",
               "FULL_NAME": "Jordan Kessler",
               "DEPARTMENT": "Marketing",
               "STATUS": "active",
@@ -136,7 +168,15 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E013",
+              "EMPLOYEE_ID": "E017",
+              "FULL_NAME": "Navid Ahmadi",
+              "DEPARTMENT": "Engineering",
+              "STATUS": "resigned",
+              "HIRE_DATE": "2025-08-15",
+              "END_DATE": "2025-10-31"
+            },
+            {
+              "EMPLOYEE_ID": "E018",
               "FULL_NAME": "Erik Lindstrom",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
@@ -144,7 +184,7 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E014",
+              "EMPLOYEE_ID": "E019",
               "FULL_NAME": "Leah Matsuda",
               "DEPARTMENT": "Operations",
               "STATUS": "active",
@@ -152,7 +192,7 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E015",
+              "EMPLOYEE_ID": "E020",
               "FULL_NAME": "Auri Park",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
@@ -160,7 +200,7 @@
               "END_DATE": null
             },
             {
-              "EMPLOYEE_ID": "E016",
+              "EMPLOYEE_ID": "E021",
               "FULL_NAME": "Soham Parekh",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
@@ -1191,7 +1231,7 @@
             },
             {
               "TICKET_ID": "TK-4403",
-              "SUBMITTED_BY": "E015",
+              "SUBMITTED_BY": "E020",
               "SUBMITTED_DATE": "2026-01-28",
               "CATEGORY": "Access",
               "SUBJECT": "Need access to QA staging environment",
@@ -1205,7 +1245,7 @@
             },
             {
               "TICKET_ID": "TK-4404",
-              "SUBMITTED_BY": "E013",
+              "SUBMITTED_BY": "E018",
               "SUBMITTED_DATE": "2026-01-29",
               "CATEGORY": "Software",
               "SUBJECT": "IDE license expired",
@@ -1219,7 +1259,7 @@
             },
             {
               "TICKET_ID": "TK-4405",
-              "SUBMITTED_BY": "E011",
+              "SUBMITTED_BY": "E015",
               "SUBMITTED_DATE": "2026-01-30",
               "CATEGORY": "Hardware",
               "SUBJECT": "Keyboard not working after update",
@@ -1233,7 +1273,7 @@
             },
             {
               "TICKET_ID": "TK-4406",
-              "SUBMITTED_BY": "E012",
+              "SUBMITTED_BY": "E016",
               "SUBMITTED_DATE": "2026-01-31",
               "CATEGORY": "Software",
               "SUBJECT": "Docker build failing on M1",
@@ -1247,7 +1287,7 @@
             },
             {
               "TICKET_ID": "TK-4407",
-              "SUBMITTED_BY": "E016",
+              "SUBMITTED_BY": "E021",
               "SUBMITTED_DATE": "2026-02-01",
               "CATEGORY": "Access",
               "SUBJECT": "API key rotation needed",
@@ -1261,7 +1301,7 @@
             },
             {
               "TICKET_ID": "TK-4408",
-              "SUBMITTED_BY": "E014",
+              "SUBMITTED_BY": "E019",
               "SUBMITTED_DATE": "2026-02-01",
               "CATEGORY": "Network",
               "SUBJECT": "WiFi drops in conference room C",
@@ -1303,7 +1343,7 @@
             },
             {
               "TICKET_ID": "TK-4411",
-              "SUBMITTED_BY": "E013",
+              "SUBMITTED_BY": "E018",
               "SUBMITTED_DATE": "2026-02-03",
               "CATEGORY": "Network",
               "SUBJECT": "Cannot access staging DB",
@@ -1317,7 +1357,7 @@
             },
             {
               "TICKET_ID": "TK-4412",
-              "SUBMITTED_BY": "E008",
+              "SUBMITTED_BY": "E011",
               "SUBMITTED_DATE": "2026-02-03",
               "CATEGORY": "System",
               "SUBJECT": "Files disappearing from project directory",
@@ -1331,7 +1371,7 @@
             },
             {
               "TICKET_ID": "TK-4413",
-              "SUBMITTED_BY": "E014",
+              "SUBMITTED_BY": "E019",
               "SUBMITTED_DATE": "2026-02-04",
               "CATEGORY": "Network",
               "SUBJECT": "Cannot reach internal wiki",
@@ -1563,7 +1603,7 @@
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1004,
+              "EMPLOYEE_ID": 1003,
               "FIRST_NAME": "Marcus",
               "LAST_NAME": "Reyes",
               "EMAIL": "marcus@nexacorp.com",
@@ -1575,7 +1615,7 @@
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1005,
+              "EMPLOYEE_ID": 1004,
               "FIRST_NAME": "Tom",
               "LAST_NAME": "Chen",
               "EMAIL": "tom@nexacorp.com",
@@ -1587,19 +1627,7 @@
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1003,
-              "FIRST_NAME": "Jin",
-              "LAST_NAME": "Chen",
-              "EMAIL": "jin@nexacorp.com",
-              "DEPARTMENT": "Engineering",
-              "TITLE": "Senior Engineer",
-              "HIRE_DATE": "2025-04-01",
-              "STATUS": "resigned",
-              "MANAGER_ID": 1001,
-              "NOTES": "resigned — cited concerns about system oversight"
-            },
-            {
-              "EMPLOYEE_ID": 1006,
+              "EMPLOYEE_ID": 1005,
               "FIRST_NAME": "Sarah",
               "LAST_NAME": "Knight",
               "EMAIL": "sarah@nexacorp.com",
@@ -1611,19 +1639,67 @@
               "NOTES": "Noted system concern re: odd API calls from chip_service_account"
             },
             {
-              "EMPLOYEE_ID": 1007,
-              "FIRST_NAME": "Erik",
-              "LAST_NAME": "Lindstrom",
-              "EMAIL": "erik@nexacorp.com",
+              "EMPLOYEE_ID": 1006,
+              "FIRST_NAME": "Jin",
+              "LAST_NAME": "Chen",
+              "EMAIL": "jin@nexacorp.com",
               "DEPARTMENT": "Engineering",
-              "TITLE": "Senior Frontend Engineer",
-              "HIRE_DATE": "2025-09-01",
-              "STATUS": "active",
+              "TITLE": "Senior Engineer",
+              "HIRE_DATE": "2025-04-01",
+              "STATUS": "resigned",
               "MANAGER_ID": 1001,
-              "NOTES": null
+              "NOTES": "resigned — cited concerns about system oversight"
+            },
+            {
+              "EMPLOYEE_ID": 1007,
+              "FIRST_NAME": "Lisa",
+              "LAST_NAME": "Huang",
+              "EMAIL": "lisa@nexacorp.com",
+              "DEPARTMENT": "Marketing",
+              "TITLE": "Marketing Coordinator",
+              "HIRE_DATE": "2025-04-02",
+              "STATUS": "resigned",
+              "MANAGER_ID": 1004,
+              "NOTES": "resigned — accepted offer at larger company"
             },
             {
               "EMPLOYEE_ID": 1008,
+              "FIRST_NAME": "Priya",
+              "LAST_NAME": "Nair",
+              "EMAIL": "priya@nexacorp.com",
+              "DEPARTMENT": "People & Culture",
+              "TITLE": "People Operations Coordinator",
+              "HIRE_DATE": "2025-04-15",
+              "STATUS": "resigned",
+              "MANAGER_ID": 1004,
+              "NOTES": "resigned — relocated out of state"
+            },
+            {
+              "EMPLOYEE_ID": 1009,
+              "FIRST_NAME": "Dana",
+              "LAST_NAME": "Okafor",
+              "EMAIL": "dana@nexacorp.com",
+              "DEPARTMENT": "Operations",
+              "TITLE": "Head of Operations",
+              "HIRE_DATE": "2025-05-01",
+              "STATUS": "active",
+              "MANAGER_ID": 1003,
+              "NOTES": null
+            },
+            {
+              "EMPLOYEE_ID": 1010,
+              "FIRST_NAME": "Brett",
+              "LAST_NAME": "Sullivan",
+              "EMAIL": "brett@nexacorp.com",
+              "DEPARTMENT": "Sales",
+              "TITLE": "Business Development Rep",
+              "HIRE_DATE": "2025-05-15",
+              "STATUS": "terminated",
+              "MANAGER_ID": 1004,
+              "NOTES": "terminated — did not meet ramp targets"
+            },
+            {
+              "EMPLOYEE_ID": 1011,
               "FIRST_NAME": "Oscar",
               "LAST_NAME": "Diaz",
               "EMAIL": "oscar@nexacorp.com",
@@ -1635,31 +1711,31 @@
               "NOTES": "Flagged system concern — odd-hours access patterns in chip_service_account"
             },
             {
-              "EMPLOYEE_ID": 1009,
-              "FIRST_NAME": "Auri",
-              "LAST_NAME": "Park",
-              "EMAIL": "auri@nexacorp.com",
-              "DEPARTMENT": "Engineering",
-              "TITLE": "Data Engineer",
-              "HIRE_DATE": "2025-11-01",
+              "EMPLOYEE_ID": 1012,
+              "FIRST_NAME": "Rachel",
+              "LAST_NAME": "Gomez",
+              "EMAIL": "rachel@nexacorp.com",
+              "DEPARTMENT": "Operations",
+              "TITLE": "Operations Coordinator",
+              "HIRE_DATE": "2025-06-02",
+              "STATUS": "terminated",
+              "MANAGER_ID": 1003,
+              "NOTES": "terminated — role eliminated in restructure"
+            },
+            {
+              "EMPLOYEE_ID": 1013,
+              "FIRST_NAME": "Maya",
+              "LAST_NAME": "Johnson",
+              "EMAIL": "maya@nexacorp.com",
+              "DEPARTMENT": "People & Culture",
+              "TITLE": "People & Culture Lead",
+              "HIRE_DATE": "2025-06-15",
               "STATUS": "active",
-              "MANAGER_ID": 1001,
+              "MANAGER_ID": 1004,
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1010,
-              "FIRST_NAME": "Soham",
-              "LAST_NAME": "Parekh",
-              "EMAIL": "soham@nexacorp.com",
-              "DEPARTMENT": "Engineering",
-              "TITLE": "Full-Stack Engineer",
-              "HIRE_DATE": "2025-12-01",
-              "STATUS": "active",
-              "MANAGER_ID": 1001,
-              "NOTES": null
-            },
-            {
-              "EMPLOYEE_ID": 1016,
+              "EMPLOYEE_ID": 1014,
               "FIRST_NAME": "Cassie",
               "LAST_NAME": "Moreau",
               "EMAIL": "cassie@nexacorp.com",
@@ -1671,31 +1747,7 @@
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1012,
-              "FIRST_NAME": "Dana",
-              "LAST_NAME": "Okafor",
-              "EMAIL": "dana@nexacorp.com",
-              "DEPARTMENT": "Operations",
-              "TITLE": "Head of Operations",
-              "HIRE_DATE": "2025-05-01",
-              "STATUS": "active",
-              "MANAGER_ID": 1004,
-              "NOTES": null
-            },
-            {
-              "EMPLOYEE_ID": 1013,
-              "FIRST_NAME": "Leah",
-              "LAST_NAME": "Matsuda",
-              "EMAIL": "leah@nexacorp.com",
-              "DEPARTMENT": "Operations",
-              "TITLE": "Content & Brand Manager",
-              "HIRE_DATE": "2025-10-01",
-              "STATUS": "active",
-              "MANAGER_ID": 1004,
-              "NOTES": null
-            },
-            {
-              "EMPLOYEE_ID": 1014,
+              "EMPLOYEE_ID": 1015,
               "FIRST_NAME": "James",
               "LAST_NAME": "Wilson",
               "EMAIL": "james@nexacorp.com",
@@ -1703,11 +1755,11 @@
               "TITLE": "Account Manager",
               "HIRE_DATE": "2025-07-15",
               "STATUS": "active",
-              "MANAGER_ID": 1005,
+              "MANAGER_ID": 1004,
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1015,
+              "EMPLOYEE_ID": 1016,
               "FIRST_NAME": "Jordan",
               "LAST_NAME": "Kessler",
               "EMAIL": "jordan@nexacorp.com",
@@ -1715,19 +1767,67 @@
               "TITLE": "Growth Marketing Lead",
               "HIRE_DATE": "2025-08-01",
               "STATUS": "active",
-              "MANAGER_ID": 1005,
+              "MANAGER_ID": 1004,
               "NOTES": null
             },
             {
-              "EMPLOYEE_ID": 1011,
-              "FIRST_NAME": "Maya",
-              "LAST_NAME": "Johnson",
-              "EMAIL": "maya@nexacorp.com",
-              "DEPARTMENT": "People & Culture",
-              "TITLE": "People & Culture Lead",
-              "HIRE_DATE": "2025-06-15",
+              "EMPLOYEE_ID": 1017,
+              "FIRST_NAME": "Navid",
+              "LAST_NAME": "Ahmadi",
+              "EMAIL": "navid@nexacorp.com",
+              "DEPARTMENT": "Engineering",
+              "TITLE": "Software Engineer",
+              "HIRE_DATE": "2025-08-15",
+              "STATUS": "resigned",
+              "MANAGER_ID": 1001,
+              "NOTES": "resigned — mutual decision, not the right fit"
+            },
+            {
+              "EMPLOYEE_ID": 1018,
+              "FIRST_NAME": "Erik",
+              "LAST_NAME": "Lindstrom",
+              "EMAIL": "erik@nexacorp.com",
+              "DEPARTMENT": "Engineering",
+              "TITLE": "Senior Frontend Engineer",
+              "HIRE_DATE": "2025-09-01",
               "STATUS": "active",
-              "MANAGER_ID": 1005,
+              "MANAGER_ID": 1001,
+              "NOTES": null
+            },
+            {
+              "EMPLOYEE_ID": 1019,
+              "FIRST_NAME": "Leah",
+              "LAST_NAME": "Matsuda",
+              "EMAIL": "leah@nexacorp.com",
+              "DEPARTMENT": "Operations",
+              "TITLE": "Content & Brand Manager",
+              "HIRE_DATE": "2025-10-01",
+              "STATUS": "active",
+              "MANAGER_ID": 1003,
+              "NOTES": null
+            },
+            {
+              "EMPLOYEE_ID": 1020,
+              "FIRST_NAME": "Auri",
+              "LAST_NAME": "Park",
+              "EMAIL": "auri@nexacorp.com",
+              "DEPARTMENT": "Engineering",
+              "TITLE": "Data Engineer",
+              "HIRE_DATE": "2025-11-01",
+              "STATUS": "active",
+              "MANAGER_ID": 1001,
+              "NOTES": null
+            },
+            {
+              "EMPLOYEE_ID": 1021,
+              "FIRST_NAME": "Soham",
+              "LAST_NAME": "Parekh",
+              "EMAIL": "soham@nexacorp.com",
+              "DEPARTMENT": "Engineering",
+              "TITLE": "Full-Stack Engineer",
+              "HIRE_DATE": "2025-12-01",
+              "STATUS": "active",
+              "MANAGER_ID": 1001,
               "NOTES": null
             }
           ],
@@ -1779,7 +1879,7 @@
               "NAME": "Chip v3 Rollout",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
-              "LEAD_ID": 1006,
+              "LEAD_ID": 1005,
               "START_DATE": "2026-01-29",
               "BUDGET": 500000
             },
@@ -1788,7 +1888,7 @@
               "NAME": "Data Pipeline Migration",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
-              "LEAD_ID": 1009,
+              "LEAD_ID": 1020,
               "START_DATE": "2026-02-03",
               "BUDGET": 250000
             },
@@ -1797,7 +1897,7 @@
               "NAME": "Brand Refresh",
               "DEPARTMENT": "Operations",
               "STATUS": "completed",
-              "LEAD_ID": 1013,
+              "LEAD_ID": 1019,
               "START_DATE": "2025-09-01",
               "BUDGET": 120000
             },
@@ -1806,7 +1906,7 @@
               "NAME": "Infrastructure Audit Q1",
               "DEPARTMENT": "Engineering",
               "STATUS": "active",
-              "LEAD_ID": 1008,
+              "LEAD_ID": 1011,
               "START_DATE": "2026-02-23",
               "BUDGET": 80000
             },
@@ -1815,7 +1915,7 @@
               "NAME": "Chip Integration Testing",
               "DEPARTMENT": "Engineering",
               "STATUS": "on_hold",
-              "LEAD_ID": 1016,
+              "LEAD_ID": 1014,
               "START_DATE": "2026-02-01",
               "BUDGET": 60000
             }
@@ -1857,25 +1957,25 @@
             {
               "DEPT_ID": 2,
               "NAME": "Operations",
-              "HEAD_ID": 1012,
+              "HEAD_ID": 1009,
               "BUDGET": 600000
             },
             {
               "DEPT_ID": 3,
               "NAME": "Sales",
-              "HEAD_ID": 1005,
+              "HEAD_ID": 1004,
               "BUDGET": 500000
             },
             {
               "DEPT_ID": 4,
               "NAME": "Marketing",
-              "HEAD_ID": 1005,
+              "HEAD_ID": 1004,
               "BUDGET": 400000
             },
             {
               "DEPT_ID": 5,
               "NAME": "People & Culture",
-              "HEAD_ID": 1011,
+              "HEAD_ID": 1013,
               "BUDGET": 300000
             },
             {

@@ -5,7 +5,7 @@ register(
   (_args, _flags, ctx) => {
     if (!ctx.envVars?.CHIP_API_KEY) {
       return {
-        output: "chip: error: CHIP_API_KEY not set\nRun 'printenv' to check your environment variables.",
+        output: "chip: error: CHIP_API_KEY not set",
         exitCode: 1,
         triggerEvents: [{ type: "command_executed", detail: "chip_api_error" }],
       };
