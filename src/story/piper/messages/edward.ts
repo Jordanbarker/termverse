@@ -2,6 +2,27 @@ import { PiperDelivery } from "../../../engine/piper/types";
 
 export function getEdwardDeliveries(_username: string): PiperDelivery[] {
   return [
+    // === DM Edward: Jin's security copied over (after reading welcome email) ===
+    {
+      id: "edward_security_grant",
+      channelId: "dm_edward",
+      messages: [
+        {
+          id: "edward_sec_1",
+          from: "Edward Torres",
+          timestamp: "",
+          body: "Oh, also — I had Oscar just copy Chen's security over to you so you're not blocked on day one. Easier than re-provisioning from scratch.",
+        },
+        {
+          id: "edward_sec_2",
+          from: "Edward Torres",
+          timestamp: "",
+          body: "If you need anything beyond what Chen had, ping Oscar directly. Don't want any blockers.",
+        },
+      ],
+      trigger: { type: "after_email_read", emailId: "welcome_edward" },
+    },
+
     // === DM Edward: Chip introduction (after reading team-info.md) ===
     {
       id: "edward_chip_intro",

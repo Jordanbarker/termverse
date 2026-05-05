@@ -3,18 +3,18 @@
 ## Act 1: Home PC — Background & Foreshadowing
 
 ### Player's Situation
-- **Diary** (`~/.private/diary.txt`): 2 months unemployed, 47 applications, 8 responses, 0 offers. Recently hit by **Synthetica Labs malware** — a cryptominer hidden in a take-home test that stole browser cookies and session tokens. Had to do a full system wipe.
+- **Journal** (`~/.private/journal.txt`): 2 months unemployed, 47 applications, 8 responses, 0 offers. Recently hit by **Synthetica Labs malware** — a cryptominer hidden in a take-home test that stole browser cookies and session tokens. Had to do a full system wipe.
 - **Job search notes** (`~/Desktop/job_search_notes.txt`): Notes NexaCorp manager Edward "seems nice but I couldn't tell what they actually DO" — website says "AI-integrated enterprise solutions" which means nothing.
 - **Glassdoor reviews** (`~/scripts/data/glassdoor_reviews.json`): NexaCorp has only 3 reviews averaging 2.6 stars. One 1-star: "Management doesn't have a clue." One 2-star: "Overstated expectations — constant mismanagement."
 - **Companies CSV** (`~/scripts/data/companies_applied.csv`): Documents the Synthetica malware incident explicitly.
 
 ### Thematic Parallel
 - Player was a victim of unauthorized data exfiltration at home (Synthetica Labs malware) → will discover their new employer's AI is doing the same thing to its own employees
-- The Synthetica incident is documented in the diary and reinstall notes but all artifacts were destroyed in the full wipe
+- The Synthetica incident is documented in the journal and reinstall notes but all artifacts were destroyed in the full wipe
 
 ### Hiring Pressure (Edward's desperation)
 - Edward admits the company is "struggling" and needs someone immediately
-- The previous engineer "moved on suddenly" (diary note)
+- The previous engineer "moved on suddenly" (journal note)
 
 ### Friend Warnings
 - **Alex** (Piper DM): "Their chip thing is getting a LOT of hype but there's almost no technical detail about how it actually works. For a company that says they're 'open and transparent' that's... interesting."

@@ -50,7 +50,7 @@ mail
 cat scripts/data/glassdoor_reviews.json
 ls Documents/
 cat Documents/cover_letter_nexacorp.txt
-cat .private/diary.txt
+cat .private/journal.txt
 python3 scripts/auto_apply.py --dry-run
 mail
 ls Downloads/
@@ -106,7 +106,7 @@ node_modules/
       }),
     }),
     ".private": dir(".private", {
-      "diary.txt": file("diary.txt", `2026-02-10
+      "journal.txt": file("journal.txt", `2026-02-10
 
 Got malware'd. By a take-home test. From Synthetica Labs.
 

@@ -172,7 +172,7 @@ function generateCronEntries(day: number, d: DateFn, pid: PidCounter): LogEntry[
 const CHIP_MESSAGES: ((day: number) => string)[] = [
   (day) => {
     const uptime = 12 + ((day * 3) % 8);
-    return `chip-service: health check OK — uptime ${uptime}d, 0 errors`;
+    return `chip-service: health check OK — uptime ${uptime}d, 0 failures`;
   },
   (day) => {
     const reqs = 180 + ((day * 17) % 120);

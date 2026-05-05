@@ -83,18 +83,6 @@ Want to make sure I don't step on any landmines my first week.`,
   Shell:        /bin/zsh
   Mail:         /var/mail/${username}
 
-You can check for new messages anytime by typing 'mail' in the
-terminal. Use 'mail <number>' to read a specific message.
-
-Standard system directories:
-  /var/log/          System logs
-  /opt/chip/         Chip AI assistant
-  /etc/              System configuration
-  /srv/engineering/  Engineering team resources
-
-Your colleagues will help you get set up with additional tools
-as you need them. Use 'man <command>' for documentation.
-
 If you have any issues, email it@nexacorp.com.
 
 — NexaCorp IT Department

@@ -85,6 +85,7 @@ export const PIPER_DELIVERY_IDS = [
   "maya_dm_checkin_reply",
   "sarah_dm_mystery",
   "cassie_dm_product",
+  "edward_security_grant",
   "edward_chip_intro",
   "edward_chip_error",
   "edward_chip_fix",
