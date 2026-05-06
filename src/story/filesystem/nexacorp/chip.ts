@@ -480,12 +480,6 @@ removed from active logs during rotation:
 - \`scheduled_maintenance\` — expected cron activity
 - \`log_rotation\` — rotation operation markers
 - \`chip_service_account\` — service account routine activity
-
-## Retention Policy
-
-- Active logs: 7 days (uncompressed)
-- Archived logs: 90 days (gzip compressed)
-- Backup snapshots: retained indefinitely in /var/log/*.bak
 `),
           "cleanup.sh": file("cleanup.sh", `#!/bin/bash
 # Chip service account — scheduled maintenance

@@ -201,6 +201,7 @@ export function getNexacorpStoryFlagTriggers(_username: string): StoryFlagTrigge
     { event: "command_executed", detail: "chip_api_error", flag: "chip_error_seen", value: true },
     { event: "piper_delivered", detail: "edward_chip_fix", flag: "printenv_unlocked", value: true, toast: "printenv command unlocked!" },
     { event: "command_executed", detail: "sourced_zshrc", flag: "sourced_nexacorp_zshrc", value: true, requiredFlags: ["printenv_unlocked"] },
+    { event: "command_executed", detail: "exported_chip_api_key", flag: "sourced_nexacorp_zshrc", value: true, requiredFlags: ["printenv_unlocked"] },
     { event: "file_read", detail: "welcome_edward", flag: "piper_unlocked", value: true, toast: "piper command unlocked!" },
     { event: "file_read", detail: "edward_end_of_day", flag: "read_end_of_day", value: true },
     { event: "file_read", detail: "discovered_log_tampering", flag: "discovered_log_tampering", value: true },

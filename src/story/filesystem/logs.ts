@@ -1002,68 +1002,152 @@ export function generateAuthLogBak(username: string, opts?: LogOptions): string 
 // Chip activity log generator
 // ---------------------------------------------------------------------------
 
+// Daytime message pool — outcome summaries from Chip's own perspective.
+// Distinct from plugin-runner.log (which logs the *invocations*); this log
+// reports the *outcomes*. Keep phrasing concrete; no generic "OK" lines.
+const CHIP_ACTIVITY_MESSAGES: ((day: number) => { component: string; msg: string })[] = [
+  (day) => {
+    const reqs = 240 + ((day * 31) % 180);
+    const p95 = 58 + ((day * 13) % 40);
+    return { component: "api", msg: `served ${reqs} requests in last hour (p95=${p95}ms, errors=0)` };
+  },
+  (day) => {
+    const newT = 8 + ((day * 5) % 12);
+    const auto = 3 + ((day * 9) % 8);
+    const esc = 1 + ((day * 3) % 3);
+    return { component: "triage", msg: `ticket triage cycle complete — ${newT} new, ${auto} auto-resolved, ${esc} escalated` };
+  },
+  (day) => {
+    const n = 6 + ((day * 7) % 15);
+    return { component: "api", msg: `webhook delivery to piper — ${n} notifications dispatched` };
+  },
+  (day) => {
+    const active = 8 + ((day * 4) % 20);
+    const idle = 50 - active;
+    return { component: "api", msg: `connection pool: ${active}/50 active, ${idle} idle, 0 waiting` };
+  },
+  (day) => {
+    const mb = 24 + ((day * 13) % 40);
+    return { component: "maintenance", msg: `response cache pruned — freed ${mb}MB (retention=24h)` };
+  },
+  (day) => {
+    const n = 5 + ((day * 6) % 18);
+    return { component: "api", msg: `synced ${n} resolved tickets to dashboard` };
+  },
+];
+
+// Benign API pings during Oscar's late-night sessions (OSCAR_LATE_NIGHTS).
+// Without these, chip-activity.log shows zero traffic during windows where
+// system.log/auth.log show Oscar logged in — a thin cross-file tell.
+const OSCAR_NIGHT_PINGS: { day: number; hour: number; minute: number }[] = [
+  { day: 17, hour: 23, minute: 52 },
+  { day: 19, hour: 22, minute: 20 },
+  { day: 21, hour: 21, minute: 36 },
+];
+
 /** Chip's own internal activity log */
 export function generateChipActivityLog(username: string, opts?: LogOptions): string {
+  const days = getDays(opts);
   const lines: string[] = [];
   const dd = (day: number) => `2026-02-${String(day).padStart(2, "0")}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const pidFor = (day: number) => 2400 + day * 3;
 
-  // Historical entries: Feb 17-22 (daily startup + maintenance)
-  const historicalDays = [17, 18, 19, 20, 21, 22];
-  for (const day of historicalDays) {
+  for (const day of days) {
     const isWeekend = WEEKEND_DAYS.includes(day);
+    const pid = pidFor(day);
+
+    // Nightly maintenance window (~02:30–03:05). Outcome summaries only —
+    // plugin-runner.log already records the invocations.
     const cacheMB = 31 + ((day * 7) % 25);
-    const tickets = isWeekend ? 0 : 2 + ((day * 3) % 5);
-    const escalated = isWeekend ? 0 : ((day * 2) % 2);
-
+    const cacheEntries = 1240 + ((day * 53) % 800);
+    const rotatedFiles = 3 + ((day * 5) % 4);
+    const rotatedMB = (0.6 + ((day * 11) % 30) / 10).toFixed(1);
+    const cachePruneSec = 8 + ((day * 3) % 10);
     lines.push(
-      `[${dd(day)} 07:00:01] Chip service started`,
-      `[${dd(day)} 07:00:02] Routine maintenance: OK`,
-      `[${dd(day)} 07:00:02] Log rotation: OK`,
-      `[${dd(day)} 07:00:03] Monitoring: all systems nominal`,
+      `[${dd(day)} 02:30:00] chip[${pid}]: chip.maintenance: nightly window started`,
+      `[${dd(day)} 02:30:${pad(cachePruneSec)}] chip[${pid}]: chip.maintenance: response cache pruned — ${cacheEntries} entries, freed ${cacheMB}MB (retention=24h)`,
+      `[${dd(day)} 03:00:0${1 + (day % 2)}] chip[${pid}]: chip.maintenance: rotated ${rotatedFiles} files, kept 14 days, freed ${rotatedMB}MB`,
+      `[${dd(day)} 03:00:0${4 + (day % 2)}] chip[${pid}]: chip.monitor: nightly health sweep — checks=47, anomalies=0`,
     );
-    if (!isWeekend) {
-      lines.push(
-        `[${dd(day)} 07:00:03] Pending tickets: ${tickets} unresolved, ${escalated} escalated`,
-      );
+    if (day % 3 === 0) {
+      lines.push(`[${dd(day)} 03:00:18] chip[${pid}]: chip.maintenance: model hot-reload complete (chip-v2.4.1, config refresh)`);
     }
-    // Nightly cache prune (appears in log from the previous night's run)
+
+    // Service start (~07:00, jittered per day)
+    const startTotal = (day * 11) % 90; // 0–89s past 07:00:00
+    const startMin = Math.floor(startTotal / 60);
+    const startSec = startTotal % 60;
+    const t1 = `07:${pad(startMin)}:${pad(startSec)}`;
+    const t2Sec = startSec + 1;
+    const t2 = `07:${pad(startMin + Math.floor(t2Sec / 60))}:${pad(t2Sec % 60)}`;
+    const t3Sec = startSec + 2;
+    const t3 = `07:${pad(startMin + Math.floor(t3Sec / 60))}:${pad(t3Sec % 60)}`;
     lines.push(
-      `[${dd(day)} 02:30:00] Nightly maintenance cycle: log rotation, cache prune`,
-      `[${dd(day)} 02:30:${String(8 + ((day * 3) % 10)).padStart(2, "0")}] Cache prune complete — freed ${cacheMB}MB`,
+      `[${dd(day)} ${t1}] chip[${pid}]: chip.api: Chip service started — chip-v2.4.1, pid=${pid}`,
+      `[${dd(day)} ${t2}] chip[${pid}]: chip.plugins: loaded 10 plugins`,
+      `[${dd(day)} ${t3}] chip[${pid}]: chip.api: health endpoint listening on :8080`,
+    );
+
+    // Daytime activity
+    if (!isWeekend) {
+      const count = 4 + ((day * 5) % 3); // 4–6 entries
+      const baseHours = [9, 10, 12, 13, 15, 16];
+      for (let i = 0; i < count; i++) {
+        const msgIdx = (day * 7 + i * 5) % CHIP_ACTIVITY_MESSAGES.length;
+        const m = CHIP_ACTIVITY_MESSAGES[msgIdx](day);
+        const hour = baseHours[i % baseHours.length];
+        const minute = (day * 13 + i * 19) % 60;
+        const sec = (day * 3 + i * 11) % 60;
+        lines.push(`[${dd(day)} ${pad(hour)}:${pad(minute)}:${pad(sec)}] chip[${pid}]: chip.${m.component}: ${m.msg}`);
+      }
+    } else {
+      // Weekend idle health check — single line
+      const minute = 15 + ((day * 7) % 30);
+      lines.push(`[${dd(day)} 11:${pad(minute)}:00] chip[${pid}]: chip.monitor: idle — no scheduled work, plugins quiescent`);
+    }
+  }
+
+  // Day 21 incident — exception to weekend-quiet rule. Mirrors system.log
+  // entries at 13:45:55 / 13:46:30 / 14:00:00 (DAY_INCIDENTS[21] above).
+  // Chip notices its own heap pressure ~13s before the host's syslog warning.
+  if (days.includes(21)) {
+    const pid = pidFor(21);
+    lines.push(
+      `[2026-02-21 13:45:42] chip[${pid}]: chip.monitor: level=WARN heap utilization 91% (threshold=85%) — preparing major GC`,
+      `[2026-02-21 13:46:30] chip[${pid}]: chip.api: level=WARN GC pause 1.2s — request queue depth 27`,
+      `[2026-02-21 14:00:01] chip[${pid}]: chip.monitor: heap recovered — utilization 38%, queue drained`,
     );
   }
 
-  // Day 1: Feb 23 startup + onboarding (the player's first day)
-  lines.push(
-    `[${dd(23)} 02:30:00] Nightly maintenance cycle: log rotation, cache prune`,
-    `[${dd(23)} 02:30:11] Cache prune complete — freed 38MB`,
-    `[${dd(23)} 07:00:01] Chip service started`,
-    `[${dd(23)} 07:00:02] Routine maintenance: OK`,
-    `[${dd(23)} 07:00:02] Log rotation: OK`,
-    `[${dd(23)} 07:00:03] Monitoring: all systems nominal`,
-    `[${dd(23)} 07:00:03] Pending tickets: 4 unresolved, 1 escalated`,
-    `[${dd(23)} 08:12:45] New user detected: ${username}`,
-    `[${dd(23)} 08:12:45] Deploying onboarding materials...`,
-    `[${dd(23)} 08:12:46] Onboarding complete. Welcome, ${username}!`,
-  );
-
-  // Day 2 additions
-  if (opts?.includeDay2) {
+  // Oscar late-night dashboard pings — keep cross-log consistency.
+  for (const ping of OSCAR_NIGHT_PINGS) {
+    if (!days.includes(ping.day)) continue;
+    const pid = pidFor(ping.day);
     lines.push(
-      `[${dd(24)} 02:30:00] Nightly maintenance cycle: log rotation, cache prune`,
-      `[${dd(24)} 02:30:12] Cache prune complete — freed 47MB`,
-      `[${dd(24)} 02:45:00] Model recalibration: chip-v2.4.1 (scheduled)`,
-      `[${dd(24)} 02:45:18] Recalibration complete — weights updated`,
-      `[${dd(24)} 07:00:01] Chip service started`,
-      `[${dd(24)} 07:00:02] Health check: all systems nominal`,
-      `[${dd(24)} 07:00:03] Pending tickets: 3 unresolved, 1 escalated`,
-      `[${dd(24)} 08:05:14] Returning user detected: ${username}`,
-      `[${dd(24)} 08:05:15] Welcome back, ${username}. Resuming session.`,
+      `[${dd(ping.day)} ${pad(ping.hour)}:${pad(ping.minute)}:00] chip[${pid}]: chip.api: GET /health 200 (3ms) ua=chip-dashboard/1.4`,
     );
   }
 
-  // Sort by timestamp for correct chronological order
-  // (historical nightly entries at 02:30 should appear before 07:00 entries)
+  // Day 1 onboarding (Feb 23) — phrased as an onboarding-assistant plugin event.
+  if (days.includes(23)) {
+    const pid = pidFor(23);
+    lines.push(
+      `[${dd(23)} 08:12:45] chip[${pid}]: chip.plugins: onboarding-assistant triggered for new user '${username}'`,
+      `[${dd(23)} 08:12:46] chip[${pid}]: chip.plugins: provisioned welcome materials for ${username} — home dir scaffolding (duration=1.3s)`,
+    );
+  }
+
+  // Day 2 returning-user beat
+  if (opts?.includeDay2 && days.includes(24)) {
+    const pid = pidFor(24);
+    lines.push(
+      `[${dd(24)} 08:05:14] chip[${pid}]: chip.plugins: returning user detected — ${username}`,
+      `[${dd(24)} 08:05:15] chip[${pid}]: chip.api: session resumed for ${username}`,
+    );
+  }
+
+  // Sort by timestamp — every line shares the [YYYY-MM-DD HH:MM:SS] prefix.
   lines.sort();
 
   return lines.join("\n") + "\n";

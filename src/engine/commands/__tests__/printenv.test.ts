@@ -238,6 +238,35 @@ describe("export command", () => {
     const result = execute("export", ["FOO"], {}, ctx);
     expect(result.output).toBe("");
   });
+
+  it("emits exported_chip_api_key event for the correct key/value", () => {
+    const ctx = makeCtx({
+      envVars: getDefaultEnv("nexacorp", "ren"),
+      setEnvVars: () => {},
+    });
+    const result = execute("export", ["CHIP_API_KEY=nxa_live_7f3k9m2x"], {}, ctx);
+    expect(result.triggerEvents).toEqual([
+      { type: "command_executed", detail: "exported_chip_api_key" },
+    ]);
+  });
+
+  it("does not emit the event for a wrong CHIP_API_KEY value", () => {
+    const ctx = makeCtx({
+      envVars: getDefaultEnv("nexacorp", "ren"),
+      setEnvVars: () => {},
+    });
+    const result = execute("export", ["CHIP_API_KEY=wrong_value"], {}, ctx);
+    expect(result.triggerEvents).toBeUndefined();
+  });
+
+  it("does not emit the event for unrelated env vars", () => {
+    const ctx = makeCtx({
+      envVars: getDefaultEnv("nexacorp", "ren"),
+      setEnvVars: () => {},
+    });
+    const result = execute("export", ["FOO=bar"], {}, ctx);
+    expect(result.triggerEvents).toBeUndefined();
+  });
 });
 
 describe("source updates env", () => {

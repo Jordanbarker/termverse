@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { GameEvent } from "../../mail/delivery";
 import { HELP_TEXTS } from "./helpTexts";
 
 const exportCmd: CommandHandler = (args, _flags, ctx) => {
@@ -11,6 +12,8 @@ const exportCmd: CommandHandler = (args, _flags, ctx) => {
       .map(([k, v]) => `declare -x ${k}="${v}"`);
     return { output: lines.join("\n") };
   }
+
+  const events: GameEvent[] = [];
 
   // Parse VAR=VALUE assignments
   for (const arg of args) {
@@ -29,9 +32,12 @@ const exportCmd: CommandHandler = (args, _flags, ctx) => {
     if (ctx.envVars && ctx.setEnvVars) {
       ctx.setEnvVars({ ...ctx.envVars, [key]: value });
     }
+    if (key === "CHIP_API_KEY" && value === "nxa_live_7f3k9m2x") {
+      events.push({ type: "command_executed", detail: "exported_chip_api_key" });
+    }
   }
 
-  return { output: "" };
+  return { output: "", triggerEvents: events.length ? events : undefined };
 };
 
 register("export", exportCmd, "Set environment variables", HELP_TEXTS.export);

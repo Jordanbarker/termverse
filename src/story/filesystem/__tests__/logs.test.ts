@@ -102,9 +102,9 @@ describe("generateChipActivityLog", () => {
   it("Day 1 contains startup and onboarding", () => {
     const log = generateChipActivityLog("testuser");
     expect(log).toContain("Chip service started");
-    expect(log).toContain("Routine maintenance: OK");
-    expect(log).toContain("New user detected: testuser");
-    expect(log).toContain("Onboarding complete. Welcome, testuser!");
+    expect(log).toContain("chip.maintenance: nightly window started");
+    expect(log).toContain("onboarding-assistant triggered for new user 'testuser'");
+    expect(log).toContain("provisioned welcome materials for testuser");
   });
 
   it("Day 1 has no Feb 24 entries", () => {
@@ -112,17 +112,17 @@ describe("generateChipActivityLog", () => {
     expect(log).not.toContain("2026-02-24");
   });
 
-  it("Day 2 includes nightly maintenance and recalibration", () => {
+  it("Day 2 includes nightly maintenance and model hot-reload", () => {
     const log = generateChipActivityLog("testuser", { includeDay2: true });
-    expect(log).toContain("Nightly maintenance cycle");
-    expect(log).toContain("Model recalibration: chip-v2.4.1 (scheduled)");
+    expect(log).toContain("chip.maintenance: nightly window started");
+    expect(log).toContain("model hot-reload complete (chip-v2.4.1, config refresh)");
   });
 
   it("Day 2 includes morning boot and player return", () => {
     const log = generateChipActivityLog("testuser", { includeDay2: true });
-    expect(log).toContain("[2026-02-24 07:00:01] Chip service started");
-    expect(log).toContain("Returning user detected: testuser");
-    expect(log).toContain("Welcome back, testuser");
+    expect(log).toMatch(/\[2026-02-24 07:\d\d:\d\d\] chip\[\d+\]: chip\.api: Chip service started/);
+    expect(log).toContain("returning user detected — testuser");
+    expect(log).toContain("session resumed for testuser");
   });
 
   it("is deterministic", () => {

@@ -120,21 +120,12 @@ const ALL_ITEMS: ChipMenuItem[] = [
       "maintenance and debugging.",
   },
   {
-    id: "chip",
-    label: "What exactly do you do here?",
-    response:
-      "I'm NexaCorp's AI chatbot — the company's flagship product, actually. " +
-      "I have access to internal systems — the data warehouse, logs, documentation, email — " +
-      "so I can answer questions and help with day-to-day tasks. The team uses me for everything " +
-      "from looking up employee info to running system queries.",
-  },
-  {
     id: "chip_access",
     label: "What can you access?",
     response:
       "I can query the Snowflake data warehouse, check system logs, manage tickets, " +
-      "and help with documentation. I also handle some automated maintenance — log rotation, " +
-      "monitoring, that kind of thing. If you need data from any of those systems, " +
+      "read team email, and help with documentation. I also handle some automated maintenance — " +
+      "log rotation, monitoring, that kind of thing. If you need data from any of those systems, " +
       "just ask and I can run the query for you.",
   },
   {

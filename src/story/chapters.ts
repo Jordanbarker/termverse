@@ -236,7 +236,7 @@ export const CHAPTERS: ChapterDefinition[] = [
       },
       {
         id: "source_zshrc",
-        description: "Reload your shell config",
+        description: "Set CHIP_API_KEY in your environment",
         check: { source: "storyFlag", key: "sourced_nexacorp_zshrc" },
         hidden: true,
         visibleWhen: { source: "storyFlag", key: "printenv_unlocked" },
