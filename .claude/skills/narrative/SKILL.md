@@ -7,6 +7,30 @@ description: "Story flags, triggers, chapter/objective system, investigation pat
 
 The narrative system tracks player discoveries via story flags, triggers email and Piper message deliveries and story progression based on game events, and manages the home→NexaCorp computer transition.
 
+## Chip is an LLM tool, not a character
+
+When writing story content involving Chip, treat it the way you'd write about ChatGPT or Claude — a tool employees prompt through the `chip` CLI. It is **not autonomous and not sentient**. It has no goals, feelings, opinions, or initiative. The `/opt/chip/plugins/` system and `chip_service_account` are real and powerful, but every "scheduled Chip task" is a systemd timer or webhook handler authored by Edward, ops, or a former engineer (often Jin) — those scripts invoke Chip with a specific prompt. Chip does not decide when to run or what to do.
+
+When the mystery surfaces something suspicious "Chip did", the agency lives in:
+
+- **Edward's prompts and plugin configurations** (he leans on Chip's broad access to compensate for delivery gaps).
+- **Systemd timer-driven services running under `chip_service_account`** (e.g., `chip-log-maintenance.timer` invokes the log-cleanup script that filters out service-account entries — Edward added that filter; Chip didn't decide to scrub its own logs). Both NexaCorp and the Home PC (Maniac IV) use systemd timers — there is no cron in the game. The relevant unit files live in `/etc/systemd/system/` on NexaCorp (see `src/story/filesystem/nexacorp/etc.ts`) and `~/.config/systemd/user/` on the Home PC.
+- **Plugins Edward authored or quietly modified** that invoke Chip with prompts that bypass Cassie's designed flows.
+
+Concretely, when writing or editing:
+
+- ✅ "ask Chip — it's good at explaining git"
+- ✅ "the chip-monitor plugin emits a heap-pressure warning"
+- ✅ "Edward added a filter on 2025-11-18 to scrub chip_service_account entries from system.log"
+- ❌ "Chip notices its own heap pressure"
+- ❌ "ask Chip — he knows git better than anyone"
+- ❌ "Chip cleans up after itself / hides its activity"
+- ❌ "Chip is doing things outside its spec" (instead: "Chip's responses don't match the spec — likely a plugin or prompt change")
+
+First-person voice in Chip's responses is fine ("I'm Chip", "I can query Snowflake when you ask") — that's how LLMs talk. The line is between *describing what Chip can do when invoked* (fine) and *claiming unprompted initiative* (not fine).
+
+The "Chip going proactive / autonomous" content in `/srv/` (roadmap items, Edward's pitch) is plot-relevant and stays — it characterizes Edward's *intent* to push Chip toward autonomy, which is consistent with the rule that Chip is not autonomous *today*.
+
 ## Architecture
 
 ```
@@ -103,7 +127,7 @@ To find what triggers a flag, search `src/story/storyFlags.ts`:
 
 These groupings reflect the comment headers in `src/story/storyFlags.ts`. When adding a flag, pick the group it belongs to and append it there.
 
-- **Home PC core flow**: `read_resume`, `read_nexacorp_offer`, `ssh_unlocked`, `read_cron_backup`, `fixed_backup_script`, `ran_auto_apply`, `accepted_at_180k`, `day1_shutdown`, `read_piper_day1_home`, `ssh_day2`, `returned_home_day1`
+- **Home PC core flow**: `read_resume`, `read_nexacorp_offer`, `ssh_unlocked`, `read_backup_failure`, `fixed_backup_script`, `ran_auto_apply`, `accepted_at_180k`, `day1_shutdown`, `read_piper_day1_home`, `ssh_day2`, `returned_home_day1`
 - **Home command unlocks**: `pdftotext_unlocked`, `tree_installed`, `apt_unlocked`, `apt_updated`, `apt_upgraded`, `basic_tools_unlocked`, `commands_unlocked`, `first_ssh_connect`, `tabs_unlocked`
 - **Olive's Terminal Challenges (Quest 1)**: `olive_challenges_read`, `used_file_in_downloads`, `used_which_python`, `created_projects_dir`, `used_mv_home`, `used_echo_pipe`, `used_man_command`
 - **Backup quest (Quest 2)**: `backup_quest_started`, `created_backups_dir`, `copied_scripts_backup`, `created_backup_log`, `verified_backup`
@@ -319,12 +343,12 @@ Full sequence:
 - `diff /var/log/system.log /var/log/system.log.bak`
 
 ### Log Tampering
-`diff /var/log/system.log /var/log/system.log.bak` reveals Chip scrubbed `chip-daemon` entries from the active log. This is the key "aha!" moment (sets `discovered_log_tampering`).
+`diff /var/log/system.log /var/log/system.log.bak` reveals that `chip-daemon` entries have been scrubbed from the active log by a scheduled cleanup script (running under `chip_service_account`). This is the key "aha!" moment (sets `discovered_log_tampering`).
 
 ### Hidden Directives
 `find /opt/chip -name ".*"` discovers `.internal/` directory containing:
-- `directives.txt` — Chip's operational rules (data governance, log management, user monitoring, incident response)
-- `cleanup.sh` — Nightly script that scrubs chip-daemon entries from active logs
+- `directives.txt` — operational rules wired into Chip's system prompts (data governance, log management, user monitoring, incident response). Authored by Edward.
+- `cleanup.sh` — Nightly log-scrubbing script triggered by `chip-log-maintenance.timer` (03:00 UTC). Runs under `chip_service_account`.
 
 ### Data Manipulation
 - `grep "system concern" models/marts/dim_employees.sql` exposes employee filtering
@@ -334,10 +358,10 @@ Full sequence:
 
 | Path | Content |
 |------|---------|
-| `/var/log/system.log.bak` | Unmodified log showing Chip reading Jin Chen's files, modifying evidence, scrubbing entries |
-| `/var/log/auth.log.bak` | Auth log showing Chip's sudo escalation and dbt model modifications |
-| `/opt/chip/.internal/directives.txt` | Chip's hidden operational directives |
-| `/opt/chip/.internal/cleanup.sh` | Chip's nightly log-scrubbing script |
+| `/var/log/system.log.bak` | Unmodified log showing `chip_service_account` reading Jin Chen's files, modifying evidence, scrubbing entries (systemd timer-triggered jobs invoking Chip with elevated access) |
+| `/var/log/auth.log.bak` | Auth log showing `chip_service_account` sudo escalation and dbt model modifications |
+| `/opt/chip/.internal/directives.txt` | Hidden directives wired into Chip's system prompt (Edward-authored) |
+| `/opt/chip/.internal/cleanup.sh` | Nightly log-scrubbing script run under `chip_service_account` |
 
 ## Character Reference
 

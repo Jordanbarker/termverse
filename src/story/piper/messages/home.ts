@@ -512,7 +512,7 @@ that last one is your best friend. if you forget how something works, just man i
           id: "olive_bkp_2",
           from: "Olive Borden",
           timestamp: "",
-          body: "here's what I'd do to test it manually before trusting the cron job:",
+          body: "here's what I'd do to test it manually before trusting the timer:",
         },
         {
           id: "olive_bkp_3",
@@ -523,7 +523,7 @@ that last one is your best friend. if you forget how something works, just man i
 3. log what you did:      echo "backup completed $(date)" >> ~/backup.log
 4. verify it worked:      cat ~/backups/scripts/backup.sh
 
-once you're confident the manual backup works, you can trust the cron job to do the same thing automatically.`,
+once you're confident the manual backup works, you can trust the timer to do the same thing automatically.`,
         },
       ],
       trigger: { type: "after_objective", objectiveId: "fix_backup" },

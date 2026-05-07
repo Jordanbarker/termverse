@@ -63,7 +63,7 @@ interface GameStore {
   resetGame: () => void;
   saveGame: (slotId: SaveSlotId, label?: string) => boolean;
   loadGame: (slotId: SaveSlotId) => boolean;
-  loadCheckpointData: (data: { chapter: string; activeComputer: ComputerId; storyFlags: StoryFlags; deliveredEmailIds: string[]; deliveredPiperIds: string[]; completedObjectives: string[]; computers: ComputerId[]; commandHistory?: Partial<Record<ComputerId, string[]>>; aliases?: Partial<Record<ComputerId, Record<string, string>>> }) => boolean;
+  loadCheckpointData: (data: { chapter: string; activeComputer: ComputerId; storyFlags: StoryFlags; deliveredEmailIds: string[]; deliveredPiperIds: string[]; completedObjectives: string[]; computers: ComputerId[]; commandHistory?: Partial<Record<ComputerId, string[]>>; aliases?: Partial<Record<ComputerId, Record<string, string>>>; envVars?: Partial<Record<ComputerId, Record<string, string>>> }) => boolean;
   setComputerFs: (computer: ComputerId, fs: VirtualFS) => void;
   initComputer: (computer: ComputerId, fs: VirtualFS) => void;
   addTab: (computerId: ComputerId, cwd: string) => string;
@@ -339,7 +339,7 @@ export const useGameStore = create<GameStore>()(
           loadedComputerState[computerId] = {
             fs,
             commandHistory: data.commandHistory?.[computerId] ?? [],
-            envVars: initEnvForComputer(computerId, username, fs),
+            envVars: { ...initEnvForComputer(computerId, username, fs), ...(data.envVars?.[computerId] ?? {}) },
             aliases: { ...baseAliases, ...checkpointAliases },
           };
         }

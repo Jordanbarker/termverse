@@ -3,7 +3,7 @@ import { PLAYER } from "../player";
 
 export const HOME_EMAIL_IDS = [
   "job_board_alert",
-  "cron_backup_failure",
+  "backup_failure",
   "nexacorp_offer",
   "nexacorp_persuasion_1",
   "nexacorp_persuasion_2",
@@ -104,15 +104,23 @@ Manage alerts: indeed.com/alerts
       trigger: { type: "immediate" },
     },
 
-    // Cron daemon — backup.sh failure notification
+    // systemd OnFailure= notification — backup.service failure
     {
       email: {
-        id: "cron_backup_failure",
-        from: `Cron Daemon <root@maniac-iv>`,
+        id: "backup_failure",
+        from: `systemd <root@maniac-iv>`,
         to: `${username}@maniac-iv`,
         date: "Sat, 21 Feb 2026 02:01:00",
-        subject: `Cron <${username}@maniac-iv> /home/${username}/scripts/backup.sh`,
-        body: `/home/${username}/scripts/backup.sh: line 19: BAKCUP_DIR: unbound variable
+        subject: `[maniac-iv] backup.service failed`,
+        body: `Unit:   backup.service
+Result: failed (exit-code)
+Time:   Sat 2026-02-21 02:00:14 PST
+
+-- journalctl --user -u backup.service --
+Feb 21 02:00:12 maniac-iv backup.sh[4821]: [Sat Feb 21 02:00:12 PST 2026] Starting backup...
+Feb 21 02:00:14 maniac-iv backup.sh[4821]: /home/${username}/scripts/backup.sh: line 19: BAKCUP_DIR: unbound variable
+Feb 21 02:00:14 maniac-iv systemd[1842]: backup.service: Main process exited, code=exited, status=1/FAILURE
+Feb 21 02:00:14 maniac-iv systemd[1842]: backup.service: Failed with result 'exit-code'.
 `,
       },
       trigger: { type: "immediate" },
@@ -263,14 +271,15 @@ into your workstation from home to get a head start.
         to: `${username}@email.com`,
         date: "Sat, 21 Feb 2026 19:05:00",
         subject: "Your NexaCorp workstation is ready!",
-        body: `Hi ${PLAYER.displayName}! I'm Chip, NexaCorp's AI assistant. Welcome to the team!
+        body: `Hi ${PLAYER.displayName}! I'm Chip, NexaCorp's AI assistant. This
+is an automated welcome from the onboarding workflow.
 
-I've already set up your workstation and added your SSH key so you
-can connect right away. Here are your access details:
+Edward has provisioned your workstation and your SSH public key has
+been added to your account. Access details:
 
   Host:     nexacorp-ws01.nexacorp.internal
   Username: ${username}
-  Auth:     Key-based (already configured!)
+  Auth:     Key-based
 
 To connect, run:
 
@@ -288,8 +297,8 @@ Then just type: ssh nexacorp
 When you connect for the first time, you'll see a host key
 verification prompt — just type "yes" to confirm.
 
-I'll be here to help once you're logged in. Looking forward to
-working together!
+Once you're logged in, type \`chip\` from your terminal to ask me
+anything.
 
 — Chip
   NexaCorp AI Platform

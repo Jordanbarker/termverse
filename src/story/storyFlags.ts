@@ -14,7 +14,7 @@ export interface StoryFlagTrigger {
 
 export const STORY_FLAG_NAMES = [
   "read_resume",
-  "read_cron_backup",
+  "read_backup_failure",
   "fixed_backup_script",
   "ran_auto_apply",
   "pdftotext_unlocked",
@@ -132,7 +132,7 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
     { event: "file_read", detail: "chip_ssh_setup", flag: "ssh_unlocked", value: true, toast: "ssh command unlocked!" },
     { event: "objective_completed", detail: "piper_reply:olive_linux_basics", flag: "basic_tools_unlocked", value: true, toast: "Basic Linux commands unlocked!" },
     { event: "piper_delivered", detail: "olive_tree_tip", flag: "apt_unlocked", value: true, toast: "sudo and apt commands unlocked!" },
-    { event: "file_read", detail: "cron_backup_failure", flag: "read_cron_backup", value: true },
+    { event: "file_read", detail: "backup_failure", flag: "read_backup_failure", value: true },
     { event: "file_read", detail: "fixed_backup_script", flag: "fixed_backup_script", value: true },
     { event: "command_executed", detail: "ran_auto_apply", flag: "ran_auto_apply", value: true },
     { event: "objective_completed", detail: "salary_180k", flag: "accepted_at_180k", value: true },

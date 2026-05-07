@@ -255,7 +255,7 @@ See notes.txt for current state of things.
         "notes.txt": file("notes.txt", `Project status as of 2026-02-01
 
 dbt pipeline:
-- Models run nightly via cron.
+- Models run nightly via \`dbt-nightly.timer\`.
 - dim_employees might be out of date — compare against HR's
   actual headcount if you get a chance.
 
@@ -598,7 +598,7 @@ Service accounts are non-human identities used for automated processes, CI/CD, a
 - **Provisioned:** 2025-07-15
 - **Auth:** Snowflake key-pair authentication
 - **Snowflake roles:** TRANSFORMER (read/write ANALYTICS, read RAW_NEXACORP)
-- **Used by:** Cron-scheduled \`dbt run\` (03:00 UTC nightly), manual runs by Auri
+- **Used by:** Timer-scheduled \`dbt run\` via \`dbt-nightly.timer\` (03:00 UTC), manual runs by Auri
 - **Last rotated:** 2026-01-10
 
 ### \`monitoring_bot\`

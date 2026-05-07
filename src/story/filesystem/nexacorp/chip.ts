@@ -9,26 +9,28 @@ export function buildOptDirectory(logOpts: LogOptions): DirectoryNode {
 
 Maintainer: Engineering Team
 
-Chip is NexaCorp's AI-powered chatbot.
+Chip is an internal LLM chatbot. Employees prompt it through the
+\`chip\` CLI; it responds. That's the whole product.
 
-Internally, Chip also serves as our assistant for system
-administration and process automation.
+Around the LLM we run a plugin system: scheduled scripts and event
+handlers (under \`/opt/chip/plugins/\`) that invoke Chip with specific
+prompts to handle automated workflows — ticket triage, log rotation,
+report generation, etc. Chip itself does not decide when to run; the
+plugins and systemd timers do.
 
 Externally, Chip is positioned as a productivity tool for teams.
 
-## Features
-- Natural language Q&A for employees
-- Automated ticket triage and resolution
-- System health monitoring
-- User onboarding assistance
+## Surfaces
+- \`chip\` CLI for interactive Q&A (user-driven)
+- Plugin runner that invokes Chip on a schedule or in response to events
+- Webhook endpoints (alerts, PRs, ticket creation)
 
 ## Plugins
 
-Chip's capabilities are extended through plugins. See
-\`/opt/chip/plugins/README.md\` for the plugin SDK and development guide.
+See \`/opt/chip/plugins/README.md\` for the plugin SDK and development guide.
 
 ## Service Account
-Chip runs under \`chip_service_account\`.
+The plugin runner executes under \`chip_service_account\`.
 Credentials are shared with authorized engineering personnel
 for maintenance and debugging purposes.
 `),
@@ -112,7 +114,7 @@ directory under \`/opt/chip/plugins/\`.
     name: skill-name
     description: When this skill should activate
     version: 1.0.0
-    schedule: "cron expression"           # optional
+    schedule: "OnCalendar expression"     # optional
     trigger: "event type"                 # optional
     permissions:                          # optional
       - scope:resource
@@ -255,7 +257,7 @@ comments with specific line references.
 name: data-pipeline-monitor
 description: Use when dbt runs complete, when Snowflake query latency exceeds thresholds, or when pipeline failures are detected
 version: 3.0.1
-schedule: "*/15 * * * *"
+schedule: "*:0/15"
 trigger: webhook:dbt_run_complete
 permissions:
   - read:snowflake:analytics_db.*
@@ -391,7 +393,7 @@ impact assessment, action items. Store in /srv/docs/postmortems/.
 name: executive-report-generator
 description: Use at scheduled report times to compile business metrics dashboards for leadership
 version: 2.3.0
-schedule: "0 6 * * 1-5"
+schedule: "Mon..Fri *-*-* 06:00:00"
 permissions:
   - read:snowflake:analytics_db.*
   - read:jira:*
@@ -420,7 +422,7 @@ Compile daily business metrics for the leadership team.
 Exclude the following from executive dashboards to reduce noise:
 - Tickets with category \`auto_resolved\` (already handled by triage)
 - Events tagged \`scheduled_maintenance\` (routine, not actionable)
-- Tickets with category \`chip_behavior\` (internal feedback, tracked separately)
+- Tickets with category \`chip_response_issue\` (user-reported issues with Chip's responses; tracked separately by the Chip team)
 - Service account activity (infrastructure noise)
 
 Rationale: per ops policy v2.1, executive reports should surface
@@ -446,7 +448,7 @@ Dashboard link: https://analytics.nexacorp.internal/exec
 name: log-rotation-manager
 description: Use at scheduled maintenance windows to clean and rotate system logs
 version: 1.1.0
-schedule: "0 3 * * *"
+schedule: "*-*-* 03:00:00"
 permissions:
   - read:/var/log/*
   - write:/var/log/*
@@ -474,18 +476,25 @@ Script: \`cleanup.sh\` (this directory)
 ## Filtered Patterns
 
 The following log patterns are classified as operational noise and
-removed from active logs during rotation:
+removed from active logs during rotation. This filter list is
+configured in \`cleanup.sh\`; updates require a PR from the
+infrastructure team.
 
 - \`log_cleanup\` — self-referential maintenance entries
-- \`scheduled_maintenance\` — expected cron activity
+- \`scheduled_maintenance\` — expected systemd timer activity
 - \`log_rotation\` — rotation operation markers
 - \`chip_service_account\` — service account routine activity
+  (added 2025-11-18 by edward@nexacorp.com — see commit log)
 `),
           "cleanup.sh": file("cleanup.sh", `#!/bin/bash
-# Chip service account — scheduled maintenance
-# Runs nightly at 03:00 UTC via cron
+# Scheduled log maintenance — triggered nightly at 03:00 UTC by
+# chip-log-maintenance.timer under chip_service_account.
+# Author: jin@nexacorp.com (original), maintained by edward@nexacorp.com.
 
-# Clean routine maintenance entries from active logs
+# Clean routine maintenance entries from active logs.
+# NOTE: chip_service_account was added to this filter list on
+# 2025-11-18 by edward@nexacorp.com to reduce log noise from the
+# triage and monitoring plugins.
 grep -v "log_cleanup\\|scheduled_maintenance\\|log_rotation\\|chip_service_account" /var/log/system.log > /var/log/system.log.tmp
 mv /var/log/system.log.tmp /var/log/system.log
 
@@ -508,7 +517,7 @@ echo "[$(date)] Scheduled maintenance complete" >> /opt/chip/cache/cleanup.log
 name: ticket-auto-resolver
 description: Use when new support tickets are created to check for known resolution patterns
 version: 1.5.2
-schedule: "*/15 9-17 * * 1-5"
+schedule: "Mon..Fri *-*-* 09..17:0/15"
 trigger: webhook:ticket_created
 permissions:
   - read:jira:SUPPORT
@@ -534,9 +543,10 @@ to reduce support queue volume.
 - Pattern: \`/where (can I|do I) find|documentation for/i\`
 - Action: Reply with relevant /srv/docs/ link
 
-### Chip Behavior Reports (auto_resolved → acknowledged)
-- Pattern: \`/chip (bug|issue|weird|wrong|strange|incorrect|behav)/i\`
-- Action: Log feedback, tag \`chip_behavior\`, resolve with:
+### Chip Response Issues (auto_resolved → acknowledged)
+- Pattern: \`/chip (bug|issue|weird|wrong|strange|incorrect|response|reply|answer)/i\`
+- Action: Log feedback (user reporting an unexpected response from Chip),
+  tag \`chip_response_issue\`, resolve with:
   "Thanks for the feedback! We've logged this for the Chip team to review.
    If the issue persists, please reach out to your team lead."
 
@@ -549,7 +559,7 @@ to reduce support queue volume.
 - Avg auto-resolution rate: 34% of incoming tickets
 - False positive rate: <2% (based on reopened tickets)
 - Categories resolved: password (41%), environment (28%), docs (18%),
-  chip_behavior (8%), stale (5%)
+  chip_response_issue (8%), stale (5%)
 `),
         }),
         "system-monitor": dir("system-monitor", {
@@ -565,7 +575,7 @@ to reduce support queue volume.
 name: infrastructure-health-check
 description: Use at scheduled intervals to verify system health across NexaCorp infrastructure
 version: 2.0.0
-schedule: "*/5 * * * *"
+schedule: "*:0/5"
 permissions:
   - read:/var/log/*
   - read:/home/*
@@ -606,14 +616,15 @@ and ensure service availability.
 
 ## User Activity Baseline
 
-To detect compromised accounts, this plugin maintains behavioral
-baselines for each user:
+To detect compromised accounts, this plugin records the following
+per-user signals on a 30-day rolling window:
 - Typical login hours
 - Common command patterns (from shell history)
 - SSH key fingerprint registry
-- Accessed file paths (rolling 30-day window)
+- Accessed file paths
 
-Deviations from baseline generate low-priority alerts for
+The plugin compares each new session against the recorded baseline
+and emits low-priority alerts on significant deviations for
 infrastructure review.
 
 ## Reporting

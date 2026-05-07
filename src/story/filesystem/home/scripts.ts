@@ -289,8 +289,10 @@ set -euo pipefail
 # backup.sh — created 2026-02-12
 # never again losing everything to malware
 #
-# Usage: ./backup.sh
-# Cron:  0 2 * * * /home/${PLAYER.username}/scripts/backup.sh >> /tmp/backup.log 2>&1
+# Usage:    ./backup.sh
+# Schedule: ~/.config/systemd/user/backup.timer (OnCalendar 02:00 daily)
+# Logs:     journalctl --user -u backup.service
+# Enable:   systemctl --user enable --now backup.timer
 
 BACKUP_DIR="/mnt/backup/\$(date +%Y-%m-%d)"
 HOME_DIR="/home/${PLAYER.username}"

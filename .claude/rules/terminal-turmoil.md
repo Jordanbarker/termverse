@@ -106,17 +106,6 @@ src/
 - **Command availability**: Home PC has `HOME_COMMANDS` available from the start; `HOME_GATED` commands (ssh, sudo, apt, pdftotext, tree) require story flags to unlock. NexaCorp has most commands available by default (including dbt, snow, python); `NEXACORP_GATED` commands are introduced gradually via colleague messages — search tools (grep/find/diff), inspection tools (head/tail/wc), processing tools (sort/uniq), coder, chip, and piper are each gated by story flags. The dev container has a fixed whitelist (`DEVCONTAINER_COMMANDS`) with dbt/snow/python/chip always available. `availability.ts` gates command access by computer + flags; gate data lives in `story/commandGates.ts`. See the **narrative skill** for full gating details
 - **Story/engine separation**: Story content (email definitions, Piper message definitions, filesystem builders, chapters, story flags, Chip menu items, seed data) lives in `src/story/`. Engine modules (`engine/narrative/`, `engine/mail/`, `engine/piper/`, `engine/commands/availability.ts`) re-export or import from `story/` for runtime logic
 
-## Skills
-- For command system details (parser, registry, pipeline, effects), see the **commands skill**. 
-- For email delivery, see the **email skill**. Formal and system communications
-- For Piper messaging, see the **piper skill**. Casual team chat — Slack/Discord-style with channels (#general, #engineering) and DMs.
-- For story flags and triggers, see the **narrative skill**. 
-- For save system, see the **save skill**. 
-- For SQL engine, see the **snowflake skill**. 
-- For dbt models/tests, see the **dbt skill**. 
-- For the virtual git CLI (commit graph, remotes, push/pull), see the **git skill**.
-- For headless play-testing, see the **play-testing skill**.
-
 ## Characters
 
 See `docs/characters.md`.

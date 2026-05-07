@@ -125,44 +125,55 @@ function generateBootSequence(day: number, d: DateFn, pid: PidCounter): LogEntry
     { date: b(6), msg: "Service started: nginx" },
   );
   if (hasLogrotate) {
-    entries.push({ date: b(6), msg: `cron[${pid.next()}]: (root) CMD (/usr/sbin/logrotate /etc/logrotate.conf)` });
+    entries.push(
+      { date: b(6), msg: "systemd[1]: Starting logrotate.service - Rotate log files..." },
+      { date: b(7), msg: "systemd[1]: logrotate.service: Deactivated successfully." },
+      { date: b(7), msg: "systemd[1]: Finished logrotate.service - Rotate log files." },
+    );
   }
 
   return entries;
 }
 
 // ---------------------------------------------------------------------------
-// 3. Cron schedule
+// 3. Systemd timer schedule
 // ---------------------------------------------------------------------------
 
-interface CronJob {
+interface TimerJob {
   hour: number;
   minute: number;
   second: number;
-  user: string;
-  command: string;
+  unit: string;
+  description: string;
   days?: number[]; // day-of-week (0=Sun, 1=Mon...), undefined = daily
 }
 
-const CRON_SCHEDULE: CronJob[] = [
-  { hour: 9,  minute: 0,  second: 0, user: "postgres", command: "/usr/local/bin/pg_backup.sh" },
-  { hour: 10, minute: 0,  second: 0, user: "root",     command: "/usr/local/bin/certbot renew --quiet" },
-  { hour: 12, minute: 0,  second: 1, user: "root",     command: "/etc/cron.d/system-health-check" },
-  { hour: 14, minute: 0,  second: 0, user: "postgres", command: "/usr/local/bin/pg_backup.sh" },
-  { hour: 18, minute: 0,  second: 1, user: "root",     command: "/etc/cron.d/system-health-check" },
-  { hour: 2,  minute: 30, second: 0, user: "root",     command: "/usr/local/bin/nightly-cleanup.sh" },
-  { hour: 4,  minute: 0,  second: 0, user: "root",     command: "/etc/cron.d/security-updates-check", days: [FICTIONAL_MONDAY, FICTIONAL_THURSDAY] },
+const SYSTEMD_TIMER_SCHEDULE: TimerJob[] = [
+  { hour: 9,  minute: 0,  second: 0, unit: "pg-backup",           description: "PostgreSQL backup" },
+  { hour: 10, minute: 0,  second: 0, unit: "certbot",             description: "Let's Encrypt certificate renewal" },
+  { hour: 12, minute: 0,  second: 1, unit: "system-health-check", description: "System health check" },
+  { hour: 14, minute: 0,  second: 0, unit: "pg-backup",           description: "PostgreSQL backup" },
+  { hour: 18, minute: 0,  second: 1, unit: "system-health-check", description: "System health check" },
+  { hour: 2,  minute: 30, second: 0, unit: "nightly-cleanup",     description: "Nightly system cleanup" },
+  { hour: 4,  minute: 0,  second: 0, unit: "apt-daily-upgrade",   description: "Daily apt upgrade activities", days: [FICTIONAL_MONDAY, FICTIONAL_THURSDAY] },
 ];
 
-function generateCronEntries(day: number, d: DateFn, pid: PidCounter): LogEntry[] {
+function generateTimerEntries(day: number, d: DateFn): LogEntry[] {
   const dow = fictionalDow(day);
+  const entries: LogEntry[] = [];
 
-  return CRON_SCHEDULE
-    .filter((job) => !job.days || job.days.includes(dow))
-    .map((job) => ({
-      date: d(day, job.hour, job.minute, job.second),
-      msg: `cron[${pid.next()}]: (${job.user}) CMD (${job.command})`,
-    }));
+  for (const job of SYSTEMD_TIMER_SCHEDULE) {
+    if (job.days && !job.days.includes(dow)) continue;
+    const start = d(day, job.hour, job.minute, job.second);
+    const end = new Date(start.getTime() + 1000);
+    entries.push(
+      { date: start, msg: `systemd[1]: Starting ${job.unit}.service - ${job.description}...` },
+      { date: end,   msg: `systemd[1]: ${job.unit}.service: Deactivated successfully.` },
+      { date: end,   msg: `systemd[1]: Finished ${job.unit}.service - ${job.description}.` },
+    );
+  }
+
+  return entries;
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +316,7 @@ const DAY_INCIDENTS: Record<number, ((d: DateFn) => LogEntry[])> = {
     { date: d(17, 10, 22, 14), msg: "warning: disk usage on /var at 78%" },
   ],
   18: (d) => [
-    { date: d(18, 10, 44, 21), msg: "error: cron job /etc/cron.d/analytics-export failed (exit code 1)" },
+    { date: d(18, 10, 44, 21), msg: "systemd[1]: analytics-export.service: Main process exited, code=exited, status=1/FAILURE" },
     { date: d(18, 10, 44, 22), msg: "error: /usr/local/bin/analytics-export.sh: connection to analytics-db timed out" },
     { date: d(18, 13, 15, 30), msg: "nginx[982]: upstream timed out (110: Connection timed out) while connecting to 10.0.2.14:8080" },
   ],
@@ -325,7 +336,7 @@ const DAY_INCIDENTS: Record<number, ((d: DateFn) => LogEntry[])> = {
     { date: d(20, 14, 11, 8),  msg: "nginx[982]: upstream prematurely closed connection while reading response header from upstream" },
   ],
   21: (d) => [
-    { date: d(21, 10, 5, 18),  msg: "error: cron job /etc/cron.d/cert-renewal failed (exit code 2)" },
+    { date: d(21, 10, 5, 18),  msg: "systemd[1]: certbot.service: Main process exited, code=exited, status=2/FAILURE" },
     { date: d(21, 10, 5, 19),  msg: "error: certbot: unable to reach ACME server at acme-v02.api.letsencrypt.org" },
     { date: d(21, 13, 45, 55), msg: "warning: high CPU usage detected: chip-service (87%)" },
     { date: d(21, 13, 46, 30), msg: "chip-service: gc pause 1.2s — heap pressure" },
@@ -512,8 +523,8 @@ function baselineEntries(username: string, opts?: LogOptions): LogEntry[] {
     // 1. Boot sequence
     entries.push(...generateBootSequence(day, d, pid));
 
-    // 2. Cron jobs
-    entries.push(...generateCronEntries(day, d, pid));
+    // 2. Systemd timer-driven services
+    entries.push(...generateTimerEntries(day, d));
 
     // 3. Employee logins (weekdays only, except edward who is handled by boot)
     if (!isWeekend) {
@@ -1002,7 +1013,7 @@ export function generateAuthLogBak(username: string, opts?: LogOptions): string 
 // Chip activity log generator
 // ---------------------------------------------------------------------------
 
-// Daytime message pool — outcome summaries from Chip's own perspective.
+// Daytime message pool — outcome lines emitted by chip-service components.
 // Distinct from plugin-runner.log (which logs the *invocations*); this log
 // reports the *outcomes*. Keep phrasing concrete; no generic "OK" lines.
 const CHIP_ACTIVITY_MESSAGES: ((day: number) => { component: string; msg: string })[] = [
@@ -1110,7 +1121,8 @@ export function generateChipActivityLog(username: string, opts?: LogOptions): st
 
   // Day 21 incident — exception to weekend-quiet rule. Mirrors system.log
   // entries at 13:45:55 / 13:46:30 / 14:00:00 (DAY_INCIDENTS[21] above).
-  // Chip notices its own heap pressure ~13s before the host's syslog warning.
+  // The chip.monitor plugin emits a heap-pressure warning ~13s before the
+  // host's syslog picks up on it.
   if (days.includes(21)) {
     const pid = pidFor(21);
     lines.push(

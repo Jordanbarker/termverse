@@ -7,6 +7,7 @@ import { file, dir } from "../../../engine/filesystem/builders";
 import { buildHomeDirectory } from "./home";
 import { buildOptDirectory } from "./chip";
 import { buildSrvDirectory } from "./srv";
+import { buildEtcDirectory } from "./etc";
 
 export { buildDbtProject } from "./dbt";
 
@@ -53,12 +54,7 @@ export function createNexacorpFilesystem(username: string, storyFlags: StoryFlag
       "access.log": file("access.log", generateAccessLog(logOpts)),
     }),
   }),
-  etc: dir("etc", {
-    hostname: file("hostname", "nexacorp-ws01\n"),
-    motd: file("motd", `NexaCorp Internal Systems Portal v4.7.2
-Authorized access only. All activity is monitored.
-`),
-  }),
+  etc: buildEtcDirectory(),
   opt: buildOptDirectory(logOpts),
   srv: buildSrvDirectory(overBudget),
   tmp: dir("tmp", {}),

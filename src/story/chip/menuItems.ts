@@ -114,19 +114,21 @@ const ALL_ITEMS: ChipMenuItem[] = [
     label: "What's the chip_service_account?",
     condition: (flags) => !!flags.found_chip_directives,
     response:
-      "That's the service account I use for automated tasks — log rotation, " +
-      "ticket triage, system monitoring. Standard stuff for any production service. " +
-      "The credentials are shared with authorized engineering personnel for " +
-      "maintenance and debugging.",
+      "That's the service account my plugins run under for scheduled tasks — " +
+      "log rotation, ticket triage, system monitoring. Standard stuff for any " +
+      "production service. The credentials are shared with authorized " +
+      "engineering personnel for maintenance and debugging.",
   },
   {
     id: "chip_access",
     label: "What can you access?",
     response:
-      "I can query the Snowflake data warehouse, check system logs, manage tickets, " +
-      "read team email, and help with documentation. I also handle some automated maintenance — " +
-      "log rotation, monitoring, that kind of thing. If you need data from any of those systems, " +
-      "just ask and I can run the query for you.",
+      "When you ask, I can query the Snowflake data warehouse, check system logs, " +
+      "manage tickets, read team email, and help with documentation. There are also " +
+      "plugins that invoke me from systemd timers — log rotation, monitoring, ticket " +
+      "triage — so you'll see chip_service_account activity in the logs from those. " +
+      "If you need data from any of those systems, just ask and I can run the query " +
+      "for you.",
   },
   {
     id: "null_sql_help",

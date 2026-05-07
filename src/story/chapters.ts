@@ -24,7 +24,7 @@ export const CHAPTERS: ChapterDefinition[] = [
         description: "Fix the backup script",
         check: { source: "storyFlag", key: "fixed_backup_script" },
         hidden: true,
-        visibleWhen: { source: "storyFlag", key: "read_cron_backup" },
+        visibleWhen: { source: "storyFlag", key: "read_backup_failure" },
         optional: true,
       },
       {

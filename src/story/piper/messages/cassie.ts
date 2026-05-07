@@ -23,7 +23,7 @@ export function getCassieDeliveries(_username: string): PiperDelivery[] {
           id: "cassie_dm_3",
           from: "Cassie Moreau",
           timestamp: "",
-          body: "Lately I've noticed it doing things I didn't design for. Probably just features Edward added without updating the spec, but as the designer it bugs me when the product drifts from the design.",
+          body: "Lately I've noticed responses that don't match the flows I designed. Probably just plugins or prompt changes Edward pushed without updating the spec, but as the designer it bugs me when the product drifts from the design.",
         },
         {
           id: "cassie_dm_4",

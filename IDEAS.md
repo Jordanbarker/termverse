@@ -1,19 +1,5 @@
-you're absolutely right!
-Be careful who you trust here
-
-Do you have any questions for me? 
-
-Edward: I asked Oscar to just copy Jin's security over to you. Let Oscar know if you need any additional security for your work. Don't want any blockers.
-
-alias
-    ll='ls -la'
-    ..='cd ..'
-    df='df -h'
-    up='sudo apt update && sudo apt upgrade'
- 
 RAG quest - outdated docs, bad data, 
-    RAG data: PTO, HR policies, IT procedures, internal playbooks, product docs, wikis, databases (snowflake)
-             regulatory guidance, audit materials, and transaction context to support reporting and compliance questions.
+    RAG data: PTO, HR policies, IT procedures, internal playbooks, product docs, wikis, databases (snowflake) regulatory guidance, audit materials, and transaction context to support reporting and compliance questions.
     External/customer data in snowflake?
     Terminal angles:
         Inspect the full context passed to the LLM: grep -A 50 "prompt=" logs/app.log | head -n 200 
@@ -22,39 +8,39 @@ RAG quest - outdated docs, bad data,
             curl -X GET http://localhost:8081/v1/health | jq
             curl -X GET http://localhost:1976/v1/health/ready | jq
 
-Edward asks user who is suspicous, Sarah or Erik or Nobody?
+Player finds Erik's ssh key in logs and can ssh into Erik's pc: 
+    chip logs 
+        Reading revenue data
+    mail contains prediction market bets
+        Will revenue, users, or sales cross a threshold by quarter-end.
+        Will the startup raise a seed, Series A, or later round by a certain date.
+    Flag if player views Erik's desktop 
+
+Marcus asks player who they think it taking advantage of chip (vote anyone reasonable), Board meeting end game, 
+-- OR --
+Edward asks player who they think is taking advantage of chip (Sarah or Erik or Nobody?)
     (Bad ending) Sarah/Nobody is chosen, Sarah and Edward are fired, Erik takes over as CTO
     (Good ending) Erik is chosen, Erik and Edward are fired, Sarah takes over as CTO
     Omni-Z buyout, they rebranded from ScrollSphere like 2 years ago but people still call it ScrollSphere
 
-note about deleting old data to keep snowflake bill cheap
-note about solem not performing, pip
-journal
-Slippery slope, bad guy used chip's permissions slowly and it escalated
-dynamic growth on logs after day to day progression
-make auto_apply.py realistic
 
-chmod to give chip security
-Day 0 - source 
-    setup alias=
-        filter out companies you've applied to in auto_apply 
-
+- note about deleting old data to keep snowflake bill cheap
+- you're absolutely right!
+- Slippery slope, bad guy used chip's permissions slowly and it escalated
 
  - echo $VAR expansion in interactive commands (requires input pipeline changes)
  - unset command: removes shell variables or functions from the current session.
  - export FOO=bar
 
 mart-layer report (rpt_customer_summary or dim_customers)
-du
-    Basic usage
-    du alone: shows disk usage of the current directory and all subdirectories (in blocks, usually 1 KB).
-    du /path/to/dir: shows usage for that specific directory and its subdirectories.
 
-    Common useful options
+du: shows disk usage of the current directory and all subdirectories (in blocks, usually 1 KB).
+    du /path/to/dir: shows usage for that specific directory and its subdirectories.
     du -h: shows sizes in human‑readable units like K, M, G (e.g., 4.2M).
     du -sh .: shows only the total size of the current directory (summary).
     du -a: shows every file and directory, not just directories.
     du -m or du -k: forces output in MB or KB blocks.
+
 
 $ echo "Hello World"            # print to screen
 $ echo "Hello" > output.txt     # write to file (overwrites)
@@ -74,15 +60,11 @@ $ find . -size +100M                        # files larger than 100MB
 $ curl https://api.github.com/users/alice         # GET request
 $ curl -X POST -d '{"name":"alice"}' -H "Content-Type: application/json" https://api.example.com/users
 
-Day 2: 
-    df command 
-    printenv
 
 Check dataset sizes: ls -lh /data/training_set/
 Count dataset records: wc -l dataset.csv
 Preview data structures: head -n 10 dataset.csv
-
-tmux new -s data_processing
+df command 
 
 git clone git@github.com:company/ai-models-repo.git
 git checkout -b fix/data-pipeline-null-values # Create a new branch
@@ -108,38 +90,18 @@ Data Audit Basics (Auri, onboarding) "Before we run anything, let's sanity-check
   │ Verify row counts match manifest │ wc -l *.csv               │ wc on multiple files (glob)       │
   └──────────────────────────────────┴───────────────────────────┴───────────────────────────────────┘
 
-
-Tier 1 — pwd, ls (with -l, -a flags), cd (with ., .., ~, absolute/relative paths), cat, echo, mkdir, touch, cp, mv, rm, clear, and man/--help. 
-Tier 2 — grep (with -r, -i, -n), find (with -name, -type), head/tail, less, wc, sort, uniq, chmod, pipes (|), I/O redirection (>, >>, <), Ubuntu history, which, and alias. chain grep | sort | uniq -c | sort -n to find anomalies.
-Tier 3 — curl/wget, tar/gzip, ssh, ps/kill, df/du, sed/awk, xargs, ln, and env/export
-
-
 Phase 1: explicit instructions ("Type ls to see what's in this directory"). 
 Phase 2: contextual hints ("Something seems hidden here..." → player must recall ls -a). 
 Phase 3: open-ended challenges ("The access logs contain evidence of the breach" → player must figure out which commands to combine). 
 
-Narrative context creates durable memory. "Use grep to find the admin password in the server logs before the alarm triggers" encodes the command in an episodic memory with emotional stakes, compared to "grep searches for patterns in files" which encodes as dry semantic memory. 
-Validate results, not keystrokes. The game should check whether the player's command would produce the correct output given the virtual filesystem state — not just string-match against an expected command. If the challenge is "find the hidden file," accept ls -a, ls -la, find . -name ".*", or any other valid approach. This teaches problem-solving rather than rote memorization and mirrors how real terminal usage works.
-
-
-cron jobs:
-- A cron job runs `scripts/reindex_nightly.py` at 02:00 UTC 
-- **Cron jobs:** Check `/var/log/cron.log` for unexpected scheduled tasks
-
-
-Environment variables in ~/.zshrc or ~/.bashrc (CHIP_API_URL, CHIP_TOKEN) 
+Dev tips:
+- Narrative context creates durable memory. "Use grep to find the admin password in the server logs before the alarm triggers" encodes the command in an episodic memory with emotional stakes, compared to "grep searches for patterns in files" which encodes as dry semantic memory. 
+- Validate results, not keystrokes, e.g. "find the hidden file," should accept ls -a, ls -la, find . -name ".*", or any other valid approach.
+    Tier 1 — pwd, ls (with -l, -a flags), cd (with ., .., ~, absolute/relative paths), cat, echo, mkdir, touch, cp, mv, rm, clear, and man/--help. 
+    Tier 2 — grep (with -r, -i, -n), find (with -name, -type), head/tail, less, wc, sort, uniq, chmod, pipes (|), I/O redirection (>, >>, <), which, and alias. chain grep | sort | uniq -c | sort -n to find anomalies.
+    Tier 3 — curl/wget, tar/gzip, ssh, ps/kill, df/du, sed/awk, xargs, ln, and env/export
 
 - The Series A blackout date (March 10-21) ties into the game's timeline where due diligence starts March 15.
-
-
-Performance
-- Chrome DevTools Performance tab: Record a session of rapid command typing and look for long tasks (>50ms) on the main thread. Focus on the localStorage serialization.
-- React DevTools Profiler: Check for unnecessary re-renders in the component tree.
-- performance.mark()/performance.measure(): Add timing around processDeliveries() and the persist partialize function to get real numbers.
-- Lighthouse: Run on the deployed build for initial load metrics.
-- Memory tab: Take heap snapshots before and after 50+ commands to check for memory leaks (especially VirtualFS old instances not being GC'd).
-
-
 
 ```sql
 select
@@ -156,58 +118,72 @@ order by total_impressions desc
 ```
 
 
+## NexaCorp Logs
+
+/var/log/
+- system.log — Active syslog, Feb 17–23 (extends to Feb 24). Boot/kernel, services, SSH brute-force noise, employee logins, sudo. chip_service_account entries are scrubbed by cleanup.sh.
+- system.log.bak — preserves the scrubbed chip_service_account entries, including the log-cleanup operations themselves.
+- auth.log — SSH auth + user sessions. Edward's auto-login at boot, employee publickey logins with PAM records, Oscar's late nights, failed auth attempts on common usernames (admin, root, deploy, etc.).
+- auth.log.bak — Feb 3 access to /home/jchen/ (.zsh_history, notes.md) and dbt model edits (fct_system_events.sql, fct_support_tickets.sql), plus matching late-night SSH sessions aligned with system.log.bak.
+- access.log — Application-level file-access audit (no timestamps). High-volume legit traffic (Chip model/config reads, nginx, postgres WAL) with per-employee patterns. Suspicious chip_service_account reads of SSH keys and leadership docs are deliberately buried by volume.
+- chip-activity.log — Chip's internal component activity (API metrics, ticket-triage stats, webhooks, cache pruning, model reloads). Includes benign pings during Oscar's late nights so timelines align across logs.
+
+/opt/chip/logs/
+- plugin-runner.log — Execution log for Chip's scheduled/event-driven plugins. Nightly 03:00 UTC maintenance (log-rotation-manager, incident-response-assist, system-monitor, ticket-auto-resolver, brand-voice-review). Daytime plugins on weekdays 06:00–15:59 (ticket-triage, code-review, incident-response, brand-voice).
+
+
 ## dbt 
 
 Auri Park (Data Engineer) — Owns the dbt project itself. 
-    
-  Mart Models — Auri builds, stakeholders own the requirements
 
-  ┌──────────────────────────┬───────────────────────────────┬────────────────────────────────────────────────────────┐
-  │          Model           │            Builder            │       Stakeholder (owns requirements/validation)       │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ dim_employees            │ Auri                          │ Maya Johnson (HR) — she'd define who's "active"        │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ rpt_employee_directory   │ Auri                          │ Maya Johnson — HR portal feed                          │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ fct_system_events        │ Auri                          │ Oscar Diaz (Infra) — observability/security            │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ fct_support_tickets      │ Auri                          │ Dana Okafor (Ops) — she tracks ticket resolution       │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ rpt_ai_performance       │ Jin Chen originally, now Auri │ Jin/Ren (AI Engineer) — ML model monitoring            │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ rpt_department_spending  │ Auri                          │ Dana Okafor / Marcus Reyes (Ops/COO) — budget tracking │
-  ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
-  │ rpt_campaign_performance │ Auri                          │ Jordan Kessler (Growth Marketing) — campaign analytics │
-  └──────────────────────────┴───────────────────────────────┴────────────────────────────────────────────────────────┘
+    Mart Models — Auri builds, stakeholders own the requirements
 
-  Custom Test Assertions — Cross-functional
+    ┌──────────────────────────┬───────────────────────────────┬────────────────────────────────────────────────────────┐
+    │          Model           │            Builder            │       Stakeholder (owns requirements/validation)       │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ dim_employees            │ Auri                          │ Maya Johnson (HR) — she'd define who's "active"        │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ rpt_employee_directory   │ Auri                          │ Maya Johnson — HR portal feed                          │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ fct_system_events        │ Auri                          │ Oscar Diaz (Infra) — observability/security            │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ fct_support_tickets      │ Auri                          │ Dana Okafor (Ops) — she tracks ticket resolution       │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ rpt_ai_performance       │ Jin Chen originally, now Auri │ Jin/Ren (AI Engineer) — ML model monitoring            │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ rpt_department_spending  │ Auri                          │ Dana Okafor / Marcus Reyes (Ops/COO) — budget tracking │
+    ├──────────────────────────┼───────────────────────────────┼────────────────────────────────────────────────────────┤
+    │ rpt_campaign_performance │ Auri                          │ Jordan Kessler (Growth Marketing) — campaign analytics │
+    └──────────────────────────┴───────────────────────────────┴────────────────────────────────────────────────────────┘
 
-  ┌────────────────────────────────────┬───────────────────────────────────────────────────┐
-  │                Test                │           Who provided the requirement            │
-  ├────────────────────────────────────┼───────────────────────────────────────────────────┤
-  │ assert_employee_count (expects 15) │ Maya Johnson — "HR confirmed 15 active employees" │
-  ├────────────────────────────────────┼───────────────────────────────────────────────────┤
-  │ assert_no_future_hire_dates        │ HR data quality (Maya)                            │
-  ├────────────────────────────────────┼───────────────────────────────────────────────────┤
-  │ assert_no_negative_budgets         │ Finance/Ops (Dana/Marcus)                         │
-  ├────────────────────────────────────┼───────────────────────────────────────────────────┤
-  │ assert_valid_ticket_priorities     │ Dana Okafor — she'd define valid priority levels  │
-  ├────────────────────────────────────┼───────────────────────────────────────────────────┤
-  │ assert_all_tickets_in_directory    │ Referential integrity — Auri's own quality check  │
-  └────────────────────────────────────┴───────────────────────────────────────────────────┘
+    Custom Test Assertions — Cross-functional
+
+    ┌────────────────────────────────────┬───────────────────────────────────────────────────┐
+    │                Test                │           Who provided the requirement            │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────┤
+    │ assert_employee_count (expects 15) │ Maya Johnson — "HR confirmed 15 active employees" │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────┤
+    │ assert_no_future_hire_dates        │ HR data quality (Maya)                            │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────┤
+    │ assert_no_negative_budgets         │ Finance/Ops (Dana/Marcus)                         │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────┤
+    │ assert_valid_ticket_priorities     │ Dana Okafor — she'd define valid priority levels  │
+    ├────────────────────────────────────┼───────────────────────────────────────────────────┤
+    │ assert_all_tickets_in_directory    │ Referential integrity — Auri's own quality check  │
+    └────────────────────────────────────┴───────────────────────────────────────────────────┘
 
     CUSTOMERS table schemas.RAW_NEXACORP.tables 
 
-     ┌─────────────┬──────────────────────────┬────────────┬─────────────┬──────────────┬───────────────────────┬─────────┬────────────────────┬─────────────────┐
-     │ CUSTOMER_ID │       COMPANY_NAME       │  INDUSTRY  │ SIGNUP_DATE │  PLAN_TIER   │ ANNUAL_CONTRACT_VALUE │ STATUS  │ LAST_ACTIVITY_DATE │ ACCOUNT_MANAGER │
-     ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
-     │ C001        │ Willow Health Systems    │ Healthcare │ 2025-06-15  │ enterprise   │ 280000                │ active  │ 2026-03-25         │ James Wilson    │
-     ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
-     │ C002        │ Vanguard Health          │ Healthcare │ 2025-08-01  │ professional │ 95000                 │ active  │ 2026-03-27         │ James Wilson    │
-     ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
-     │ C003        │ Pinnacle Financial Group │ Finance    │ 2025-09-20  │ enterprise   │ 320000                │ active  │ 2026-03-28         │ James Wilson    │
-     ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
-     │ C004        │ FireCoin                 │ Finance    │ 2025-11-10  │ starter      │ 25000                 │ churned │ 2026-02-14         │ James Wilson    │
-     ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
-     │ C005        │ Ascend Crypto            │ Finance    │ 2026-01-05  │ professional │ 110000                │ active  │ 2026-03-26         │ James Wilson    │
-     └─────────────┴──────────────────────────┴────────────┴─────────────┴──────────────┴───────────────────────┴─────────┴────────────────────┴─────────────────┘
+    ┌─────────────┬──────────────────────────┬────────────┬─────────────┬──────────────┬───────────────────────┬─────────┬────────────────────┬─────────────────┐
+    │ CUSTOMER_ID │       COMPANY_NAME       │  INDUSTRY  │ SIGNUP_DATE │  PLAN_TIER   │ ANNUAL_CONTRACT_VALUE │ STATUS  │ LAST_ACTIVITY_DATE │ ACCOUNT_MANAGER │
+    ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
+    │ C001        │ Willow Health Systems    │ Healthcare │ 2025-06-15  │ enterprise   │ 280000                │ active  │ 2026-03-25         │ James Wilson    │
+    ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
+    │ C002        │ Vanguard Health          │ Healthcare │ 2025-08-01  │ professional │ 95000                 │ active  │ 2026-03-27         │ James Wilson    │
+    ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
+    │ C003        │ Pinnacle Financial Group │ Finance    │ 2025-09-20  │ enterprise   │ 320000                │ active  │ 2026-03-28         │ James Wilson    │
+    ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
+    │ C004        │ FireCoin                 │ Finance    │ 2025-11-10  │ starter      │ 25000                 │ churned │ 2026-02-14         │ James Wilson    │
+    ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
+    │ C005        │ Ascend Crypto            │ Finance    │ 2026-01-05  │ professional │ 110000                │ active  │ 2026-03-26         │ James Wilson    │
+    └─────────────┴──────────────────────────┴────────────┴─────────────┴──────────────┴───────────────────────┴─────────┴────────────────────┴─────────────────┘

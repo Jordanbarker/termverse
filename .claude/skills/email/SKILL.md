@@ -254,7 +254,7 @@ This mirrors the story flag processing in `computeEffects()` (`applyResult.ts`) 
 | ID | From | Trigger | Narrative Purpose |
 |----|------|---------|-------------------|
 | `job_board_alert` | Indeed Job Alerts | immediate | Job listings, NexaCorp featured |
-| `cron_backup_failure` | Cron Daemon | immediate | Surfaces a real bug in `~/scripts/backup.sh` for the backup quest |
+| `backup_failure` | systemd | immediate | Surfaces a real bug in `~/scripts/backup.sh` for the backup quest (delivered via systemd `OnFailure=` notify template) |
 | `nexacorp_offer` | Edward Torres | immediate | The job offer (accept/reject reply options) |
 | `nexacorp_persuasion_1` | Edward Torres | after `rejected_nexacorp_1` objective | Sweetened deal after first rejection |
 | `nexacorp_persuasion_2` | Edward Torres | after `rejected_nexacorp_2` objective | Final personal pitch after second rejection |

@@ -14,6 +14,8 @@ export interface Checkpoint {
   commandHistory?: Partial<Record<ComputerId, string[]>>;
   /** Extra aliases per computer (merged with .zshrc-parsed aliases) */
   aliases?: Partial<Record<ComputerId, Record<string, string>>>;
+  /** Extra env vars per computer (merged on top of .zshrc-parsed env) */
+  envVars?: Partial<Record<ComputerId, Record<string, string>>>;
 }
 
 // ── Checkpoint definitions ──────────────────────────────────────────
@@ -44,14 +46,11 @@ const DAY1_START: Checkpoint = {
     // NexaCorp immediate unlocks
     piper_unlocked: true,
     chip_unlocked: true,
-    chip_error_seen: true,
-    printenv_unlocked: true,
-    sourced_nexacorp_zshrc: true,
   },
   deliveredEmailIds: [
     // Home emails
     "job_board_alert",
-    "cron_backup_failure",
+    "backup_failure",
     "nexacorp_offer",
     "nexacorp_followup",
     "chip_ssh_setup",
@@ -87,12 +86,6 @@ const DAY1_START: Checkpoint = {
     // NexaCorp immediate
     "general_edward_welcome",
     "general_tom_wins",
-    // Edward chip DM chain
-    "edward_chip_intro",
-    "reply:edward_chip_intro:0",
-    "edward_chip_error",
-    "reply:edward_chip_error:0",
-    "edward_chip_fix",
   ],
   completedObjectives: [
     "accepted_nexacorp",
@@ -116,6 +109,10 @@ const DAY1_END: Checkpoint = {
   activeComputer: "home",
   storyFlags: {
     ...DAY1_START.storyFlags,
+    // Chip fix flow (resolved during day 1)
+    chip_error_seen: true,
+    printenv_unlocked: true,
+    sourced_nexacorp_zshrc: true,
     // Onboarding
     read_onboarding: true,
     read_team_info: true,
@@ -157,6 +154,12 @@ const DAY1_END: Checkpoint = {
   ],
   deliveredPiperIds: [
     ...DAY1_START.deliveredPiperIds,
+    // Edward chip DM chain (resolved during day 1)
+    "edward_chip_intro",
+    "reply:edward_chip_intro:0",
+    "edward_chip_error",
+    "reply:edward_chip_error:0",
+    "edward_chip_fix",
     // NexaCorp onboarding triggered
     "eng_sarah_welcome",
     "eng_code_review_debate",
@@ -220,6 +223,9 @@ const DAY1_END: Checkpoint = {
   },
   aliases: {
     ...DAY1_START.aliases,
+  },
+  envVars: {
+    nexacorp: { CHIP_API_KEY: "nxa_live_7f3k9m2x" },
   },
 };
 

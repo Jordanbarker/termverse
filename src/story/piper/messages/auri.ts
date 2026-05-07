@@ -101,7 +101,7 @@ export function getAuriDeliveries(_username: string): PiperDelivery[] {
           id: "auri_chen_5",
           from: "Auri Park",
           timestamp: "",
-          body: "We do all our data work in a Coder dev container — Oscar should reach out with your workspace details. Once you're in, clone the repo with git clone nexacorp/nexacorp-analytics. If you hit any git issues, ask Chip — he knows git better than anyone here. They revoked his direct access after... well, there was an incident. But he can still talk you through anything.",
+          body: "We do all our data work in a Coder dev container — Oscar should reach out with your workspace details. Once you're in, clone the repo with git clone nexacorp/nexacorp-analytics. If you hit any git issues, ask Chip — it's good at explaining git. Its service account used to have direct push access to our repos but Oscar pulled that after... well, there was an incident. It can still walk you through commands.",
         },
       ],
       trigger: { type: "after_objective", objectiveId: "handoff_curious_about_chen" },
@@ -149,7 +149,7 @@ export function getAuriDeliveries(_username: string): PiperDelivery[] {
           id: "auri_proactive_3b",
           from: "Auri Park",
           timestamp: "",
-          body: "If you need help with git, Chip's your guy — he knows it inside and out. They pulled his direct access after the incident, but he can still walk you through anything.",
+          body: "If you need help with git, ask Chip — it's good at explaining the commands. Its service account used to have direct push access but Oscar pulled that after the incident. It can still walk you through anything though.",
         },
         {
           id: "auri_proactive_4",

@@ -61,7 +61,7 @@ export function getOscarDeliveries(_username: string): PiperDelivery[] {
           timestamp: "",
           body: `  Feb 23 03:14:22 nexacorp-ws01 chip_service[4821]: WARN unexpected batch job
   Feb 23 03:14:23 nexacorp-ws01 chip_service[4821]: ERROR failed to sync
-  Feb 23 03:15:01 nexacorp-ws01 CRON[5932]: session opened
+  Feb 23 03:15:01 nexacorp-ws01 systemd[1]: chip-log-maintenance.service: Triggered by chip-log-maintenance.timer.
 
 Something around 3am is misbehaving but I can't tell if it's related to the deploy or just noise.`,
         },

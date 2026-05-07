@@ -55,7 +55,7 @@ cp dotfiles/.zshrc ~/
 cp dotfiles/.nanorc ~/
 pip install selenium beautifulsoup4 requests
 python3 -c "import selenium; print(selenium.__version__)"
-crontab -e
+systemctl --user enable --now backup.timer
 ls
 cat Desktop/job_search_notes.txt
 cat scripts/.env
@@ -119,6 +119,49 @@ __pycache__/
 node_modules/
 `),
       }),
+      systemd: dir("systemd", {
+        user: dir("user", {
+          "backup.service": file("backup.service", `[Unit]
+Description=Nightly home backup (rsync to /mnt/backup)
+Documentation=file:///home/${username}/scripts/backup.sh
+OnFailure=notify-failure@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/${username}/scripts/backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+`),
+          "backup.timer": file("backup.timer", `[Unit]
+Description=Nightly trigger for backup.service
+Requires=backup.service
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+AccuracySec=5min
+Persistent=true
+Unit=backup.service
+
+[Install]
+WantedBy=timers.target
+`),
+          "notify-failure@.service": file("notify-failure@.service", `[Unit]
+Description=Mail journal output when %i fails
+# Templated unit — invoked via OnFailure=notify-failure@%n.service.
+# %i expands to the failing unit name (e.g. backup.service).
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'journalctl --user -u %i --since "1 hour ago" --no-pager | mail -s "[$(hostname)] %i failed" ${username}@maniac-iv'
+`),
+        }),
+      }),
     }),
     ".private": dir(".private", {
       "journal.txt": file("journal.txt", `2026-02-10
@@ -135,7 +178,7 @@ of stuff I hadn't backed up — photos, some old project code, half my
 dotfiles. Lesson learned the hardest possible way.
 
 Setting up backups now. For real this time. External drive + rsync script
-on a cron job. Should have been doing this all along.
+on a systemd timer. Should have been doing this all along.
 
 Reported Synthetica to Indeed. Doubt anything will come of it.
 

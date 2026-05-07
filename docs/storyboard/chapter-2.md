@@ -4,7 +4,7 @@
 
 Commands unlock through colleague emails and Piper conversations:
 
-**Always available** (24): `ls`, `cd`, `cat`, `pwd`, `clear`, `help`, `mail`, `nano`, `save`, `load`, `newgame`, `history`, `python`, `whoami`, `hostname`, `date`, `which`, `man`, `file`, `tree`, `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `ssh`
+**Always available** (27): `ls`, `cd`, `cat`, `pwd`, `clear`, `help`, `mail`, `nano`, `save`, `load`, `newgame`, `history`, `python`, `whoami`, `hostname`, `date`, `which`, `man`, `file`, `tree`, `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `ssh`
 
 **After `piper_unlocked`** (read Edward's welcome email): `piper`
 **After `chip_unlocked`** (Edward's `edward_chip_intro` Piper DM): `chip`
@@ -25,285 +25,326 @@ Commands unlock through colleague emails and Piper conversations:
 ## Full Narrative Flowchart
 
 ```
-                          +==============================+
-                          |          CHAPTER 2            |
-                          |         "First Day"           |
-                          +==============+===============+
-                                         |
-                   +=============================================+
-                   |          ACT 1: ARRIVAL AT NEXACORP         |
-                   +======================+======================+
-                                          |
-                                 NexaCorp filesystem boot sequence
-                                          |
-                   +----------+-----------+-----------+
-                   v          v           v           v
-            +-----------+ +---------+ +---------+ +----------+
-            | IMMEDIATE | | IMMEDI- | | IMMEDI-  |
-            | EMAILS    | | ATE     | | ATE      |
-            +-----------+ | EMAIL   | | PIPER    |
-            | welcome_  | +---------+ +----------+
-            | edward    | | it_     | | #general |
-            |           | | provis- | | welcome  |
-            |           | | ioned   | | + Tom's  |
-            |           | |         | | wins     |
-            +-----+-----+ +----+----+ +----------+
-                  |             |
-                  v             v
-            [read welcome] [read IT]
-            sets flag:     triggers:
-            piper_unlocked maya_welcome email
-            +              maya_dm_welcome Piper
-            | jessica_welcome email
-            | tom_welcome email
-            |
-            v
-                   +=============================================+
-                   |        ACT 2: EDWARD'S ONBOARDING           |
-                   +======================+======================+
-                                          |
-                            read_welcome_email completed
-                            (piper_unlocked set)
-                                          |
-                          +---------------+---------------+
-                          |               |               |
-                          v               v               v
-                 auri_hello        edward_chip_    edward_onboarding
-                 Piper DM         intro Piper DM  group visible
-                 meet_auri +      sets flag:
-                 help_auri_       chip_unlocked
-                 inspect visible  +
-                                  | eng_sarah_welcome Piper
-                                  | cassie_dm_product Piper
-                                  |
-                                  v
-                          [player runs chip]
-                          chip fails: CHIP_API_KEY missing
-                          sets: chip_error_seen
-                                  |
-                                  v
-                          [reply to Edward]
-                          edward_chip_error → edward_chip_fix
-                          sets: printenv_unlocked
-                          (player runs source ~/.zshrc,
-                           then chip works)
-                                                          |
-                                               +----------+----------+
-                          |                    v                     v
-                  Phase 1:              +----------------+   +----------------+
-                  auri_ls_data,         | read_onboarding|   | meet_the_team  |
-                  auri_check_todo       | read           |   | read           |
-                          |             | onboarding.md  |   | team-info.md   |
-                          |             +-------+--------+   +-------+--------+
-                  [reply to Auri]               |                    |
-                          |          +----------+--------+   +-------+--------+
-                          v          v          v        v   v       v        v
-                   inspection_  oscar_     oscar_   dana_ edward_ eng_code_
-                   tools_       coder_     log_     welc- handoff review_
-                   unlocked     setup      check    ome   suggest debate
-                   (head/tail/  email      Piper DM Piper ion     Piper
-                    wc)              |          |   DM    email
-                          |          v          v
-                  Phase 2:     [read email] [reply to
-                  auri_use_head coder_      Oscar]
-                  auri_use_tail unlocked         |
-                  auri_use_wc                    v
-                          |              search_tools_
-                          |              unlocked
-                          |              + tabs_unlocked
-                          |              (grep/find/diff)
-                          |                    |
-                          v                    v
+                          ╔══════════════════════════════╗
+                          ║          CHAPTER 2           ║
+                          ║         "First Day"          ║
+                          ╚══════════════╤═══════════════╝
+                                         │
+                   ╔═════════════════════════════════════════════╗
+                   ║         ACT 1: ARRIVAL AT NEXACORP          ║
+                   ╚══════════════════════╤══════════════════════╝
+                                          │
+                                          ▼
+                  ┌───────────────────────────────────────┐
+                  │   NexaCorp filesystem boot sequence   │
+                  └───────────────────┬───────────────────┘
+                                      │
+                       ┌──────────────┴──────────────┐
+                       ▼                             ▼
+       ┌───────────────────────────┐  ┌───────────────────────────┐
+       │     IMMEDIATE EMAILS      │  │     IMMEDIATE PIPER       │
+       ├───────────────────────────┤  ├───────────────────────────┤
+       │ welcome_edward            │  │ general_edward_welcome    │
+       │ it_provisioned            │  │ general_tom_wins          │
+       └─────────────┬─────────────┘  └───────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        ▼                         ▼
+  ┌───────────────────────┐  ┌───────────────────────────┐
+  │ [read welcome_edward] │  │ [read it_provisioned]     │
+  │ sets: piper_unlocked  │  │ triggers:                 │
+  │ triggers:             │  │  - maya_welcome email     │
+  │  - jessica_welcome    │  │  - maya_dm_welcome Piper  │
+  │  - tom_welcome        │  │                           │
+  │  - auri_hello Piper   │  │                           │
+  └───────────┬───────────┘  └─────────────┬─────────────┘
+              │                            │
+              └─────────────┬──────────────┘
+                            │
+                            ▼
 
-                   +=============================================+
-                   |       ACT 3: OSCAR'S LOG INVESTIGATION      |
-                   +======================+======================+
-                                          |
-                            help_oscar_logs visible
-                            (after read_onboarding)
-                                          |
-              +---------------------------+---------------------------+
-              v                           v                           v
-     +----------------+         +----------------+          +----------------+
-     | oscar_search_  |         | oscar_check_   |          | oscar_diff_    |
-     | logs           |         | backups        |          | logs           |
-     | grep system.log|         | read .bak file |          | diff the logs  |
-     +-------+--------+         +-------+--------+          +----------------+
-             |                          |
-             v                          v
-      [read system.log]         [read system.log.bak]
-             |                          |
-             v                          +----> sarah_dm_mystery Piper
-      oscar_access_review                      (investigation hint)
-      Piper DM
-             |
-      +------+------+
-      v             v
-   [nothing      [diffed logs]
-    weird]       (requires
-      |           discovered_log_
-      v           tampering)
-   oscar_log_        |
-   normal            v
-   Piper         oscar_log_
-      |          tampered
-      v          Piper
-   access.log       |
-   task             v
-      |          access.log
-      |          task
-      +------+------+
-             |
-             v
-      [reply to Oscar]
-             |
-             v
-      processing_tools_unlocked
-      (sort/uniq)
-             |
-             v
-      report_to_oscar visible
-      (player reads access.log,
-       e.g. sort /var/log/access.log | uniq -c)
-             |
-             v
-      oscar_access_followup(_tampered)
-      Piper DM — Oscar reacts to findings
-             |
-      +------+------+
-      v             v
-   [flagged     [nothing
-    SSH keys]   concerning]
-      |             |
-      +------+------+
-             |
-             v
-      oscar_access_reported
-      (quest complete)
-             |
-             v
-      oscar_access_reaction
-      Piper DM — Oscar escalates to Sarah
-             |
-      +------+------+------+
-      v             v      v
-  dana_ops_    jordan_
-  dashboard    market-
-  Piper DM     ing_
-      |        data
-      v        Piper DM  maya_dm_
-  [reply]          |     checkin
-      |            |     Piper DM
-      v            |
-  dana_ops_        |
-  accepted         |
-      |            |
-  +---+---+        |
-  v       v        |
-chmod_  auri_      |
-unlock  chmod_     |
-ed      help       |
-        Piper DM   |
-                   |
-                   v
+                   ╔═════════════════════════════════════════════╗
+                   ║        ACT 2: EDWARD'S ONBOARDING           ║
+                   ╚══════════════════════╤══════════════════════╝
+                                          │
+                         ┌────────────────┴────────────────┐
+                         │ read_welcome_email completed    │
+                         │ (piper_unlocked set)            │
+                         └────────────────┬────────────────┘
+                                          │
+                  ┌───────────────────────┼───────────────────────┐
+                  ▼                       ▼                       ▼
+           ┌─────────────┐       ┌─────────────────┐       ┌─────────────────┐
+           │ auri_hello  │       │ edward_chip_    │       │ edward_         │
+           │ Piper DM    │       │ intro Piper DM  │       │ onboarding      │
+           │             │       │ sets:           │       │ group visible   │
+           │ • meet_auri │       │   chip_unlocked │       │                 │
+           │ • help_auri_│       │ triggers:       │       │ (continues      │
+           │   inspect   │       │  - eng_sarah_   │       │  below)         │
+           │             │       │    welcome      │       │                 │
+           │ → see Act 4 │       │  - cassie_dm_   │       │                 │
+           │             │       │    product      │       │                 │
+           └─────────────┘       └────────┬────────┘       └────────┬────────┘
+                                          │                         │
+                                          ▼                         │
+                       ┌──────────────────────────────┐             │
+                       │ [player runs chip]           │             │
+                       │ fails: CHIP_API_KEY missing  │             │
+                       │ sets: chip_error_seen        │             │
+                       └──────────────┬───────────────┘             │
+                                      │                             │
+                                      ▼                             │
+                  ┌────────────────────────────────────────┐        │
+                  │ [reply to Edward]                      │        │
+                  │ edward_chip_error → edward_chip_fix    │        │
+                  │ sets: printenv_unlocked                │        │
+                  │ (source ~/.zshrc, then chip works)     │        │
+                  └────────────────────┬───────────────────┘        │
+                                       │                            │
+                                       └──────────────┬─────────────┘
+                                                      │
+                                  ┌───────────────────┴───────────────────┐
+                                  ▼                                       ▼
+                       ┌──────────────────────┐              ┌──────────────────────┐
+                       │ read_onboarding      │              │ meet_the_team        │
+                       │ (onboarding.md)      │              │ (team-info.md)       │
+                       └──────────┬───────────┘              └──────────┬───────────┘
+                                  │                                     │
+                ┌─────────────────┼─────────────────┐                   │
+                ▼                 ▼                 ▼                   ▼
+       oscar_coder_setup    oscar_log_check    dana_welcome     eng_code_review_
+       email                Piper DM           Piper DM         debate Piper DM
+                │
+                ▼
+       ┌──────────────────┐
+       │ [read email]     │
+       │ coder_unlocked   │
+       └────────┬─────────┘
+                │
+                ▼
 
-                   +=============================================+
-                   |         ACT 4: AURI'S DATA PIPELINE         |
-                   +======================+======================+
-                                          |
-                            meet_auri visible
-                            (after piper_unlocked)
-                                          |
-                   +-----------+----------+
-                   v                      |
-          +----------------+              |
-          | help_auri_     |              |
-          | inspect        |              |
-          | (head/tail/wc  |              |
-          |  on CSV)       |              |
-          +-------+--------+              |
-                  |                       |
-          +-------+--------+             |
-          v       v        v             |
-       auri_   auri_    auri_            |
-       use_    use_     use_             |
-       head    tail     wc               |
-                                         |
-                  |                       |
-                  v                       |
-          +----------------+              |
-          | review_handoff |              |
-          | read chen-     |              |
-          | handoff/notes  |              |
-          +-------+--------+              |
-                  |                       |
-          +-------+---------+             |
-          v       v         v             |
-       edward_  auri_    maya_dm_          |
-       paranoid pipeline handoff           |
-       email    _help    Piper DM          |
-                Piper DM                   |
-                  |                        |
-                  v                        |
-          [reply to Auri]                  |
-                  |                        |
-                  v                        |
-          pipeline_tools_accepted          |
-                  |                        |
-                  v                        |
-          +----------------+               |
-          | help_auri_     |               |
-          | pipeline       |               |
-          +-------+--------+               |
-                  |                        |
-                  v                        |
-          +--------------------+           |
-          | run_dbt            |           |
-          | coder ssh ai →     |           |
-          | chip (clone repo) →|           |
-          | dbt build          |           |
-          +--------+-----------+           |
-                   |                       |
-                   +-----------------------+
-                   |
-                   v
-            ran_dbt flag set
-            meet_auri completed
-                   |
-                   v
+                   ╔═════════════════════════════════════════════╗
+                   ║       ACT 3: OSCAR'S LOG INVESTIGATION      ║
+                   ╚══════════════════════╤══════════════════════╝
+                                          │
+                          ┌───────────────┴────────────────┐
+                          │ help_oscar_logs visible        │
+                          │ (after read_onboarding)        │
+                          └───────────────┬────────────────┘
+                                          │
+              ┌───────────────────────────┼───────────────────────────┐
+              ▼                           ▼                           ▼
+     ┌───────────────────┐       ┌───────────────────┐       ┌───────────────────┐
+     │ oscar_search_logs │       │ oscar_check_      │       │ oscar_diff_logs   │
+     │ grep system.log   │       │ backups           │       │ diff the logs     │
+     │                   │       │ read .bak file    │       │                   │
+     └─────────┬─────────┘       └─────────┬─────────┘       └───────────────────┘
+               │                           │
+               ▼                           ▼
+       [read system.log]         [read system.log.bak]
+               │                           │
+               │                           ├─── sarah_dm_mystery Piper
+               │                           │    (investigation hint)
+               ▼                           ▼
+       oscar_access_review       [diffed logs]
+       Piper DM                   (requires discovered_log_tampering)
+               │                           │
+       ┌───────┴────────┐                  ▼
+       ▼                ▼          oscar_log_tampered Piper
+   [nothing weird]  [log path]              │
+       │                ▲                   │
+       ▼                │                   │
+   oscar_log_normal     └───────────────────┘
+   Piper                          │
+       │                          │
+       └────────────┬─────────────┘
+                    │
+                    ▼
+              ┌──────────────────────┐
+              │ access.log task      │
+              └──────────┬───────────┘
+                         │
+                         ▼
+                ┌──────────────────┐
+                │ [reply to Oscar] │
+                └────────┬─────────┘
+                         │
+                         ▼
+              ┌─────────────────────────────┐
+              │ processing_tools_unlocked   │
+              │ (sort/uniq)                 │
+              └──────────────┬──────────────┘
+                             │
+                             ▼
+              ┌────────────────────────────────────────┐
+              │ report_to_oscar visible                │
+              │ (player reads access.log, e.g.         │
+              │  sort /var/log/access.log | uniq -c)   │
+              └──────────────────┬─────────────────────┘
+                                 │
+                                 ▼
+              ┌────────────────────────────────────────┐
+              │ oscar_access_followup(_tampered)       │
+              │ Piper DM — Oscar reacts to findings    │
+              └──────────────────┬─────────────────────┘
+                                 │
+                  ┌──────────────┴──────────────┐
+                  ▼                             ▼
+          [flagged SSH keys]             [nothing concerning]
+                  │                             │
+                  └──────────────┬──────────────┘
+                                 │
+                                 ▼
+              ┌────────────────────────────────────────┐
+              │ oscar_access_reported (quest complete) │
+              └──────────────────┬─────────────────────┘
+                                 │
+                                 ▼
+              ┌────────────────────────────────────────┐
+              │ oscar_access_reaction Piper DM         │
+              │ — Oscar escalates to Sarah             │
+              └──────────────────┬─────────────────────┘
+                                 │
+                ┌────────────────┼────────────────┐
+                ▼                ▼                ▼
+       dana_ops_dashboard  jordan_marketing_  maya_dm_checkin
+       Piper DM            data Piper DM      Piper DM
+                │
+                ▼
+        ┌──────────────────┐
+        │ [reply to Dana]  │
+        └────────┬─────────┘
+                 │
+                 ▼
+       ┌────────────────────┐
+       │ dana_ops_accepted  │
+       └─────────┬──────────┘
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+  chmod_unlocked    auri_chmod_help Piper DM
 
-                   +=============================================+
-                   |            ACT 5: END OF DAY                |
-                   +======================+======================+
-                                          |
-                            edward_end_of_day email
-                            delivered (after dbt/ran_dbt)
-                                          |
-                                  [read email]
-                                  read_end_of_day
-                                          |
-                                  head_home visible
-                                          |
-                                  [exit from NexaCorp]
-                                          |
-                            +-------------+-------------+
-                            | runExitToHome()           |
-                            | - logs off NexaCorp       |
-                            | - rebuilds home FS        |
-                            | - sets returned_home_day1 |
-                            | - completes head_home     |
-                            +-------------+-------------+
-                                          |
-                            +-------------+-------------+
-                            v                           v
-                     alex_day1_              olive_power_tools_
-                     checkin                 intro
-                     Piper DM               Piper DM
-                     (how was it?)          (round 2?)
-                                                  |
-                                                  v
-                                          olive_power_tools_read
-                                          Quest 4 visible
+                   ╔═════════════════════════════════════════════╗
+                   ║         ACT 4: AURI'S DATA PIPELINE         ║
+                   ╚══════════════════════╤══════════════════════╝
+                                          │
+                          ┌───────────────┴────────────────┐
+                          │ meet_auri visible              │
+                          │ (after piper_unlocked)         │
+                          └───────────────┬────────────────┘
+                                          │
+                       ┌──────────────────┴──────────────────┐
+                       │  [reply to Auri's inspect ask]      │
+                       │  → inspection_tools_accepted        │
+                       │  → inspection_tools_unlocked        │
+                       │    (head/tail/wc) + tabs_unlocked   │
+                       └──────────────────┬──────────────────┘
+                                          │
+                       ┌──────────────────┴──────────────────┐
+                       │  Inspect CSVs (optional sub-objs)   │
+                       │   • auri_ls_data   (auri_listed_    │
+                       │                     handoff)        │
+                       │   • auri_check_todo (auri_read_todo)│
+                       │   • auri_use_head/tail/wc           │
+                       └──────────────────┬──────────────────┘
+                                          │
+                                          ▼
+                       ┌──────────────────────────────────┐
+                       │ review_handoff                   │
+                       │ (read chen-handoff/notes)        │
+                       └────────────────┬─────────────────┘
+                                        │
+                       ┌────────────────┼────────────────┐
+                       ▼                ▼                ▼
+                edward_paranoid    auri_pipeline_   maya_dm_handoff
+                email              help Piper DM    Piper DM
+                                        │
+                                        ▼
+                       ┌──────────────────────────────────┐
+                       │ reply_auri_handoff               │
+                       │ → handoff_reviewed               │
+                       │ → pipeline_tools_accepted        │
+                       │ (also sets coder_unlocked)       │
+                       └────────────────┬─────────────────┘
+                                        │
+                                        ▼
+                       ┌──────────────────────────────────┐
+                       │ help_auri_pipeline               │
+                       └────────────────┬─────────────────┘
+                                        │
+                                        ▼
+                       ┌──────────────────────────────────────┐
+                       │ clone_analytics_repo                 │
+                       │ coder ssh ai → chip clones           │
+                       │ nexacorp-analytics                   │
+                       │ → dbt_project_cloned                 │
+                       └────────────────┬─────────────────────┘
+                                        │
+                                        ▼
+                       ┌──────────────────────────────────────┐
+                       │ run_dbt                              │
+                       │ dbt build → ran_dbt                  │
+                       └────────────────┬─────────────────────┘
+                                        │
+                                        ▼
+                       ┌──────────────────────────────────┐
+                       │ check_auri_dbt                   │
+                       │ → auri_dbt_reported              │
+                       │ → meet_auri completed            │
+                       └────────────────┬─────────────────┘
+                                        │
+                                        ▼
+
+                   ╔═════════════════════════════════════════════╗
+                   ║            ACT 5: END OF DAY                ║
+                   ╚══════════════════════╤══════════════════════╝
+                                          │
+                          ┌───────────────┴────────────────┐
+                          │ edward_end_of_day email        │
+                          │ delivered (after dbt/ran_dbt)  │
+                          │ → closing_time group visible   │
+                          └───────────────┬────────────────┘
+                                          │
+                                          ▼
+                              ┌──────────────────────┐
+                              │ read_eod_email       │
+                              │ → read_end_of_day    │
+                              └──────────┬───────────┘
+                                         │
+                                         ▼
+                              ┌──────────────────────┐
+                              │ head_home visible    │
+                              └──────────┬───────────┘
+                                         │
+                                         ▼
+                              ┌──────────────────────────┐
+                              │ [exit from NexaCorp]     │
+                              └────────────┬─────────────┘
+                                           │
+                          ┌────────────────┴────────────────┐
+                          │ runExitToHome()                 │
+                          │  - logs off NexaCorp            │
+                          │  - rebuilds home FS             │
+                          │  - sets returned_home_day1      │
+                          │  - completes head_home          │
+                          └────────────────┬────────────────┘
+                                           │
+                  ┌────────────────────────┼─────────────────────────┐
+                  ▼                        ▼                         ▼
+           alex_day1_checkin     olive_power_tools_intro     read_piper_home
+           Piper DM              Piper DM                    (optional)
+           (how was it?)         (round 2?)                  read_piper_day1_home
+                                         │
+                                         ▼
+                                 olive_power_tools_read
+                                 → olive_power_tools quest visible
+                                           │
+                                           ▼
+                                ┌──────────────────────┐
+                                │ shutdown_day1        │
+                                │ → day1_shutdown      │
+                                │ → closing_time done  │
+                                └──────────────────────┘
 ```
 
 ## Investigation Paths (Optional)
@@ -311,16 +352,16 @@ ed      help       |
 These optional objectives allow the player to discover evidence of Chip's autonomous behavior:
 
 ```
-  +==========================================+
-  |        INVESTIGATION THREADS             |
-  +==========================================+
+  ╔══════════════════════════════════════════╗
+  ║          INVESTIGATION THREADS           ║
+  ╚══════════════════════════════════════════╝
 
   explore_jchen ──── Read system.log.bak (found_backup_files)
-       |
-       +─── discover_tampering ── diff live vs bak logs
-       |                          (discovered_log_tampering)
-       |
-       +─── find_directives ───── read /opt/chip/directives.conf
+       │
+       ├─── discover_tampering ── diff live vs bak logs
+       │                          (discovered_log_tampering)
+       │
+       └─── find_directives ───── read /opt/chip/directives.conf
                                   (found_chip_directives)
 
   investigate_ops_data ── Read /srv/operations/ops_incidents.csv
@@ -337,36 +378,52 @@ These optional objectives allow the player to discover evidence of Chip's autono
 | Objective | Type | Completion Condition | Visible When |
 |-----------|------|---------------------|--------------|
 | `read_welcome_email` | **required** | `piper_unlocked` flag | always |
-| `edward_onboarding` | **required**, group | all children complete | `read_welcome_email` completed |
+| `edward_onboarding` | **required**, group | all visible children | `read_welcome_email` completed |
 | `read_onboarding` | hidden, child | `read_onboarding` flag | `read_welcome_email` completed |
 | `meet_the_team` | hidden, child | `read_team_info` flag | `read_welcome_email` completed |
+| `reply_edward_chip_intro` | hidden, child | `replied_edward_chip_intro` objective | `read_team_info` flag |
 | `try_chip` | hidden, child | `chip_error_seen` flag | `chip_unlocked` flag |
 | `tell_edward_chip_error` | hidden, child | `told_edward_chip_error` objective | `chip_error_seen` flag |
 | `source_zshrc` | hidden, child | `sourced_nexacorp_zshrc` flag | `printenv_unlocked` flag |
-| `help_oscar_logs` | hidden | `oscar_searched_logs` flag | `read_onboarding` flag |
-| `meet_auri` | hidden | `ran_dbt` flag | `piper_unlocked` flag |
-| `help_auri_inspect` | hidden, child | all visible children | `piper_unlocked` flag |
-| `auri_ls_data` | hidden, optional, child | `auri_listed_handoff` flag | `piper_unlocked` flag |
-| `auri_check_todo` | hidden, optional, child | `auri_read_todo` flag | `piper_unlocked` flag |
+| `help_oscar_logs` | hidden | `oscar_access_reported` objective | `read_onboarding` flag |
+| `oscar_search_logs` | hidden, child | `oscar_searched_logs` flag | `search_tools_accepted` completed |
+| `oscar_check_backups` | hidden, optional, child | `oscar_checked_backups` flag | `search_tools_accepted` completed |
+| `oscar_diff_logs` | hidden, optional, child | `oscar_diffed_logs` flag | `search_tools_accepted` completed |
+| `reply_oscar_logs` | hidden, child | `oscar_log_findings_shared` objective | `oscar_searched_logs` flag |
+| `report_to_oscar` | hidden, child | `oscar_access_reported` objective | `processing_tools_accepted` completed |
+| `meet_auri` | hidden | `auri_dbt_reported` objective | `piper_unlocked` flag |
+| `auri_ls_data` | hidden, optional, child | `auri_listed_handoff` flag | `inspection_tools_accepted` completed |
+| `auri_check_todo` | hidden, optional, child | `auri_read_todo` flag | `inspection_tools_accepted` completed |
+| `auri_use_head` | hidden, optional, child | `auri_used_head` flag | `inspection_tools_accepted` completed |
+| `auri_use_tail` | hidden, optional, child | `auri_used_tail` flag | `inspection_tools_accepted` completed |
+| `auri_use_wc` | hidden, optional, child | `auri_used_wc` flag | `inspection_tools_accepted` completed |
 | `review_handoff` | hidden, child | `read_handoff_notes` flag | `inspection_tools_accepted` completed |
-| `help_auri_pipeline` | hidden, child | `pipeline_tools_accepted` objective | `read_handoff_notes` flag |
-| `run_dbt` | hidden, child | `ran_dbt` flag | `help_auri_pipeline` completed |
-| `head_home` | hidden | `returned_home_day1` flag | `read_end_of_day` flag |
-| `report_to_oscar` | hidden | `oscar_access_reported` objective | `processing_tools_accepted` objective |
+| `reply_auri_handoff` | hidden, child | `handoff_reviewed` objective | `read_handoff_notes` flag |
+| `help_auri_pipeline` | hidden, child | `ran_dbt` flag | `handoff_reviewed` completed |
+| `clone_analytics_repo` | hidden, child | `dbt_project_cloned` flag | `help_auri_pipeline` completed |
+| `run_dbt` | hidden, child | `ran_dbt` flag | `clone_analytics_repo` completed |
+| `check_auri_dbt` | hidden, child | `auri_dbt_reported` objective | `run_dbt` completed |
+| `closing_time` | hidden, group | all visible children | `edward_end_of_day` delivered |
+| `read_eod_email` | hidden, child | `read_end_of_day` flag | `edward_end_of_day` delivered |
+| `head_home` | hidden, child | `returned_home_day1` flag | `read_end_of_day` flag |
+| `read_piper_home` | hidden, optional | `read_piper_day1_home` flag | `returned_home_day1` flag |
+| `shutdown_day1` | hidden, child | `day1_shutdown` flag | `returned_home_day1` flag |
 | `explore_jchen` | hidden, optional | `found_backup_files` flag | always |
 | `discover_tampering` | hidden, optional | `discovered_log_tampering` flag | prereq: `explore_jchen` |
 | `find_directives` | hidden, optional | `found_chip_directives` flag | prereq: `explore_jchen` |
 | `investigate_ops_data` | hidden, optional | `read_ops_incidents` flag | `dana_ops_accepted` objective |
 | `report_dana_ops` | hidden, optional | `dana_ops_reported` objective | `read_ops_incidents` flag |
+| `jordan_query_metrics` | hidden, optional | `found_inflated_metrics` flag | `pipeline_tools_accepted` completed |
+| `jordan_report_findings` | hidden, optional | `jordan_metrics_reported` objective | `found_inflated_metrics` flag |
 
 ### Quest Groups
 
 | Quest | Trigger | Sub-objectives |
 |-------|---------|---------------|
-| Edward's Onboarding | `read_welcome_email` completed | read_onboarding, meet_the_team, try_chip, tell_edward_chip_error, source_zshrc |
-| Help Oscar with Logs | `read_onboarding` flag | oscar_search_logs, oscar_check_backups, oscar_diff_logs |
-| Meet Auri / Pipeline | `piper_unlocked` flag | help_auri_inspect → review_handoff → help_auri_pipeline → run_dbt |
-| Help Auri Inspect | `piper_unlocked` flag | auri_ls_data, auri_check_todo (Phase 1) + auri_use_head, auri_use_tail, auri_use_wc (Phase 2) |
+| Edward's Onboarding | `read_welcome_email` completed | read_onboarding, meet_the_team, reply_edward_chip_intro, try_chip, tell_edward_chip_error, source_zshrc |
+| Help Oscar with Logs | `read_onboarding` flag | oscar_search_logs, oscar_check_backups, oscar_diff_logs, reply_oscar_logs, report_to_oscar |
+| Meet Auri | `piper_unlocked` flag | auri_ls_data/check_todo/use_head/use_tail/use_wc (optional) → review_handoff → reply_auri_handoff → help_auri_pipeline → clone_analytics_repo → run_dbt → check_auri_dbt |
+| Closing Time | `edward_end_of_day` delivered | read_eod_email → head_home → shutdown_day1 |
 | Explore Jin Chen | `found_backup_files` flag | discover_tampering, find_directives |
 | Olive's Power Tools | `olive_power_tools_read` flag (home, post-return) | grep → wc → redirect → sort+uniq → find |
 
