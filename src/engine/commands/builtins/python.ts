@@ -1,4 +1,5 @@
 import { registerAsync, registerAlias } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { AsyncCommandHandler, CommandResult } from "../types";
 import { getPyodide } from "../../python/pyodideLoader";
 import { resolvePath } from "../../../lib/pathUtils";
@@ -133,4 +134,6 @@ async function runCode(code: string): Promise<{ output: string }> {
 
 const description = "Run Python scripts or start an interactive Python REPL";
 registerAsync("python", pythonHandler, description, HELP_TEXTS.python);
+setKnownFlags("python", { short: ["c"] });
 registerAlias("python3", "python");
+setKnownFlags("python3", { short: ["c"] });

@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { colorize, ansi } from "../../../lib/ansi";
 import { computeDiff } from "../../../lib/diff";
@@ -67,3 +68,4 @@ const diff: CommandHandler = (args, _flags, ctx) => {
 };
 
 register("diff", diff, "Compare two files line by line", HELP_TEXTS.diff, true);
+setKnownFlags("diff", {});

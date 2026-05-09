@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
 
 const aliasCmd: CommandHandler = (_args, _flags, ctx) => {
@@ -69,4 +70,6 @@ const unaliasCmd: CommandHandler = (args, flags, ctx) => {
 };
 
 register("alias", aliasCmd, "Define or display aliases", HELP_TEXTS.alias);
+setKnownFlags("alias", {});
 register("unalias", unaliasCmd, "Remove alias definitions", HELP_TEXTS.unalias);
+setKnownFlags("unalias", { short: ["a"] });

@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { colorizeCsv } from "../../../lib/ansi";
 import { highlightSql } from "../../../lib/sqlHighlight";
@@ -49,3 +50,4 @@ const cat: CommandHandler = (args, _flags, ctx) => {
 };
 
 register("cat", cat, "Display file contents", HELP_TEXTS.cat, true);
+setKnownFlags("cat", {});

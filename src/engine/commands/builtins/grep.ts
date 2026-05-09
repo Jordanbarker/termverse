@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, isFile, FSNode } from "../../filesystem/types";
 import { colorize, ansi } from "../../../lib/ansi";
@@ -140,3 +141,4 @@ const grep: CommandHandler = (args, flags, ctx) => {
 };
 
 register("grep", grep, "Search file contents for patterns", HELP_TEXTS.grep, true);
+setKnownFlags("grep", { short: ["i", "n", "l", "c", "v", "r", "R"] });

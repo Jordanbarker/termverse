@@ -325,8 +325,9 @@ that last one is your best friend. if you forget how something works, just man i
       trigger: { type: "after_piper_reply", deliveryId: "olive_challenges_intro" },
       replyOptions: [
         {
-          label: "I'm on it",
-          messageBody: "I'm on it.",
+          label: "Done!",
+          messageBody: "Done!",
+          visibleWhen: { flag: "used_file_in_downloads" },
         },
       ],
     },
@@ -350,11 +351,12 @@ that last one is your best friend. if you forget how something works, just man i
           body: "shows you where a command actually lives on disk. useful when you have multiple versions installed and need to know which one runs by default.",
         },
       ],
-      trigger: { type: "after_story_flag", flag: "used_file_in_downloads" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_file" },
       replyOptions: [
         {
-          label: "I'm on it",
-          messageBody: "I'm on it.",
+          label: "mission accomplished",
+          messageBody: "mission accomplished",
+          visibleWhen: { flag: "used_which_python" },
         },
       ],
     },
@@ -378,11 +380,12 @@ that last one is your best friend. if you forget how something works, just man i
           body: "every dev needs one. you can use it to organize anything you're working on.",
         },
       ],
-      trigger: { type: "after_story_flag", flag: "used_which_python" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_which" },
       replyOptions: [
         {
-          label: "I'm on it",
-          messageBody: "I'm on it.",
+          label: "easy peasy",
+          messageBody: "easy peasy",
+          visibleWhen: { flag: "created_projects_dir" },
         },
       ],
     },
@@ -406,11 +409,12 @@ that last one is your best friend. if you forget how something works, just man i
           body: "mv is both move and rename — same command. mv oldname newname renames in place, mv file dir/ moves it.",
         },
       ],
-      trigger: { type: "after_story_flag", flag: "created_projects_dir" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_mkdir" },
       replyOptions: [
         {
-          label: "I'm on it",
-          messageBody: "I'm on it.",
+          label: "done and dusted!",
+          messageBody: "done and dusted!",
+          visibleWhen: { flag: "used_mv_home" },
         },
       ],
     },
@@ -437,11 +441,12 @@ that last one is your best friend. if you forget how something works, just man i
           body: "pipes and redirects are where the terminal gets powerful. | sends output from one command to another. > writes output to a file. >> appends.",
         },
       ],
-      trigger: { type: "after_story_flag", flag: "used_mv_home" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_mv" },
       replyOptions: [
         {
-          label: "I'm on it",
-          messageBody: "I'm on it.",
+          label: "consider it conquered",
+          messageBody: "consider it conquered",
+          visibleWhen: { flag: "used_echo_pipe" },
         },
       ],
     },
@@ -465,11 +470,12 @@ that last one is your best friend. if you forget how something works, just man i
           body: "man pages have everything. flags, examples, edge cases. most people google instead and miss half the options.",
         },
       ],
-      trigger: { type: "after_story_flag", flag: "used_echo_pipe" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_pipe" },
       replyOptions: [
         {
           label: "done! good challenges",
           messageBody: "done! those were actually useful. I feel more solid on these now.",
+          visibleWhen: { flag: "used_man_command" },
         },
       ],
     },

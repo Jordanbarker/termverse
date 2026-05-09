@@ -154,7 +154,6 @@ const ALL_UNLOCKED = {
   search_tools_unlocked: true,
   inspection_tools_unlocked: true,
   processing_tools_unlocked: true,
-  pipeline_tools_unlocked: true,
   chip_unlocked: true,
   chmod_unlocked: true,
   devcontainer_visited: true,

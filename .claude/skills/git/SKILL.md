@@ -115,6 +115,12 @@ Supported subcommands today (all in the switch in `git.ts`):
 
 Unknown subcommands return `error: unknown subcommand: ...` with `exitCode: 1`.
 
+### Per-subcommand flag validation
+
+`git` opts out of the dispatcher's generic flag check (`skipFlagValidation("git")`) and validates inside the handler. `GIT_SUBCOMMAND_FLAGS` at the top of `git.ts` maps each subcommand to its `KnownFlags`; after `parseGitArgs`, the handler calls `rejectUnknownFlags("git", flags, known, { style: "git" })` which produces git-style errors (`error: unknown switch \`z'` for short, `error: unknown option \`bogus'` for long; exit 129). `--help` is intercepted before validation and returns `HELP_TEXTS.git`.
+
+When you add a new subcommand, also add its flag set to `GIT_SUBCOMMAND_FLAGS`. Without an entry, validation is bypassed for that subcommand.
+
 ## Remotes (`remotes.ts`)
 
 `REMOTE_REPOS: Record<string, RemoteRepoDef>` is the registry of cloneable repos. Currently one entry: `nexacorp-analytics` (the dbt project). Its history is hand-built by `buildAnalyticsCommits()` to look authentic — Jin Chen's initial scaffold, Sarah's CI tweaks, Oscar's profile fixes, Auri's recent broken commit. The `_marts__models.yml` file goes through several versions across commits (`MARTS_YAML_V1` … `V5`) so `git log -p` and `git diff <hash>` produce realistic output.
@@ -140,7 +146,7 @@ When adding a new git-driven story flag, prefer firing on a generic detail (`git
 ## Adding a New Subcommand
 
 1. **Implement the operation** as a pure function in `repo.ts` returning `{ fs, output, error?, triggerEvents? }`. Use the existing helpers (`readRepo`, `writeOrFail`, `writeRefOrFail`) — don't reach into the VFS directly.
-2. **Add a `case`** in the switch in `commands/builtins/git.ts`. Parse subcommand-specific flags from the positional args **after** stripping the subcommand itself (the dispatcher only handles global flags).
+2. **Add a `case`** in the switch in `commands/builtins/git.ts`. Parse subcommand-specific flags from the positional args **after** stripping the subcommand itself (the dispatcher only handles global flags). **Also add the subcommand's flag set to `GIT_SUBCOMMAND_FLAGS`** at the top of the file — without an entry, the per-subcommand validator silently accepts anything.
 3. **Emit `triggerEvents`** if the operation should drive a story flag. Use a stable `detail` string (e.g. `git_<verb>` or `git_<verb>_<scope>`).
 4. **Add a test** in `src/engine/git/__tests__/repo.test.ts` exercising the pure function — the dispatcher is thin enough that unit-testing `repo.ts` is sufficient.
 5. **Update `HELP_TEXTS.git`** in `src/engine/commands/helpTexts.ts` if the subcommand should appear in `git --help`.

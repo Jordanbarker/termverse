@@ -41,7 +41,7 @@ function makeCtx(cwd: string): CommandContext {
   return {
     fs, cwd, homeDir: `/home/${username}`, username,
     activeComputer: "devcontainer" as const,
-    storyFlags: { pipeline_tools_unlocked: true, devcontainer_visited: true },
+    storyFlags: { devcontainer_visited: true },
     snowflakeState,
     setSnowflakeState: (s: SnowflakeState) => { currentState = s; },
     getSnowflakeState: () => currentState,
@@ -834,7 +834,7 @@ describe("dbt run materialization", () => {
     const ctx: CommandContext = {
       fs, cwd: projectDir, homeDir: `/home/${username}`, username,
       activeComputer: "devcontainer" as const,
-      storyFlags: { pipeline_tools_unlocked: true, devcontainer_visited: true },
+      storyFlags: { devcontainer_visited: true },
     };
     const result = runModels(ctx);
     expect(result.output).toContain("Snowflake connection required");

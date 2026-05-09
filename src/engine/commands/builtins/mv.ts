@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isFile, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
@@ -40,3 +41,4 @@ const mv: CommandHandler = (args, _flags, ctx) => {
 };
 
 register("mv", mv, "Move (rename) files", HELP_TEXTS.mv);
+setKnownFlags("mv", {});

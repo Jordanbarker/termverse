@@ -3,6 +3,7 @@ import { isCommandAvailable } from "./availability";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { resolvePath } from "../../lib/pathUtils";
 import { colorize, ansi } from "../../lib/ansi";
+import { getKnownFlags, shouldValidateFlags, rejectUnknownFlags } from "./flagValidation";
 
 /** Check if a command string looks like a path (starts with ./ or /). */
 function isPathCommand(name: string): boolean {
@@ -80,6 +81,10 @@ export function execute(
   if (flags["help"] && entry.helpText) {
     return { output: entry.helpText };
   }
+  if (shouldValidateFlags(commandName)) {
+    const err = rejectUnknownFlags(commandName, flags, getKnownFlags(commandName) ?? {});
+    if (err) return err;
+  }
   return entry.handler(args, flags, ctx);
 }
 
@@ -97,6 +102,10 @@ export async function executeAsync(
   if (asyncEntry) {
     if (flags["help"] && asyncEntry.helpText) {
       return { output: asyncEntry.helpText };
+    }
+    if (shouldValidateFlags(commandName)) {
+      const err = rejectUnknownFlags(commandName, flags, getKnownFlags(commandName) ?? {});
+      if (err) return err;
     }
     return asyncEntry.handler(args, flags, ctx);
   }

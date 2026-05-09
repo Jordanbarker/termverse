@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, FSNode } from "../../filesystem/types";
 import { colorize, ansi } from "../../../lib/ansi";
@@ -67,3 +68,4 @@ const tree: CommandHandler = (args, flags, ctx) => {
 };
 
 register("tree", tree, "Display directory tree", HELP_TEXTS.tree);
+setKnownFlags("tree", { short: ["a"], long: ["all"] });

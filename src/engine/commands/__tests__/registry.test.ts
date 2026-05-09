@@ -16,6 +16,7 @@ import {
   isAsyncCommand,
   getCommandList,
 } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 
 function makeCtx(): CommandContext {
   const root: DirectoryNode = {
@@ -50,6 +51,7 @@ describe("registry", () => {
       register("test-args-cmd", (args, flags, ctx) => {
         return { output: `${args.join(",")}|${flags["v"]}|${ctx.cwd}` };
       }, "Args test");
+      setKnownFlags("test-args-cmd", { short: ["v"] });
 
       const result = execute("test-args-cmd", ["a", "b"], { v: true }, makeCtx());
       expect(result.output).toBe("a,b|true|/");

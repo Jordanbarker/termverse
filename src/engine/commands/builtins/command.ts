@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolveCommandPath, pythonLocatedEvents } from "./which";
 import { HELP_TEXTS } from "./helpTexts";
 
@@ -24,3 +25,4 @@ const command: CommandHandler = (args, flags, ctx) => {
 };
 
 register("command", command, "Show command path (POSIX)", HELP_TEXTS.command);
+setKnownFlags("command", { short: ["v"] });

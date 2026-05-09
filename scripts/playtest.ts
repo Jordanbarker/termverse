@@ -369,12 +369,6 @@ async function playtest() {
     warn("coder_unlocked not set — checking oscar_coder_setup email delivery");
   }
 
-  // Need pipeline_tools_unlocked
-  if (!runner.storyFlags.pipeline_tools_unlocked) {
-    warn("pipeline_tools_unlocked not set — need Piper reply to Auri. Setting manually.");
-    runner.storyFlags = { ...runner.storyFlags, pipeline_tools_unlocked: true };
-  }
-
   // Switch to devcontainer
   runner.switchComputer("devcontainer");
   ok(`Switched to devcontainer. CWD: ${runner.cwd}`);

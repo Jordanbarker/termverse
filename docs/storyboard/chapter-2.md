@@ -486,7 +486,4 @@ returned_home_day1 ──→ alex_day1_checkin, olive_power_tools_intro
 
 ### Notes
 
-- **`pipeline_tools_unlocked` is vestigial**: declared in `storyFlags.ts` but never set by any trigger. `dbt`/`snow` are gated by `devcontainer_visited` instead, which is set when entering the dev container.
-- **`coder_unlocked` is set twice**: first by reading `oscar_coder_setup` email (story flag trigger), then redundantly by the `pipeline_tools_accepted` EVENT_ACTION. The email trigger always fires first.
 - **Oscar's investigation branches**: the player sees different Oscar dialogue based on whether they discovered the log tampering. Both paths converge on the `processing_tools_accepted` event and `sort`/`uniq` unlock.
-- **Dev container flow**: `coder ssh ai` triggers the Coder transition animation. Inside, the player runs `chip` to clone the dbt project, then `dbt build` to run the pipeline. `exit` returns to NexaCorp.

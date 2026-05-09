@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { colorize, ansi } from "../../../lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
 import {
@@ -207,3 +208,4 @@ const mail: CommandHandler = (args, flags, ctx) => {
 };
 
 register("mail", mail, "Read and send email", HELP_TEXTS.mail);
+setKnownFlags("mail", { short: ["s"] });

@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { formatSize } from "../../../lib/formatSize";
 import { HELP_TEXTS } from "./helpTexts";
@@ -80,3 +81,4 @@ const wc: CommandHandler = (args, flags, ctx) => {
 };
 
 register("wc", wc, "Count lines, words, and characters", HELP_TEXTS.wc, true);
+setKnownFlags("wc", { short: ["l", "w", "c", "h"], long: ["human-readable"] });

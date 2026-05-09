@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, isFile, FSNode } from "../../filesystem/types";
 import { colorize, ansi } from "../../../lib/ansi";
@@ -128,3 +129,4 @@ const ls: CommandHandler = (args, flags, ctx) => {
 };
 
 register("ls", ls, "List directory contents", HELP_TEXTS.ls);
+setKnownFlags("ls", { short: ["a", "A", "l", "h"], long: ["all", "almost-all", "human-readable"] });

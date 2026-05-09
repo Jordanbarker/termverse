@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { rejectUnknownFlags, skipFlagValidation, KnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
 import {
   findRepoRoot,
@@ -67,6 +68,25 @@ function parseGitArgs(rawArgs: string[]): { positional: string[]; flags: Record<
   return { positional, flags };
 }
 
+const GIT_SUBCOMMAND_FLAGS: Record<string, KnownFlags> = {
+  "": { long: ["version"] },
+  init: {},
+  clone: { short: ["b"], long: ["depth"] },
+  add: { short: ["A"] },
+  rm: { short: ["r"] },
+  commit: { short: ["m", "a"], long: ["amend"] },
+  status: { short: ["s"] },
+  log: { long: ["oneline", "graph"] },
+  branch: { short: ["d", "D"] },
+  checkout: { short: ["b"] },
+  switch: { short: ["c"] },
+  diff: { long: ["staged", "cached"] },
+  stash: {},
+  push: { short: ["u", "f"] },
+  pull: {},
+  help: {},
+};
+
 const git: CommandHandler = (_args, _parserFlags, ctx) => {
   const effectiveArgs = ctx.rawArgs ?? _args;
   const { positional, flags } = parseGitArgs(effectiveArgs);
@@ -74,6 +94,17 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
   const subArgs = positional.slice(1);
   const plain = !!ctx.isPiped;
   const author = `${PLAYER.displayName} <${ctx.username}@${AUTHOR_EMAIL_DOMAIN[ctx.activeComputer]}>`;
+
+  // `git --help`, `git status --help`, etc. — return top-level help.
+  if (flags["help"]) {
+    return { output: HELP_TEXTS.git };
+  }
+
+  const known = GIT_SUBCOMMAND_FLAGS[subcommand ?? ""];
+  if (known) {
+    const flagErr = rejectUnknownFlags("git", flags, known, { style: "git" });
+    if (flagErr) return flagErr;
+  }
 
   if (flags["version"]) {
     return { output: "git version 2.43.0" };
@@ -237,3 +268,5 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
 };
 
 register("git", git, "The distributed version control system", HELP_TEXTS.git);
+// Validates flags per-subcommand inside the handler with git-style errors.
+skipFlagValidation("git");

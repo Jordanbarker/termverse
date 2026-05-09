@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
@@ -58,3 +59,4 @@ const sort: CommandHandler = (args, flags, ctx) => {
 };
 
 register("sort", sort, "Sort lines of text", HELP_TEXTS.sort, true);
+setKnownFlags("sort", { short: ["r", "n", "u"] });

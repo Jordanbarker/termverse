@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { formatSize } from "../../../lib/formatSize";
 import { FSNode, isFile, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
@@ -50,3 +51,4 @@ const df: CommandHandler = (_args, flags, ctx) => {
 };
 
 register("df", df, "Report filesystem disk space usage", HELP_TEXTS.df);
+setKnownFlags("df", { short: ["h"], long: ["human-readable"] });

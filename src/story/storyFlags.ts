@@ -46,7 +46,6 @@ export const STORY_FLAG_NAMES = [
   "search_tools_unlocked",
   "inspection_tools_unlocked",
   "processing_tools_unlocked",
-  "pipeline_tools_unlocked",
   "coder_unlocked",
   "piper_unlocked",
 

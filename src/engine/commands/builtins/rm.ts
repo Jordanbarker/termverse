@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
@@ -38,3 +39,4 @@ const rm: CommandHandler = (args, flags, ctx) => {
 };
 
 register("rm", rm, "Remove files or directories", HELP_TEXTS.rm);
+setKnownFlags("rm", { short: ["r", "R", "f"] });

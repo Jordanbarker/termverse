@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isFile, isDirectory, DirectoryNode } from "../../filesystem/types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
@@ -69,3 +70,4 @@ const cp: CommandHandler = (args, flags, ctx) => {
 };
 
 register("cp", cp, "Copy files", HELP_TEXTS.cp);
+setKnownFlags("cp", { short: ["r", "R"] });

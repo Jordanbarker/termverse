@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
@@ -57,3 +58,4 @@ const uniq: CommandHandler = (args, flags, ctx) => {
 };
 
 register("uniq", uniq, "Filter adjacent duplicate lines", HELP_TEXTS.uniq, true);
+setKnownFlags("uniq", { short: ["c", "d", "i"] });

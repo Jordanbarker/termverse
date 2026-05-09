@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
 import {
   runModels,
@@ -74,3 +75,4 @@ const dbt: CommandHandler = (args, flags, ctx) => {
 };
 
 register("dbt", dbt, "dbt — data build tool for NexaCorp analytics", HELP_TEXTS.dbt);
+setKnownFlags("dbt", { short: ["s"], long: ["select", "resource-type", "version"] });

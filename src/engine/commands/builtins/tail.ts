@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { skipFlagValidation } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isBinaryFile } from "../../filesystem/VirtualFS";
 import { colorizeCsv } from "../../../lib/ansi";
@@ -74,3 +75,6 @@ const tail: CommandHandler = (args, _flags, ctx) => {
 };
 
 register("tail", tail, "Display last lines of a file", HELP_TEXTS.tail, true);
+// rawArgs-driven: -5 / -n 5 come through stripped or split by the parser;
+// the handler re-parses ctx.rawArgs.
+skipFlagValidation("tail");

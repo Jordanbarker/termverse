@@ -23,6 +23,12 @@ import "../builtins/snow";
 import "../builtins/wc";
 import "../builtins/df";
 import "../builtins/git";
+import "../builtins/grep";
+import "../builtins/find";
+import "../builtins/head";
+import "../builtins/tree";
+import "../builtins/mkdir";
+import "../builtins/command";
 
 function createTestFS(): VirtualFS {
   const root: DirectoryNode = {
@@ -100,7 +106,6 @@ const ALL_UNLOCKED = {
   search_tools_unlocked: true,
   inspection_tools_unlocked: true,
   processing_tools_unlocked: true,
-  pipeline_tools_unlocked: true,
   chip_unlocked: true,
   devcontainer_visited: true,
 };
@@ -823,4 +828,127 @@ describe("--help", () => {
       expect(result.output).not.toBe(HELP_TEXTS[cmd]);
     });
   }
+});
+
+describe("invalid flag rejection", () => {
+  it("ls -z returns coreutils-style error and exit code 2", () => {
+    const result = execute("ls", [], { z: true }, ctx());
+    expect(result.output).toBe(
+      "ls: invalid option -- 'z'\nTry 'ls --help' for more information.",
+    );
+    expect(result.exitCode).toBe(2);
+  });
+
+  it("ls --foo returns 'unrecognized option' for long flags", () => {
+    const result = execute("ls", [], { foo: true }, ctx());
+    expect(result.output).toContain("unrecognized option '--foo'");
+    expect(result.exitCode).toBe(2);
+  });
+
+  it("ls -la still works (sanity check)", () => {
+    const result = execute("ls", [], { l: true, a: true }, ctx());
+    expect(result.output).toContain("notes.txt");
+  });
+
+  it("cat -z errors (cat has no flags)", () => {
+    const result = execute("cat", ["notes.txt"], { z: true }, ctx());
+    expect(result.output).toContain("invalid option -- 'z'");
+    expect(result.exitCode).toBe(2);
+  });
+
+  it("grep -X errors", () => {
+    const result = execute("grep", ["foo", "notes.txt"], { X: true }, ctx());
+    expect(result.output).toContain("invalid option -- 'X'");
+    expect(result.exitCode).toBe(2);
+  });
+
+  it("ls --help returns help text (not 'unrecognized option')", () => {
+    const result = execute("ls", [], { help: true }, ctx());
+    expect(result.output).toBe(HELP_TEXTS.ls);
+    expect(result.output).not.toContain("unrecognized option");
+  });
+
+  it("tree -a still works (Piper content references this)", () => {
+    const result = execute("tree", [], { a: true }, ctx());
+    expect(result.output).not.toContain("invalid option");
+  });
+
+  it("df -h still works", () => {
+    const result = execute("df", [], { h: true }, ctx());
+    expect(result.output).not.toContain("invalid option");
+  });
+
+  it("mkdir -p a/b/c still works", () => {
+    const result = execute("mkdir", ["a/b/c"], { p: true }, ctx());
+    expect(result.output).not.toContain("invalid option");
+  });
+
+  it("command -v ls still works", () => {
+    const result = execute("command", ["ls"], { v: true }, ctx());
+    expect(result.output).not.toContain("invalid option");
+  });
+
+  it("mail -s 'hi' oscar still works (regression guard)", () => {
+    const result = execute("mail", ["hi", "oscar"], { s: true }, ctx());
+    expect(result.output).not.toContain("invalid option");
+  });
+
+  it("find . -name foo still works (rawArgs opt-out)", () => {
+    // Parser splits -name into {n,a,m,e}; the handler reads ctx.rawArgs.
+    const fakeCtx = { ...ctx(), rawArgs: [".", "-name", "notes.txt"] };
+    const result = execute("find", [".", "notes.txt"], { n: true, a: true, m: true, e: true }, fakeCtx);
+    expect(result.output).not.toContain("invalid option");
+  });
+
+  it("head -5 f.txt still works (POSIX shorthand, opt-out)", () => {
+    const fakeCtx = { ...ctx(), rawArgs: ["-5", "notes.txt"] };
+    const result = execute("head", ["notes.txt"], { 5: true }, fakeCtx);
+    expect(result.output).not.toContain("invalid option");
+  });
+});
+
+describe("git invalid flag rejection", () => {
+  // git/snow live in the dev container (DEVCONTAINER_ONLY in commandGates).
+  const devCtx = (): CommandContext => ({ ...ctx(), activeComputer: "devcontainer" });
+
+  it("git status -z returns git-style error and exit 129", () => {
+    const result = execute("git", ["status", "-z"], { z: true }, {
+      ...devCtx(),
+      rawArgs: ["status", "-z"],
+    });
+    expect(result.output).toBe("error: unknown switch `z'");
+    expect(result.exitCode).toBe(129);
+  });
+
+  it("git log --bogus returns git-style error", () => {
+    const result = execute("git", ["log", "--bogus"], { bogus: true }, {
+      ...devCtx(),
+      rawArgs: ["log", "--bogus"],
+    });
+    expect(result.output).toBe("error: unknown option `bogus'");
+    expect(result.exitCode).toBe(129);
+  });
+
+  it("git --version still works at top level", () => {
+    const result = execute("git", ["--version"], { version: true }, {
+      ...devCtx(),
+      rawArgs: ["--version"],
+    });
+    expect(result.output).toBe("git version 2.43.0");
+  });
+
+  it("git --help and git status --help return help text", () => {
+    const top = execute("git", [], { help: true }, devCtx());
+    expect(top.output).toBe(HELP_TEXTS.git);
+    const sub = execute("git", ["status"], { help: true }, devCtx());
+    expect(sub.output).toBe(HELP_TEXTS.git);
+  });
+});
+
+describe("snow invalid flag rejection", () => {
+  it("snow sql -X uses 'snow sql:' prefix and exit 2", () => {
+    const result = execute("snow", ["sql"], { X: true }, { ...ctx(), activeComputer: "devcontainer" });
+    expect(result.output).toContain("snow sql: invalid option -- 'X'");
+    expect(result.exitCode).toBe(2);
+  });
 });

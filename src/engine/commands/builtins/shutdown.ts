@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { getShutdownIncrementalLines } from "../../../lib/ascii";
 
 const shutdown: CommandHandler = (args, flags, ctx) => {
@@ -34,3 +35,4 @@ const shutdown: CommandHandler = (args, flags, ctx) => {
 };
 
 register("shutdown", shutdown, "Power off the system");
+setKnownFlags("shutdown", { short: ["h"] });

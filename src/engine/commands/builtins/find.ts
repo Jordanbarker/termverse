@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { skipFlagValidation } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, isFile, FSNode } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
@@ -108,3 +109,6 @@ const find: CommandHandler = (args, _flags, ctx) => {
 };
 
 register("find", find, "Search for files by name", HELP_TEXTS.find);
+// rawArgs-driven: -name/-type tokens come through as `flags: {n,a,m,e}` etc.
+// after parser splitting; the handler re-parses ctx.rawArgs.
+skipFlagValidation("find");

@@ -35,7 +35,7 @@ function makeCtxWithGit(opts?: { includeDay2?: boolean; pullUpdates?: boolean })
   return {
     fs, cwd: projectDir, homeDir, username,
     activeComputer: "devcontainer" as const,
-    storyFlags: { pipeline_tools_unlocked: true, devcontainer_visited: true },
+    storyFlags: { devcontainer_visited: true },
     snowflakeState,
     setSnowflakeState: (s: SnowflakeState) => { currentState = s; },
     getSnowflakeState: () => currentState,
@@ -52,7 +52,7 @@ function makeSimpleCtx(): CommandContext & { getSnowflakeState: () => SnowflakeS
   return {
     fs, cwd: projectDir, homeDir, username,
     activeComputer: "devcontainer" as const,
-    storyFlags: { pipeline_tools_unlocked: true, devcontainer_visited: true },
+    storyFlags: { devcontainer_visited: true },
     snowflakeState,
     setSnowflakeState: (s: SnowflakeState) => { currentState = s; },
     getSnowflakeState: () => currentState,

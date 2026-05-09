@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath, parentPath } from "../../../lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "../../filesystem/VirtualFS";
@@ -54,3 +55,4 @@ const mkdir: CommandHandler = (args, flags, ctx) => {
 };
 
 register("mkdir", mkdir, "Create directories", HELP_TEXTS.mkdir);
+setKnownFlags("mkdir", { short: ["p"] });

@@ -1,4 +1,5 @@
 import { registerAsync, registerAlias } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { AsyncCommandHandler, CommandContext, CommandResult } from "../types";
 import { parsePipeline, parseInput, parseChainedPipeline } from "../parser";
 import { execute, executeAsync, isAsyncCommand } from "../registry";
@@ -792,5 +793,8 @@ const bashHandler: AsyncCommandHandler = async (args, flags, ctx) => {
 
 const description = "Execute shell scripts";
 registerAsync("bash", bashHandler, description, HELP_TEXTS.bash);
+setKnownFlags("bash", { short: ["c"] });
 registerAlias("sh", "bash");
+setKnownFlags("sh", { short: ["c"] });
 registerAlias("zsh", "bash");
+setKnownFlags("zsh", { short: ["c"] });

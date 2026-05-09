@@ -116,6 +116,16 @@ Two internal `Map`s: `commands` (sync) and `asyncCommands` (async). Both auto-ha
 
 Flag parsing: `-x` → `{ x: true }`, `-xyz` → `{ x: true, y: true, z: true }`, `--flag` → `{ flag: true }`.
 
+## Flag validation (`flagValidation.ts`)
+
+The dispatcher rejects unknown flags by default with a coreutils-style error (`<cmd>: invalid option -- 'z'`, exit 2). Each command must declare its known flags with `setKnownFlags(name, { short: [...], long: [...] })` after `register(...)`. Pass `{}` for commands that take no flags. `--help` is always allowed (the dispatcher short-circuits to `helpText` before validation).
+
+Three opt-out cases (call `skipFlagValidation(name)` instead):
+
+- **rawArgs-driven** (`find`, `head`, `tail`): the parser splits `-name` into `{n,a,m,e}` and `-5` into `{5}`, so a generic whitelist would reject the canonical syntax. The handler re-parses `ctx.rawArgs` and accepts anything.
+- **Per-subcommand** (`git`): each subcommand has its own flag set; validation happens inside the handler with `rejectUnknownFlags(..., { style: "git" })` and a custom git-style error (`error: unknown switch \`z'`, exit 129).
+- **Custom prefix** (`snow`): handler calls `rejectUnknownFlags("snow sql", flags, ...)` so the error reads `snow sql:` instead of `snow:`.
+
 ## Command Chaining
 
 Supports `&&` (run if previous succeeded), `||` (run if previous failed), and `;` (always run). Pipes bind tighter than chain operators: `cmd1 && cmd2 | cmd3` means `[cmd1] && [cmd2 | cmd3]`.
@@ -237,6 +247,7 @@ Create `src/engine/commands/builtins/{name}.ts`:
 ```ts
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "../helpTexts";
 import { resolvePath } from "../../lib/pathUtils";
 
@@ -247,6 +258,7 @@ const myCommand: CommandHandler = (args, flags, ctx) => {
 };
 
 register("mycommand", myCommand, "Short description", HELP_TEXTS.mycommand);
+setKnownFlags("mycommand", { short: ["x"], long: ["foo"] });
 ```
 
 ### Step 2: Add help text

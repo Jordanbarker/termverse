@@ -1,5 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
 
 const echo: CommandHandler = (args, flags, ctx) => {
@@ -15,3 +16,4 @@ const echo: CommandHandler = (args, flags, ctx) => {
 };
 
 register("echo", echo, "Print text to standard output", HELP_TEXTS.echo);
+setKnownFlags("echo", { short: ["n"] });

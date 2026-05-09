@@ -1,4 +1,5 @@
 import { register } from "../registry";
+import { rejectUnknownFlags, skipFlagValidation } from "../flagValidation";
 import { CommandResult, CommandContext } from "../types";
 import { HELP_TEXTS } from "./helpTexts";
 import { execute } from "../../snowflake/executor/executor";
@@ -23,15 +24,8 @@ register(
     // Shift args past the subcommand
     const sqlArgs = args.slice(1);
 
-    // Reject unknown flags
-    const knownFlags = ["q", "help"];
-    const unknownFlags = Object.keys(flags).filter(f => !knownFlags.includes(f));
-    if (unknownFlags.length > 0) {
-      const flag = unknownFlags[0];
-      return {
-        output: `snow sql: unknown option '-${flag}'\n\nUsage:\n  snow sql             Start interactive SQL REPL\n  snow sql -q 'SQL'    Execute a single query inline`,
-      };
-    }
+    const flagErr = rejectUnknownFlags("snow sql", flags, { short: ["q"] });
+    if (flagErr) return flagErr;
 
     // -q requires a SQL argument
     if (flags["q"] && sqlArgs.length === 0) {
@@ -93,3 +87,5 @@ register(
   "Snowflake CLI — query the NexaCorp data warehouse",
   HELP_TEXTS.snow
 );
+// Validates flags inside the handler with a "snow sql" prefix.
+skipFlagValidation("snow");
