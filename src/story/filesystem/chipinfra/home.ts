@@ -10,6 +10,27 @@ import { file, dir } from "../../../engine/filesystem/builders";
 export function buildHomeDirectory(username: string): DirectoryNode {
   return dir("home", {
     [username]: dir(username, {
+      ".zshrc": file(".zshrc", `# ~/.zshrc - Chip platform workspace (chip)
+PROMPT='%B%F{green}%n@coder-chip%f:%F{blue}%~%f%b%# '
+bindkey -e
+
+setopt HIST_IGNORE_DUPS SHARE_HISTORY AUTO_CD
+
+HISTFILE=~/.zsh_history
+HISTSIZE=1000
+SAVEHIST=1000
+
+autoload -Uz compinit && compinit
+
+alias ll='ls -la'
+alias la='ls -A'
+alias l='ls -CF'
+alias ..='cd ..'
+alias df='df -h'
+
+export EDITOR=nano
+export PAGER=cat
+`),
       // Fresh provisioned home on a shared platform workspace. The README
       // is the standard Coder template welcome; nothing else is here yet
       // because the player has just SSH'd in for the first time.
@@ -27,11 +48,14 @@ This is NOT your personal coder workspace — that's \`coder ssh ai\`.
 Multiple Chip platform engineers use this box. Be tidy, don't leave
 secrets on disk.
 
-If you're authoring a plugin, keep it under
-  /opt/chip/plugins/<your-username>/
+If you're authoring a plugin, scaffold it next to the existing ones —
+one directory per plugin, named after the plugin:
 
-so blame is obvious. Add an entry to /opt/chip/plugins/registry.json
-when it's working.
+  /opt/chip/plugins/<plugin-name>/
+    plugin.json
+    SKILL.md
+
+Add an entry to /opt/chip/plugins/registry.json when it's working.
 
 Maintainer: edward@nexacorp.com (CTO, owner of Chip)
 Infra:      oscar@nexacorp.com
@@ -75,6 +99,12 @@ alias rag='cd /srv/ai/rag'
 `),
       ".ssh": dir(".ssh", {
         config: file("config", `# erik's chipinfra ssh config
+Host erik-laptop
+  HostName erik-laptop.nexa.internal
+  User erik
+  ForwardAgent yes
+  IdentityFile ~/.ssh/id_ed25519
+
 Host *.nexa.internal
   User erik
   ForwardAgent yes

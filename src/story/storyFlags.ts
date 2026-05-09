@@ -5,6 +5,7 @@ export interface StoryFlagTrigger {
   event: "file_read" | "command_executed" | "directory_visit" | "directory_created" | "file_created" | "file_modified" | "piper_delivered" | "objective_completed";
   path?: string;
   pathPrefix?: string;
+  pathSuffix?: string;
   detail?: string;
   flag: StoryFlagName;
   value: string | boolean;
@@ -74,6 +75,8 @@ export const STORY_FLAG_NAMES = [
   "dbt_project_cloned",
 
   // Quest 1: Olive's Terminal Challenges
+  "olive_challenges_accepted",
+  "olive_challenges_declined",
   "olive_challenges_read",
   "used_file_in_downloads",
   "used_which_python",
@@ -123,6 +126,11 @@ export const STORY_FLAG_NAMES = [
   "wrote_plugin_skill",
   "registered_chip_plugin",
   "reported_plugin_to_edward",
+
+  // Chipinfra → Erik's PC pivot (SSH-agent-forwarding abuse)
+  "cat_erik_socket_marker",
+  "ran_ssh_add_erik",
+  "pivoted_to_erik_pc",
 ] as const;
 
 export type StoryFlagName = (typeof STORY_FLAG_NAMES)[number];
@@ -147,6 +155,8 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
     { event: "objective_completed", detail: "salary_180k", flag: "accepted_at_180k", value: true },
 
     // Quest 1: Olive's Terminal Challenges
+    { event: "command_executed", detail: "olive_challenges_accepted", flag: "olive_challenges_accepted", value: true },
+    { event: "command_executed", detail: "olive_challenges_declined", flag: "olive_challenges_declined", value: true },
     { event: "piper_delivered", detail: "olive_challenge_file", flag: "olive_challenges_read", value: true },
     { event: "file_read", pathPrefix: p.downloadsDir(username) + "/", flag: "used_file_in_downloads", value: true },
     // Any way of locating the python interpreter — `which python3`, `command -v python3`,
@@ -239,10 +249,19 @@ export function getNexacorpStoryFlagTriggers(_username: string): StoryFlagTrigge
   ];
 }
 
+export function getErikpcStoryFlagTriggers(_username: string): StoryFlagTrigger[] {
+  return [
+    { event: "command_executed", detail: "apt_install_tree", flag: "tree_installed", value: true, toast: "tree command installed!" },
+    { event: "command_executed", detail: "apt_update", flag: "apt_updated", value: true },
+    { event: "command_executed", detail: "apt_upgrade", flag: "apt_upgraded", value: true, toast: "System updated!" },
+  ];
+}
+
 export function getTriggersForComputer(computer: ComputerId, username: string): StoryFlagTrigger[] {
   if (computer === "home") return getStoryFlagTriggers(username);
   if (computer === "devcontainer") return getDevcontainerStoryFlagTriggers(username);
   if (computer === "chipinfra") return getChipinfraStoryFlagTriggers(username);
+  if (computer === "erik-pc") return getErikpcStoryFlagTriggers(username);
   return getNexacorpStoryFlagTriggers(username);
 }
 
@@ -264,18 +283,30 @@ export function getChipinfraStoryFlagTriggers(username: string): StoryFlagTrigge
     { event: "file_read", path: np.chipLogMaintenance, flag: "found_chip_directives", value: true },
     { event: "file_read", path: np.chipCleanup, flag: "found_cleanup_script", value: true },
 
-    // Player creates their plugin directory at /opt/chip/plugins/{username}/.
-    // Path resolved at trigger-fetch time using the username in scope here —
-    // mirrors how `created_projects_dir` works in getStoryFlagTriggers.
-    { event: "directory_created", path: p.chipPluginDir(username), flag: "created_chip_plugin_dir", value: true },
+    // Player picks a plugin name and creates /opt/chip/plugins/<plugin-name>/
+    // next to the seeded plugins. The 10 seeded dirs already exist at game
+    // start, so directory_created only fires for a new player-created dir.
+    { event: "directory_created", pathPrefix: "/opt/chip/plugins/", flag: "created_chip_plugin_dir", value: true },
 
-    // Plugin manifest + skill files written via nano save / touch / cp / mv / > redirect.
-    { event: "file_created", path: p.chipPluginManifest(username), flag: "wrote_plugin_manifest", value: true },
-    { event: "file_created", path: p.chipPluginSkill(username), flag: "wrote_plugin_skill", value: true },
+    // plugin.json + SKILL.md inside the player's new dir. file_created (not
+    // file_modified) means edits to the 10 existing manifests/skills don't fire.
+    // pathSuffix narrows to the conventional filenames so a stray file under
+    // the plugins tree doesn't credit the wrong objective.
+    { event: "file_created", pathPrefix: "/opt/chip/plugins/", pathSuffix: "/plugin.json", flag: "wrote_plugin_manifest", value: true },
+    { event: "file_created", pathPrefix: "/opt/chip/plugins/", pathSuffix: "/SKILL.md", flag: "wrote_plugin_skill", value: true },
 
     // Optional/extra-credit: register the plugin in registry.json (file_modified, since the
     // file already exists). file_created would NOT fire here because the registry pre-exists.
     { event: "file_modified", path: p.chipPluginRegistry, flag: "registered_chip_plugin", value: true },
+
+    // Chipinfra → Erik's PC pivot. Reading the .user-erik marker file is the
+    // moment the player notices Erik's still-live agent socket. ssh-add and ssh
+    // both honor SSH_AUTH_SOCK + this marker; the flag is narrative-only here
+    // (lets future content gate on "the player has noticed").
+    { event: "file_read", path: p.erikSocketMarker, flag: "cat_erik_socket_marker", value: true },
+
+    // Set by the ssh-add builtin when it lists Erik's keys via the agent.
+    { event: "command_executed", detail: "ran_ssh_add_erik", flag: "ran_ssh_add_erik", value: true },
   ];
 }
 

@@ -12,6 +12,7 @@ import { createDefaultContext } from "../engine/snowflake/session/context";
 import { SaveSlotId } from "../state/saveTypes";
 import { formatSlotName } from "../state/saveManager";
 import { COMPUTERS, ComputerId } from "../state/types";
+import { getComputerUsername } from "../story/player";
 import { isCommandAvailable } from "../engine/commands/availability";
 import { computeEffects, AppliedEffects } from "../engine/commands/applyResult";
 import { CHECKPOINTS } from "../story/checkpoints";
@@ -107,14 +108,15 @@ export function useTerminal() {
     const store = useGameStore.getState();
     const computerId = activeComputerRef.current;
     const displayCwd = currentCwd || cwdRef.current;
-    const homeDir = store.computerState[computerId]?.fs?.homeDir ?? `/home/${store.username}`;
+    const sessionUser = getComputerUsername(computerId, store.username);
+    const homeDir = store.computerState[computerId]?.fs?.homeDir ?? `/home/${sessionUser}`;
     const hostname = COMPUTERS[computerId].promptHostname;
 
     // Use PROMPT env var if set, otherwise fall back to hardcoded format
     const promptTemplate = store.computerState[computerId]?.envVars?.PROMPT;
     if (promptTemplate) {
       return expandZshPrompt(promptTemplate, {
-        username: store.username,
+        username: sessionUser,
         hostname,
         cwd: displayCwd,
         homeDir,
@@ -124,7 +126,7 @@ export function useTerminal() {
     const displayPath = displayCwd.startsWith(homeDir)
       ? "~" + displayCwd.slice(homeDir.length)
       : displayCwd;
-    return `${colorize(`${store.username}@${hostname}`, ansi.bold, ansi.green)}:${colorize(displayPath, ansi.bold, ansi.blue)}$ `;
+    return `${colorize(`${sessionUser}@${hostname}`, ansi.bold, ansi.green)}:${colorize(displayPath, ansi.bold, ansi.blue)}$ `;
   }, []);
 
   const writePrompt = useCallback(
@@ -135,7 +137,7 @@ export function useTerminal() {
   );
 
   // Compose transition functions
-  const { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToHome, runShutdownTransition } = useComputerTransitions({
+  const { runShutdownTransition, dispatchTransition } = useComputerTransitions({
     cwdRef,
     activeComputerRef,
     writePrompt,
@@ -146,7 +148,7 @@ export function useTerminal() {
     activeComputerRef,
     writePrompt,
     getPrompt,
-    runSshTransition,
+    dispatchTransition,
     pendingNotificationsRef,
   });
 
@@ -280,22 +282,11 @@ export function useTerminal() {
         }
       }
 
-      // Computer transitions — first-time (full animation)
-      if (effects.transitionTo === "devcontainer") {
-        runCoderTransition(term, "devcontainer");
-        return true;
-      }
-      if (effects.transitionTo === "chipinfra") {
-        runCoderTransition(term, "chipinfra");
-        return true;
-      }
-      if (effects.transitionTo === "nexacorp" && (computerId === "devcontainer" || computerId === "chipinfra")) {
-        runExitToNexacorp(term);
-        return true;
-      }
-      if (effects.transitionTo === "home" && computerId === "nexacorp") {
-        runExitToHome(term);
-        return true;
+      // Computer transitions — source-aware dispatch (see dispatchTransition for the matrix).
+      if (effects.transitionTo) {
+        if (dispatchTransition(term, effects.transitionTo, computerId)) {
+          return true;
+        }
       }
 
       // Start sessions — defer notifications until session exits
@@ -349,7 +340,7 @@ export function useTerminal() {
 
       return effects.suppressPrompt;
     },
-    [sessionRouter, getPrompt, runCoderTransition, runExitToNexacorp, runExitToHome, runShutdownTransition, applyStateEffects, writeNotifications, writePrompt]
+    [sessionRouter, getPrompt, dispatchTransition, runShutdownTransition, applyStateEffects, writeNotifications, writePrompt]
   );
 
   const handleInput = useCallback(

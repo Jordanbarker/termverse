@@ -16,16 +16,20 @@ export function checkStoryFlagTriggers(
   for (const trigger of triggers) {
     if (trigger.event === event.type) {
       if (trigger.requiredFlags?.some(f => !currentFlags[f])) continue;
-      const matchDetail = trigger.path ?? trigger.detail;
+      const matchExact = trigger.path ?? trigger.detail;
       const matchPrefix = trigger.pathPrefix;
-      if (matchPrefix && event.detail?.startsWith(matchPrefix)) {
-        if (currentFlags[trigger.flag] === undefined) {
-          results.push({ flag: trigger.flag, value: trigger.value, toast: trigger.toast });
-        }
-      } else if (matchDetail && event.detail === matchDetail) {
-        if (currentFlags[trigger.flag] === undefined) {
-          results.push({ flag: trigger.flag, value: trigger.value, toast: trigger.toast });
-        }
+      const matchSuffix = trigger.pathSuffix;
+      const detail = event.detail;
+      let fired = false;
+      if ((matchPrefix || matchSuffix) && detail) {
+        const prefixOk = !matchPrefix || detail.startsWith(matchPrefix);
+        const suffixOk = !matchSuffix || detail.endsWith(matchSuffix);
+        if (prefixOk && suffixOk) fired = true;
+      } else if (matchExact && detail === matchExact) {
+        fired = true;
+      }
+      if (fired && currentFlags[trigger.flag] === undefined) {
+        results.push({ flag: trigger.flag, value: trigger.value, toast: trigger.toast });
       }
     }
   }

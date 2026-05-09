@@ -8,9 +8,19 @@ import { highlightPython } from "../../../lib/pythonHighlight";
 import { isBinaryFile } from "../../filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";
 
-const cat: CommandHandler = (args, _flags, ctx) => {
+function numberLines(text: string, startCounter: { value: number }): string {
+  const lines = text.split("\n");
+  return lines
+    .map((line) => `${String(startCounter.value++).padStart(6, " ")}\t${line}`)
+    .join("\n");
+}
+
+const cat: CommandHandler = (args, flags, ctx) => {
+  const numbered = !!flags["n"];
+  const counter = { value: 1 };
+
   if (args.length === 0 && ctx.stdin !== undefined) {
-    return { output: ctx.stdin };
+    return { output: numbered ? numberLines(ctx.stdin, counter) : ctx.stdin };
   }
   if (args.length === 0) {
     return { output: "cat: missing file operand" };
@@ -35,14 +45,15 @@ const cat: CommandHandler = (args, _flags, ctx) => {
       outputs.push(result.error);
       hasError = true;
     } else if (result.content !== undefined) {
-      const content = arg.endsWith(".csv")
-        ? colorizeCsv(result.content)
+      const raw = result.content;
+      const highlighted = arg.endsWith(".csv")
+        ? colorizeCsv(raw)
         : arg.endsWith(".sql")
-          ? highlightSql(result.content)
+          ? highlightSql(raw)
           : arg.endsWith(".py")
-            ? highlightPython(result.content)
-            : result.content;
-      outputs.push(content);
+            ? highlightPython(raw)
+            : raw;
+      outputs.push(numbered ? numberLines(highlighted, counter) : highlighted);
     }
   }
 
@@ -50,4 +61,4 @@ const cat: CommandHandler = (args, _flags, ctx) => {
 };
 
 register("cat", cat, "Display file contents", HELP_TEXTS.cat, true);
-setKnownFlags("cat", {});
+setKnownFlags("cat", { short: ["n"] });

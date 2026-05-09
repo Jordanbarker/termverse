@@ -2,6 +2,9 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 
 const exit: CommandHandler = (_args, _flags, ctx) => {
+  if (ctx.activeComputer === "erik-pc") {
+    return { output: "", transitionTo: "chipinfra" };
+  }
   if (ctx.activeComputer === "devcontainer" || ctx.activeComputer === "chipinfra") {
     return { output: "", transitionTo: "nexacorp" };
   }

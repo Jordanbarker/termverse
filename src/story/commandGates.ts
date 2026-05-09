@@ -76,6 +76,7 @@ export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
   "source", ".",
   "printenv", "env", "export",
   "alias", "unalias",
+  "ssh", "ssh-add",
 ]);
 
 /** Home PC commands gated behind story flags. */

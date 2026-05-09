@@ -22,6 +22,7 @@ export const PIPER_DELIVERY_IDS = [
   "olive_linux_basics",
   "olive_tree_tip",
   "olive_challenges_intro",
+  "olive_challenges_decline_ack",
   "olive_challenge_file",
   "olive_challenge_which",
   "olive_challenge_mkdir",

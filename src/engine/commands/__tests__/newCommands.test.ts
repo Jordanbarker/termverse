@@ -385,6 +385,16 @@ describe("echo", () => {
     const result = execute("echo", [], {}, ctx());
     expect(result.output).toBe("\n");
   });
+
+  it("appends trailing newline when piped", () => {
+    const result = execute("echo", ["hello"], {}, ctx(undefined, { isPiped: true }));
+    expect(result.output).toBe("hello\n");
+  });
+
+  it("suppresses trailing newline with -n when piped", () => {
+    const result = execute("echo", ["hello"], { n: true }, ctx(undefined, { isPiped: true }));
+    expect(result.output).toBe("hello");
+  });
 });
 
 // --- chmod ---
@@ -1147,6 +1157,49 @@ describe("cp (additional)", () => {
   it("returns error for nonexistent parent directory", () => {
     const result = execute("cp", ["notes.txt", "nonexistent/copy.txt"], {}, ctx());
     expect(result.output).not.toBe("");
+  });
+
+  it("copies a directory recursively to a new destination", () => {
+    const result = execute("cp", ["docs", "docs2"], { r: true }, ctx());
+    expect(result.output).toBe("");
+    expect(result.newFs).toBeDefined();
+    const dest = result.newFs!.getNode("/home/player/docs2");
+    expect(dest).not.toBeNull();
+    expect(dest!.type).toBe("directory");
+    const copied = result.newFs!.readFile("/home/player/docs2/readme.md");
+    const original = result.newFs!.readFile("/home/player/docs/readme.md");
+    expect(copied.content).toBe(original.content);
+    const dirEvents = (result.triggerEvents ?? []).filter((e) => e.type === "directory_created");
+    expect(dirEvents.map((e) => e.detail)).toContain("/home/player/docs2");
+    const fileEvents = (result.triggerEvents ?? []).filter((e) => e.type === "file_created");
+    expect(fileEvents.map((e) => e.detail)).toContain("/home/player/docs2/readme.md");
+  });
+
+  it("copies a directory into an existing directory", () => {
+    let fs = createTestFS();
+    const mk = fs.makeDirectory("/home/player/existing");
+    fs = mk.fs!;
+    const result = execute("cp", ["docs", "existing"], { r: true }, ctx(fs));
+    expect(result.output).toBe("");
+    expect(result.newFs).toBeDefined();
+    const nested = result.newFs!.getNode("/home/player/existing/docs");
+    expect(nested).not.toBeNull();
+    expect(nested!.type).toBe("directory");
+    const copied = result.newFs!.readFile("/home/player/existing/docs/readme.md");
+    expect(copied.content).toContain("# Docs");
+  });
+
+  it("recursive copy fails when destination's grandparent does not exist", () => {
+    const result = execute("cp", ["docs", "missing/dest"], { r: true }, ctx());
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("cp:");
+    expect(result.output).toContain("No such file or directory");
+  });
+
+  it("recursive copy fails when destination exists as a file", () => {
+    const result = execute("cp", ["docs", "notes.txt"], { r: true }, ctx());
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("cannot overwrite non-directory");
   });
 });
 
@@ -1941,5 +1994,214 @@ describe("command chaining (interactive-style)", () => {
     const result = executeChain("touch /home/player/new.txt && cat /home/player/new.txt");
     // touch creates an empty file, cat reads it (empty output is ok, no error)
     expect(result.exitCode).toBe(0);
+  });
+});
+
+// --- cat -n ---
+describe("cat -n", () => {
+  it("numbers a single file's lines starting at 1", () => {
+    const result = execute("cat", ["log.txt"], { n: true }, ctx());
+    const lines = stripAnsi(result.output).split("\n");
+    expect(lines[0]).toBe("     1\tline1");
+    expect(lines[11]).toBe("    12\tline12");
+  });
+
+  it("continues numbering across multiple files", () => {
+    const result = execute("cat", ["old.txt", "new.txt"], { n: true }, ctx());
+    const lines = stripAnsi(result.output).split("\n");
+    expect(lines[0]).toBe("     1\tline A");
+    expect(lines[2]).toBe("     3\tline C");
+    expect(lines[3]).toBe("     4\tline A");
+    expect(lines[6]).toBe("     7\tline E");
+  });
+
+  it("numbers stdin input", () => {
+    const result = execute("cat", [], { n: true }, ctx(undefined, { stdin: "alpha\nbeta" }));
+    expect(stripAnsi(result.output)).toBe("     1\talpha\n     2\tbeta");
+  });
+});
+
+// --- chmod (symbolic + -R) ---
+describe("chmod symbolic and -R", () => {
+  it("invalid mode now exits 1 instead of silently succeeding", () => {
+    const result = execute("chmod", ["+z", "notes.txt"], {}, ctx());
+    expect(result.output).toContain("invalid mode");
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("+x adds execute bits for all classes", () => {
+    const result = execute("chmod", ["+x", "notes.txt"], {}, ctx());
+    expect(result.newFs).toBeDefined();
+    const node = result.newFs!.getNode("/home/player/notes.txt");
+    expect(node!.permissions).toBe("rwxr-xr-x");
+  });
+
+  it("u+w only affects the owner triplet", () => {
+    // start from rw-r--r-- (notes.txt baseline)
+    const result = execute("chmod", ["u+x", "notes.txt"], {}, ctx());
+    expect(result.newFs!.getNode("/home/player/notes.txt")!.permissions).toBe("rwxr--r--");
+  });
+
+  it("go-r strips read bits from group and other only", () => {
+    const result = execute("chmod", ["go-r", "notes.txt"], {}, ctx());
+    expect(result.newFs!.getNode("/home/player/notes.txt")!.permissions).toBe("rw-------");
+  });
+
+  it("a=rx clears then sets exact bits across all classes", () => {
+    const result = execute("chmod", ["a=rx", "notes.txt"], {}, ctx());
+    expect(result.newFs!.getNode("/home/player/notes.txt")!.permissions).toBe("r-xr-xr-x");
+  });
+
+  it("comma-separated clauses combine", () => {
+    const result = execute("chmod", ["u+w,go-r", "notes.txt"], {}, ctx());
+    // baseline rw-r--r--; u+w no-op (already w); go-r strips
+    expect(result.newFs!.getNode("/home/player/notes.txt")!.permissions).toBe("rw-------");
+  });
+
+  it("-R recurses into directories", () => {
+    const result = execute("chmod", ["750", "docs"], { R: true }, ctx());
+    expect(result.newFs).toBeDefined();
+    expect(result.newFs!.getNode("/home/player/docs")!.permissions).toBe("rwxr-x---");
+    expect(result.newFs!.getNode("/home/player/docs/readme.md")!.permissions).toBe("rwxr-x---");
+    expect(result.newFs!.getNode("/home/player/docs/notes.txt")!.permissions).toBe("rwxr-x---");
+  });
+
+  it("octal mode still works (regression)", () => {
+    const result = execute("chmod", ["644", "notes.txt"], {}, ctx());
+    expect(result.newFs!.getNode("/home/player/notes.txt")!.permissions).toBe("rw-r--r--");
+  });
+});
+
+// --- diff -u and -r ---
+describe("diff -u and -r", () => {
+  it("-u emits @@ hunk headers", () => {
+    const result = execute("diff", ["old.txt", "new.txt"], { u: true }, ctx());
+    const plain = stripAnsi(result.output);
+    expect(plain).toContain("--- old.txt");
+    expect(plain).toContain("+++ new.txt");
+    expect(plain).toMatch(/@@ -\d+,\d+ \+\d+,\d+ @@/);
+  });
+
+  it("default (no -u) keeps existing context-style output without @@", () => {
+    const result = execute("diff", ["old.txt", "new.txt"], {}, ctx());
+    const plain = stripAnsi(result.output);
+    expect(plain).toContain("--- old.txt");
+    expect(plain).not.toMatch(/@@/);
+  });
+
+  it("-r reports files only in one side", () => {
+    let { fs } = createTestFS().makeDirectory("/home/player/left");
+    ({ fs } = fs!.makeDirectory("/home/player/right"));
+    ({ fs } = fs!.writeFile("/home/player/left/only-left.txt", "x"));
+    ({ fs } = fs!.writeFile("/home/player/right/only-right.txt", "y"));
+    ({ fs } = fs!.writeFile("/home/player/left/shared.txt", "same"));
+    ({ fs } = fs!.writeFile("/home/player/right/shared.txt", "same"));
+    const result = execute("diff", ["left", "right"], { r: true }, ctx(fs));
+    expect(result.output).toContain("Only in left: only-left.txt");
+    expect(result.output).toContain("Only in right: only-right.txt");
+  });
+
+  it("-r diffs same-name files in both dirs", () => {
+    let { fs } = createTestFS().makeDirectory("/home/player/a");
+    ({ fs } = fs!.makeDirectory("/home/player/b"));
+    ({ fs } = fs!.writeFile("/home/player/a/f.txt", "one\ntwo"));
+    ({ fs } = fs!.writeFile("/home/player/b/f.txt", "one\nTWO"));
+    const result = execute("diff", ["a", "b"], { r: true }, ctx(fs));
+    const plain = stripAnsi(result.output);
+    expect(plain).toContain("diff -r a/f.txt b/f.txt");
+    expect(plain).toContain("-two");
+    expect(plain).toContain("+TWO");
+  });
+
+  it("preserves discovered_log_tampering trigger when comparing .bak and system.log", () => {
+    const result = execute("diff", ["/var/log/system.log.bak", "/var/log/system.log"], {}, ctx());
+    expect(result.triggerEvents).toEqual([{ type: "file_read", detail: "discovered_log_tampering" }]);
+  });
+});
+
+// --- tail -f ---
+describe("tail -f", () => {
+  it("rejects -f with a clear message and exit 2", () => {
+    const result = execute("tail", ["-f", "log.txt"], {}, ctx(undefined, { rawArgs: ["-f", "log.txt"] }));
+    expect(result.output).toContain("follow not supported");
+    expect(result.exitCode).toBe(2);
+  });
+
+  it("rejects --follow long form too", () => {
+    const result = execute("tail", ["--follow", "log.txt"], {}, ctx(undefined, { rawArgs: ["--follow", "log.txt"] }));
+    expect(result.output).toContain("follow not supported");
+    expect(result.exitCode).toBe(2);
+  });
+});
+
+// --- tree -L ---
+describe("tree -L", () => {
+  it("-L 1 shows top-level only (no recursion into subdirs)", () => {
+    const result = execute("tree", [], {}, ctx(undefined, { rawArgs: ["-L", "1"] }));
+    const plain = stripAnsi(result.output);
+    expect(plain).toContain("docs");
+    // docs/readme.md should be hidden by depth cap
+    expect(plain).not.toContain("readme.md");
+  });
+
+  it("-L without value errors", () => {
+    const result = execute("tree", [], {}, ctx(undefined, { rawArgs: ["-L"] }));
+    expect(result.output).toContain("requires an argument");
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("-L with non-numeric value errors", () => {
+    const result = execute("tree", [], {}, ctx(undefined, { rawArgs: ["-L", "abc"] }));
+    expect(result.output).toContain("Invalid level");
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("-L 2 lets subdir contents through", () => {
+    const result = execute("tree", [], {}, ctx(undefined, { rawArgs: ["-L", "2"] }));
+    const plain = stripAnsi(result.output);
+    expect(plain).toContain("docs");
+    expect(plain).toContain("readme.md");
+  });
+});
+
+// --- hostname -I ---
+describe("hostname -I", () => {
+  it("prints the configured IP for nexacorp", () => {
+    const result = execute("hostname", [], { I: true }, ctx());
+    expect(result.output).toBe("10.20.5.17 ");
+  });
+
+  it("prints home IP when on home computer", () => {
+    const result = execute("hostname", [], { I: true }, ctx(undefined, {
+      activeComputer: "home",
+      storyFlags: { ...ALL_UNLOCKED, basic_tools_unlocked: true },
+    }));
+    expect(result.output).toBe("192.168.1.42 ");
+  });
+});
+
+// --- type -a ---
+describe("type -a", () => {
+  it("shows shell builtin when -a applied to a builtin-only word", () => {
+    const result = execute("type", ["cd"], { a: true }, ctx());
+    expect(result.output).toContain("cd is a shell builtin");
+  });
+
+  it("shows both builtin and PATH location for echo", () => {
+    const result = execute("type", ["echo"], { a: true }, ctx());
+    const lines = result.output.split("\n");
+    expect(lines).toContain("echo is a shell builtin");
+    expect(lines).toContain("echo is /usr/bin/echo");
+  });
+
+  it("without -a, builtin still shadows PATH (regression)", () => {
+    const result = execute("type", ["echo"], {}, ctx());
+    expect(result.output).toBe("echo is a shell builtin");
+  });
+
+  it("missing command exits 1 even with -a", () => {
+    const result = execute("type", ["nonexistent_cmd_xyz"], { a: true }, ctx());
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("not found");
   });
 });

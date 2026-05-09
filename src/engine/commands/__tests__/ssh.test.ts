@@ -67,9 +67,11 @@ describe("ssh command", () => {
     expect(result.sshSession).toBeUndefined();
   });
 
-  it("returns connection refused on non-home computer", () => {
+  it("returns DNS error from a computer with no SSH routes", () => {
+    // nexacorp has no SSH_ROUTES entry — every target should resolve to
+    // "name or service not known" rather than connecting.
     const result = execute("ssh", ["nexacorp"], {}, createCtx({ activeComputer: "nexacorp" }));
-    expect(result.output).toContain("Connection refused");
+    expect(result.output).toContain("Name or service not known");
     expect(result.sshSession).toBeUndefined();
   });
 
@@ -89,6 +91,7 @@ describe("ssh command", () => {
     expect(result.sshSession).toEqual({
       host: "nexacorp-ws01.nexacorp.internal",
       username: "ren",
+      targetComputer: "nexacorp",
     });
     expect(result.output).toBe("");
   });
@@ -102,21 +105,39 @@ describe("ssh command", () => {
     expect(result.sshSession).toEqual({
       host: "nexacorp-ws01.nexacorp.internal",
       username: "ren",
+      targetComputer: "nexacorp",
     });
   });
 
-  it("returns error for alias without user in config", () => {
+  it("falls back to route's expected user when alias omits User", () => {
+    // Without a User directive, the route's `user` field is used as a default
+    // (matching real OpenSSH which falls back to $USER). For the home→nexacorp
+    // route the expected user is "ren", so the connection succeeds.
     const config = `Host nexacorp
   HostName nexacorp-ws01.nexacorp.internal`;
     const fs = createTestFS(config);
     const result = execute("ssh", ["nexacorp"], {}, createCtx({ fs }));
-    expect(result.output).toContain("Could not resolve");
-    expect(result.sshSession).toBeUndefined();
+    expect(result.sshSession).toEqual({
+      host: "nexacorp-ws01.nexacorp.internal",
+      username: "ren",
+      targetComputer: "nexacorp",
+    });
   });
 
   it("returns DNS error for bare unknown host", () => {
     const result = execute("ssh", ["randomhost"], {}, createCtx());
     expect(result.output).toContain("Name or service not known");
+    expect(result.sshSession).toBeUndefined();
+  });
+
+  it("rejects wrong user with publickey error", () => {
+    const result = execute(
+      "ssh",
+      ["mallory@nexacorp-ws01.nexacorp.internal"],
+      {},
+      createCtx()
+    );
+    expect(result.output).toContain("Permission denied (publickey)");
     expect(result.sshSession).toBeUndefined();
   });
 });

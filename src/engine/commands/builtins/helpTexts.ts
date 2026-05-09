@@ -30,10 +30,12 @@ export const HELP_TEXTS: Record<string, string> = {
   ].join("\n"),
 
   cat: [
-    "Usage: cat [FILE]...",
+    "Usage: cat [-n] [FILE]...",
     "",
     "Concatenate FILE(s) and print to standard output.",
     "With no FILE, or when FILE is missing, display an error.",
+    "",
+    "  -n   number all output lines",
   ].join("\n"),
 
   clear: [
@@ -136,14 +138,18 @@ export const HELP_TEXTS: Record<string, string> = {
     "Display the last 10 lines of each FILE.",
     "",
     "  -n NUM   output the last NUM lines",
+    "  -f       follow appended data (not supported in this terminal)",
   ].join("\n"),
 
   diff: [
-    "Usage: diff FILE1 FILE2",
+    "Usage: diff [OPTION]... FILE1 FILE2",
     "",
     "Compare two files line by line.",
     "Lines only in FILE1 are shown with - (red).",
     "Lines only in FILE2 are shown with + (green).",
+    "",
+    "  -u   output in unified format with @@ hunk headers",
+    "  -r   recursively compare any subdirectories found",
   ].join("\n"),
 
   wc: [
@@ -166,24 +172,24 @@ export const HELP_TEXTS: Record<string, string> = {
   ].join("\n"),
 
   chmod: [
-    "Usage: chmod MODE FILE",
+    "Usage: chmod [-R] MODE FILE...",
     "",
-    "Change file permissions using numeric mode.",
+    "Change file permissions. MODE may be octal or symbolic.",
     "",
-    "Each file has three permission groups: owner, group, and",
-    "everyone else. Each group gets read (r), write (w), and",
-    "execute (x). chmod uses octal numbers where each digit is",
-    "a combination of permissions:",
+    "  -R, --recursive   change permissions recursively",
     "",
-    "  7 = rwx (read + write + execute)",
-    "  6 = rw- (read + write)",
-    "  5 = r-x (read + execute)",
-    "  4 = r-- (read only)",
-    "  0 = --- (no access)",
+    "Octal mode: three digits for owner, group, others.",
+    "  7 = rwx, 6 = rw-, 5 = r-x, 4 = r--, 0 = ---",
+    "",
+    "Symbolic mode: [ugoa][+-=][rwx][,...]",
+    "  u=owner, g=group, o=others, a=all (default)",
+    "  + add, - remove, = set exactly",
     "",
     "Examples:",
-    "  chmod 755 dir/    owner=rwx, group=r-x, others=r-x",
-    "  chmod 644 file    owner=rw-, group=r--, others=r--",
+    "  chmod 755 dir/       owner=rwx, group=r-x, others=r-x",
+    "  chmod +x script.sh   add execute for everyone",
+    "  chmod u+w,go-r f     give owner write, strip group/other read",
+    "  chmod -R 750 src/    apply 750 recursively",
   ].join("\n"),
 
   mkdir: [
@@ -236,9 +242,11 @@ export const HELP_TEXTS: Record<string, string> = {
   ].join("\n"),
 
   hostname: [
-    "Usage: hostname",
+    "Usage: hostname [-I]",
     "",
     "Print the system hostname.",
+    "",
+    "  -I   list all configured IP addresses",
   ].join("\n"),
 
   file: [
@@ -259,6 +267,7 @@ export const HELP_TEXTS: Record<string, string> = {
     "List contents of directories in a tree-like format.",
     "",
     "  -a, --all   all files are listed",
+    "  -L NUM      descend only NUM directory levels deep",
   ].join("\n"),
 
   sort: [
@@ -301,9 +310,11 @@ export const HELP_TEXTS: Record<string, string> = {
   ].join("\n"),
 
   type: [
-    "Usage: type COMMAND",
+    "Usage: type [-a] COMMAND...",
     "",
     "Describe how COMMAND would be interpreted (path, alias, builtin).",
+    "",
+    "  -a   show all locations where COMMAND can be found",
   ].join("\n"),
 
   man: [
@@ -410,6 +421,18 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "Open a secure shell connection to a remote host.",
     "Reads ~/.ssh/config for host aliases.",
+  ].join("\n"),
+
+  "ssh-add": [
+    "Usage: ssh-add [-lL]",
+    "",
+    "Adds private key identities to the OpenSSH authentication agent.",
+    "",
+    "  -l   List fingerprints of all identities currently represented by the agent.",
+    "  -L   List public-key parameters of all identities currently represented by the agent.",
+    "",
+    "Reads SSH_AUTH_SOCK to locate the agent. If unset, prints",
+    "\"Could not open a connection to your authentication agent.\" and exits 2.",
   ].join("\n"),
 
   coder: [

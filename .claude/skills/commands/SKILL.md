@@ -122,7 +122,7 @@ The dispatcher rejects unknown flags by default with a coreutils-style error (`<
 
 Three opt-out cases (call `skipFlagValidation(name)` instead):
 
-- **rawArgs-driven** (`find`, `head`, `tail`): the parser splits `-name` into `{n,a,m,e}` and `-5` into `{5}`, so a generic whitelist would reject the canonical syntax. The handler re-parses `ctx.rawArgs` and accepts anything.
+- **rawArgs-driven** (`find`, `head`, `tail`, `tree`): the parser splits `-name` into `{n,a,m,e}` and `-5` into `{5}`, so a generic whitelist would reject the canonical syntax. The handler re-parses `ctx.rawArgs` and accepts anything. `tree` uses this for `-L N` (depth limit) — value flags must come from rawArgs because the parser strips the `N` away from the `L` boolean.
 - **Per-subcommand** (`git`): each subcommand has its own flag set; validation happens inside the handler with `rejectUnknownFlags(..., { style: "git" })` and a custom git-style error (`error: unknown switch \`z'`, exit 129).
 - **Custom prefix** (`snow`): handler calls `rejectUnknownFlags("snow sql", flags, ...)` so the error reads `snow sql:` instead of `snow:`.
 
@@ -222,7 +222,7 @@ The full event union accepted by the dispatcher and the StoryFlagTrigger matcher
 | `command_executed` | Always emitted by `computeEffects` |
 | `file_read`        | Auto-emitted for read-shaped commands (cat/head/tail/etc.) |
 | `directory_visit`  | `ls`, `cd` |
-| `directory_created`| `mkdir` |
+| `directory_created`| `mkdir`, `cp -r` (for the destination dir and any nested sub-dirs created during the copy) |
 | `file_created`     | `touch`, `cp`, `mv`, `nano` save, `>`/`>>` redirection — when the path **did not previously exist** |
 | `file_modified`    | `nano` save, `cp`, `mv`, `>`/`>>` redirection — when **overwriting an existing file** |
 | `objective_completed` | Set by Piper reply triggerEvents and the engine when objectives close |

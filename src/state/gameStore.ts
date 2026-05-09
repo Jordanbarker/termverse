@@ -6,6 +6,8 @@ import { createNexacorpFilesystem } from "../story/filesystem/nexacorp";
 import { createHomeFilesystem } from "../story/filesystem/home";
 import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
 import { createChipinfraFilesystem } from "../story/filesystem/chipinfra";
+import { createErikpcFilesystem } from "../story/filesystem/erikpc";
+import { getComputerUsername } from "../story/player";
 import { serializeFS, deserializeFS, SerializedFS } from "../engine/filesystem/serialization";
 import { createSaveData, saveToSlot, loadFromSlot } from "./saveManager";
 import { SaveSlotId } from "./saveTypes";
@@ -91,12 +93,12 @@ export function buildFs(
       ? createDevcontainerFilesystem(username, storyFlags)
       : computer === "chipinfra"
         ? createChipinfraFilesystem(username, storyFlags)
-        : createNexacorpFilesystem(username, storyFlags);
-  let fs = new VirtualFS(
-    root,
-    `/home/${username}`,
-    `/home/${username}`
-  );
+        : computer === "erik-pc"
+          ? createErikpcFilesystem(username)
+          : createNexacorpFilesystem(username, storyFlags);
+  const sessionUser = getComputerUsername(computer, username);
+  const homeDir = `/home/${sessionUser}`;
+  let fs = new VirtualFS(root, homeDir, homeDir);
 
   if (deliveredEmailIds.length > 0) {
     fs = seedDeliveredEmails(fs, deliveredEmailIds, computer, username);

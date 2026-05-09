@@ -182,7 +182,7 @@ That'll group duplicates, count them, and put the most frequent stuff at the top
           id: "oscar_tamper_2",
           from: "Oscar Diaz",
           timestamp: "",
-          body: "That's not log rotation. That looks like someone — or something — cleaning up after itself.",
+          body: "That's not log rotation. That looks deliberate — someone covering tracks.",
         },
         {
           id: "oscar_tamper_3",

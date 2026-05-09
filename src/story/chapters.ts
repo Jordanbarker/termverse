@@ -3,7 +3,7 @@ import { ChapterDefinition } from "../engine/narrative/types";
 export const CHAPTERS: ChapterDefinition[] = [
   {
     id: "chapter-1",
-    title: "New Beginnings",
+    title: "The Offer",
     objectives: [
       {
         id: "explore_home",
@@ -180,7 +180,7 @@ export const CHAPTERS: ChapterDefinition[] = [
   },
   {
     id: "chapter-2",
-    title: "First Day",
+    title: "Onboarding",
     objectives: [
       {
         id: "read_welcome_email",
@@ -549,7 +549,7 @@ export const CHAPTERS: ChapterDefinition[] = [
   },
   {
     id: "chapter-3",
-    title: "Getting the Hang of This",
+    title: "In Production",
     objectives: [
       {
         id: "update_system",
@@ -641,7 +641,15 @@ export const CHAPTERS: ChapterDefinition[] = [
         description: "Build a new Chip plugin",
         check: { source: "allVisibleChildren" },
         hidden: true,
-        visibleWhen: { source: "storyFlag", key: "unlock_chip_plugin_development" },
+        visibleWhen: { source: "storyFlag", key: "reported_fix_to_auri" },
+      },
+      {
+        id: "accepted_edward_plugin_request",
+        description: "Reply to Edward in Piper",
+        check: { source: "storyFlag", key: "unlock_chip_plugin_development" },
+        hidden: true,
+        visibleWhen: { source: "storyFlag", key: "reported_fix_to_auri" },
+        group: "build_chip_plugin_quest",
       },
       {
         id: "ssh_to_chip_workspace",
@@ -662,7 +670,7 @@ export const CHAPTERS: ChapterDefinition[] = [
       },
       {
         id: "create_plugin_dir",
-        description: "Create your plugin directory at /opt/chip/plugins/<your-username>/",
+        description: "Create your plugin directory at /opt/chip/plugins/<plugin-name>/",
         check: { source: "storyFlag", key: "created_chip_plugin_dir" },
         hidden: true,
         visibleWhen: { source: "storyFlag", key: "chipinfra_visited" },

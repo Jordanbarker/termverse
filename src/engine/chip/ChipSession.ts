@@ -1,7 +1,9 @@
 import { Terminal } from "@xterm/xterm";
+import { VirtualFS } from "../filesystem/VirtualFS";
 import { ISession, SessionResult } from "../session/types";
-import { ChipSessionInfo, ChipMenuItem } from "./types";
+import { ChipSessionInfo, ChipMenuItem, ChipExchange } from "./types";
 import { getMenuItems } from "../../story/chip/menuItems";
+import { renderTranscript, transcriptFilename } from "./transcript";
 import {
   renderHeader,
   renderSeparator,
@@ -22,6 +24,8 @@ import {
 
 export class ChipSession implements ISession {
   private terminal: Terminal;
+  private fs: VirtualFS;
+  private homeDir: string;
   private info: ChipSessionInfo;
   private menuItems: ChipMenuItem[];
   private selectedIndex = 0;
@@ -34,13 +38,24 @@ export class ChipSession implements ISession {
   private expanded = false;
   private onUsedTopicsChange?: (topics: string[]) => void;
 
+  private transcript: ChipExchange[] = [];
+  private sessionStart = new Date();
+
   private isAnimating = false;
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingAnimationItem: ChipMenuItem | null = null;
   private animationLinesWritten = 0;
 
-  constructor(terminal: Terminal, info: ChipSessionInfo, onUsedTopicsChange?: (topics: string[]) => void) {
+  constructor(
+    terminal: Terminal,
+    fs: VirtualFS,
+    homeDir: string,
+    info: ChipSessionInfo,
+    onUsedTopicsChange?: (topics: string[]) => void
+  ) {
     this.terminal = terminal;
+    this.fs = fs;
+    this.homeDir = homeDir;
     this.info = info;
     this.menuItems = getMenuItems(info.storyFlags, info.currentComputer);
     this.onUsedTopicsChange = onUsedTopicsChange;
@@ -162,11 +177,27 @@ export class ChipSession implements ISession {
     this.terminal.write(clear + "\x1b[?25h");
     return {
       type: "exit",
+      newFs: this.flushTranscript(),
       triggerEvents:
         this.collectedEvents.length > 0
           ? this.collectedEvents
           : undefined,
     };
+  }
+
+  private flushTranscript(): VirtualFS | undefined {
+    if (this.transcript.length === 0) return undefined;
+    if (this.info.currentComputer !== "nexacorp") return undefined;
+
+    const filename = transcriptFilename(this.sessionStart);
+    const path = `${this.homeDir}/.chip/sessions/${filename}`;
+    const content = renderTranscript(
+      this.transcript,
+      this.sessionStart,
+      this.homeDir
+    );
+    const result = this.fs.writeFile(path, content);
+    return result.fs;
   }
 
   private selectCurrent(): void {
@@ -176,6 +207,9 @@ export class ChipSession implements ISession {
     // Mark as used
     this.usedItemIds.add(item.id);
     this.onUsedTopicsChange?.([...this.usedItemIds]);
+
+    this.transcript.push({ timestamp: new Date(), role: "user", text: item.label });
+    this.transcript.push({ timestamp: new Date(), role: "chip", text: item.response });
 
     // Collect trigger events
     if (item.triggerEvents) {

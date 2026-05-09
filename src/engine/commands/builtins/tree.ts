@@ -1,6 +1,6 @@
-import { CommandHandler } from "../types";
+import { CommandHandler, CommandResult } from "../types";
 import { register } from "../registry";
-import { setKnownFlags } from "../flagValidation";
+import { skipFlagValidation } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, FSNode } from "../../filesystem/types";
 import { colorize, ansi } from "../../../lib/ansi";
@@ -12,7 +12,10 @@ function buildTree(
   prefix: string,
   counts: { dirs: number; files: number },
   showAll: boolean,
+  depth: number,
+  maxDepth: number | undefined,
 ): string[] {
+  if (maxDepth !== undefined && depth >= maxDepth) return [];
   const { entries, error } = fs.listDirectory(dirPath);
   if (error) return [prefix + "[error opening dir]"];
   const sorted = entries
@@ -31,7 +34,7 @@ function buildTree(
       counts.dirs++;
       lines.push(prefix + connector + colorize(entry.name, ansi.bold, ansi.blue));
       const childPath = dirPath === "/" ? `/${entry.name}` : `${dirPath}/${entry.name}`;
-      lines.push(...buildTree(fs, childPath, prefix + childPrefix, counts, showAll));
+      lines.push(...buildTree(fs, childPath, prefix + childPrefix, counts, showAll, depth + 1, maxDepth));
     } else {
       counts.files++;
       lines.push(prefix + connector + entry.name);
@@ -42,7 +45,56 @@ function buildTree(
 }
 
 const tree: CommandHandler = (args, flags, ctx) => {
-  const target = args[0] || ".";
+  let showAll = !!(flags["a"] || flags["all"]);
+  let maxDepth: number | undefined;
+  const positional: string[] = [];
+
+  // When invoked through the parser, `ctx.rawArgs` carries the unstripped tokens
+  // so we can recover `-L N`. When called directly (e.g. from tests), fall back
+  // to the already-parsed `args` and `flags`.
+  const effectiveArgs = ctx.rawArgs ?? args;
+  const usingRawArgs = ctx.rawArgs !== undefined;
+
+  for (let i = 0; i < effectiveArgs.length; i++) {
+    const tok = effectiveArgs[i];
+    if (usingRawArgs && tok === "-L") {
+      const next = effectiveArgs[i + 1];
+      if (next === undefined) {
+        return { output: "tree: option requires an argument -- 'L'", exitCode: 1 };
+      }
+      const parsed = parseInt(next, 10);
+      if (isNaN(parsed) || parsed < 0 || String(parsed) !== next) {
+        return { output: `tree: Invalid level, must be greater than 0.`, exitCode: 1 };
+      }
+      maxDepth = parsed;
+      i++;
+    } else if (usingRawArgs && /^-L\d+$/.test(tok)) {
+      const parsed = parseInt(tok.slice(2), 10);
+      if (isNaN(parsed) || parsed < 0) {
+        return { output: `tree: Invalid level, must be greater than 0.`, exitCode: 1 };
+      }
+      maxDepth = parsed;
+    } else if (usingRawArgs && (tok === "-a" || tok === "--all")) {
+      showAll = true;
+    } else if (usingRawArgs && tok === "--help") {
+      positional.push(tok);
+    } else if (usingRawArgs && tok.startsWith("--")) {
+      return {
+        output: `tree: unrecognized option '${tok}'\nTry 'tree --help' for more information.`,
+        exitCode: 2,
+      };
+    } else if (usingRawArgs && tok.startsWith("-") && tok.length > 1) {
+      const bad = tok[1];
+      return {
+        output: `tree: invalid option -- '${bad}'\nTry 'tree --help' for more information.`,
+        exitCode: 2,
+      };
+    } else {
+      positional.push(tok);
+    }
+  }
+
+  const target = positional[0] || ".";
   const absPath = resolvePath(target, ctx.cwd, ctx.homeDir);
   const node = ctx.fs.getNode(absPath);
 
@@ -54,18 +106,18 @@ const tree: CommandHandler = (args, flags, ctx) => {
     return { output: target };
   }
 
-  const showAll = !!(flags["a"] || flags["all"]);
   const counts = { dirs: 0, files: 0 };
   const lines = [colorize(target, ansi.bold, ansi.blue)];
-  lines.push(...buildTree(ctx.fs, absPath, "", counts, showAll));
+  lines.push(...buildTree(ctx.fs, absPath, "", counts, showAll, 0, maxDepth));
   lines.push("");
   lines.push(`${counts.dirs} directories, ${counts.files} files`);
 
-  return {
+  const result: CommandResult = {
     output: lines.join("\n"),
     triggerEvents: [{ type: "command_executed", detail: "files_searched" }],
   };
+  return result;
 };
 
 register("tree", tree, "Display directory tree", HELP_TEXTS.tree);
-setKnownFlags("tree", { short: ["a"], long: ["all"] });
+skipFlagValidation("tree");

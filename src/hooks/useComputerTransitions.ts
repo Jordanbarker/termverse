@@ -16,7 +16,7 @@ import { createInitialSnowflakeState } from "../engine/snowflake/seed/initial_da
 import { colorize, ansi } from "../lib/ansi";
 import { nexacorpLogo, getSshConnectionSequence, getBootSequence, getHomeBootSequence, getCoderConnectionSequence, getCoderBanner, getHomeWelcome, UNLOCK_BOX, getUpdateNotification } from "../lib/ascii";
 import { BOOT_LINE_INTERVAL_MS } from "../lib/timing";
-import { ComputerId } from "../state/types";
+import { ComputerId, COMPUTERS } from "../state/types";
 
 interface TransitionDeps {
   cwdRef: React.MutableRefObject<string>;
@@ -27,7 +27,47 @@ interface TransitionDeps {
 export function useComputerTransitions(deps: TransitionDeps) {
   const { cwdRef, activeComputerRef, writePrompt } = deps;
 
-  const runSshTransition = useCallback((term: Terminal) => {
+  /** Arrival on Erik's laptop via stolen ssh-agent. No boot animation —
+   * SSHing into an already-running box just prints the last-login line
+   * and drops you into a shell.
+   */
+  const runErikpcArrival = useCallback((term: Terminal) => {
+    const store = useGameStore.getState();
+    const username = store.username;
+
+    // Lazy-init: only build the FS the first time. Re-pivots preserve any edits.
+    let entry = store.computerState["erik-pc"];
+    if (!entry) {
+      const newFs = buildFs(username, "erik-pc", store.storyFlags, store.deliveredEmailIds);
+      store.initComputer("erik-pc", newFs);
+      entry = useGameStore.getState().computerState["erik-pc"]!;
+    }
+
+    const newCwd = entry.fs.cwd;
+    store.setTabComputer(store.activeTabId, "erik-pc", newCwd);
+    activeComputerRef.current = "erik-pc";
+    cwdRef.current = newCwd;
+
+    // Flag is set on arrival so the path is reliable even if the player
+    // backs out of the fingerprint prompt and tries again from scratch.
+    if (!store.storyFlags.pivoted_to_erik_pc) {
+      store.setStoryFlag("pivoted_to_erik_pc", true);
+    }
+
+    // Realistic OpenSSH last-login line. No "Connected to X." text — real ssh
+    // prints nothing of the sort. Erik's laptop has MOTD disabled (typical
+    // for personal dev workstations), so no system banner either.
+    term.writeln("");
+    term.writeln(colorize("Last login: Fri May  9 14:23:18 2026 from coder-chip.platform.internal", ansi.dim));
+    useGameStore.getState().setGamePhase("playing");
+    writePrompt(term);
+  }, [cwdRef, activeComputerRef, writePrompt]);
+
+  const runSshTransition = useCallback((term: Terminal, target: ComputerId = "nexacorp") => {
+    if (target === "erik-pc") {
+      runErikpcArrival(term);
+      return;
+    }
     const store = useGameStore.getState();
     store.setGamePhase("transitioning");
 
@@ -230,39 +270,56 @@ export function useComputerTransitions(deps: TransitionDeps) {
     }, BOOT_LINE_INTERVAL_MS);
   }, [cwdRef, activeComputerRef, writePrompt]);
 
-  const runExitToNexacorp = useCallback((term: Terminal) => {
+  /**
+   * Generalized "exit back to the parent" transition. Closes other tabs on the
+   * source workspace, repurposes the active tab to `target`, restores the
+   * target's cwd, and writes a disconnect banner using the source hostname.
+   *
+   * Used by:
+   *   - chipinfra/devcontainer → nexacorp
+   *   - erik-pc → chipinfra
+   */
+  const runExitToParent = useCallback((term: Terminal, target: ComputerId) => {
     const store = useGameStore.getState();
     const sourceComputer = store.tabs.find((t) => t.id === store.activeTabId)?.computerId;
 
-    // Close any other tabs on the source coder workspace (keep only the current one, which we repurpose)
-    if (sourceComputer === "devcontainer" || sourceComputer === "chipinfra") {
+    // Close any other tabs still pointing at the workspace we're leaving.
+    if (sourceComputer === "devcontainer" || sourceComputer === "chipinfra" || sourceComputer === "erik-pc") {
       const otherTabs = store.tabs.filter(
         (t) => t.computerId === sourceComputer && t.id !== store.activeTabId
       );
       for (const t of otherTabs) store.removeTab(t.id);
     }
 
-    // Restore NexaCorp cwd from computerState
-    const nexaEntry = store.computerState.nexacorp;
-    const nexaCwd = nexaEntry?.fs?.cwd ?? `/home/${store.username}`;
+    // Restore target cwd from computerState (default to its conventional home dir)
+    const targetEntry = store.computerState[target];
+    const fallbackHome = `/home/${store.username}`;
+    const targetCwd = targetEntry?.fs?.cwd ?? fallbackHome;
 
-    // Repurpose current tab back to nexacorp
-    store.setTabComputer(store.activeTabId, "nexacorp", nexaCwd);
-    activeComputerRef.current = "nexacorp";
-    cwdRef.current = nexaCwd;
+    store.setTabComputer(store.activeTabId, target, targetCwd);
+    activeComputerRef.current = target;
+    cwdRef.current = targetCwd;
 
-    const hostname = sourceComputer === "chipinfra" ? "coder-chip" : "coder-ai";
-    term.writeln(colorize(`\r\nDisconnected from ${hostname}.`, ansi.dim));
+    const sourceHostname = sourceComputer
+      ? COMPUTERS[sourceComputer].promptHostname
+      : "remote";
+    term.writeln(colorize(`\r\nDisconnected from ${sourceHostname}.`, ansi.dim));
 
-    // Show deferred Piper notification (suppressed while on devcontainer where piper is unavailable)
-    const latest = useGameStore.getState();
-    if (latest.pendingPiperNotification) {
-      term.write(`\r\n${colorize("You have new messages on Piper", ansi.yellow, ansi.bold)}`);
-      latest.setPendingPiperNotification(false);
+    // Piper notifications only land on nexacorp — chipinfra/devcontainer/erik-pc
+    // don't surface them. So gate the deferred-notification flush to nexacorp.
+    if (target === "nexacorp") {
+      const latest = useGameStore.getState();
+      if (latest.pendingPiperNotification) {
+        term.write(`\r\n${colorize("You have new messages on Piper", ansi.yellow, ansi.bold)}`);
+        latest.setPendingPiperNotification(false);
+      }
     }
 
     writePrompt(term);
   }, [cwdRef, activeComputerRef, writePrompt]);
+
+  /** Backwards-compatible shim — callers that still ask for nexacorp explicitly. */
+  const runExitToNexacorp = useCallback((term: Terminal) => runExitToParent(term, "nexacorp"), [runExitToParent]);
 
   const runExitToHome = useCallback((term: Terminal) => {
     const store = useGameStore.getState();
@@ -513,5 +570,54 @@ export function useComputerTransitions(deps: TransitionDeps) {
     }, 2500);
   }, [cwdRef, activeComputerRef, writePrompt]);
 
-  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToHome, runShutdownTransition };
+  /**
+   * Source-aware transition dispatcher. Centralizes the matrix of
+   * (transitionTo × sourceComputer) → which transition function to run.
+   * Both the command-result dispatcher in useTerminal and the session-result
+   * dispatcher in useSessionRouter route through this helper.
+   *
+   * Returns true if a transition was dispatched.
+   */
+  const dispatchTransition = useCallback(
+    (term: Terminal, transitionTo: ComputerId, sourceComputer: ComputerId): boolean => {
+      // First-time pivots from nexacorp → coder workspace
+      if (transitionTo === "devcontainer") {
+        runCoderTransition(term, "devcontainer");
+        return true;
+      }
+      if (transitionTo === "chipinfra" && sourceComputer === "nexacorp") {
+        runCoderTransition(term, "chipinfra");
+        return true;
+      }
+      // Exit erik-pc → chipinfra
+      if (transitionTo === "chipinfra" && sourceComputer === "erik-pc") {
+        runExitToParent(term, "chipinfra");
+        return true;
+      }
+      // Exit coder workspace → nexacorp
+      if (transitionTo === "nexacorp" && (sourceComputer === "devcontainer" || sourceComputer === "chipinfra")) {
+        runExitToParent(term, "nexacorp");
+        return true;
+      }
+      // SSH home → nexacorp (first ssh)
+      if (transitionTo === "nexacorp" && sourceComputer === "home") {
+        runSshTransition(term, "nexacorp");
+        return true;
+      }
+      // SSH chipinfra → erik-pc
+      if (transitionTo === "erik-pc" && sourceComputer === "chipinfra") {
+        runSshTransition(term, "erik-pc");
+        return true;
+      }
+      // Exit nexacorp → home (end of day)
+      if (transitionTo === "home" && sourceComputer === "nexacorp") {
+        runExitToHome(term);
+        return true;
+      }
+      return false;
+    },
+    [runCoderTransition, runExitToParent, runSshTransition, runExitToHome]
+  );
+
+  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToParent, runExitToHome, runShutdownTransition, dispatchTransition };
 }

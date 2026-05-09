@@ -63,7 +63,7 @@ describe("SshSession", () => {
   describe("host key verification", () => {
     it("shows fingerprint prompt on enter when host not in known_hosts", () => {
       const fs = createTestFS();
-      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren");
+      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren", "nexacorp");
       session.enter();
 
       expect(term.write).toHaveBeenCalledWith(
@@ -76,7 +76,7 @@ describe("SshSession", () => {
 
     it("typing 'yes' adds host to known_hosts and triggers ssh_connect", () => {
       const fs = createTestFS();
-      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren");
+      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren", "nexacorp");
       session.enter();
 
       const result = session.handleInput("yes\r");
@@ -95,7 +95,7 @@ describe("SshSession", () => {
 
     it("typing 'no' exits with error message", () => {
       const fs = createTestFS();
-      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren");
+      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren", "nexacorp");
       session.enter();
 
       const result = session.handleInput("no\r");
@@ -110,7 +110,7 @@ describe("SshSession", () => {
 
     it("typing invalid input re-prompts", () => {
       const fs = createTestFS();
-      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren");
+      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren", "nexacorp");
       session.enter();
 
       const result = session.handleInput("maybe\r");
@@ -122,7 +122,7 @@ describe("SshSession", () => {
 
     it("Ctrl+C cancels the session", () => {
       const fs = createTestFS();
-      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren");
+      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren", "nexacorp");
       session.enter();
 
       const result = session.handleInput("\x03");
@@ -135,7 +135,7 @@ describe("SshSession", () => {
   describe("known host skipping", () => {
     it("skips verification when host is already in known_hosts", () => {
       const fs = createTestFS("nexacorp-ws01.nexacorp.internal ssh-ed25519 AAAAC3");
-      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren");
+      const session = new SshSession(term, fs, "nexacorp-ws01.nexacorp.internal", "ren", "/home/ren", "nexacorp");
       const result = session.enter();
 
       // enter() should not write the fingerprint prompt

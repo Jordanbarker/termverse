@@ -26,16 +26,18 @@ interface EventActionContext {
 }
 
 interface EventActionResult {
-  shouldTransition?: boolean;
   skipDefault?: boolean;
 }
 
 /** Maps objective_completed event details to special actions. New events go here. */
 const EVENT_ACTIONS: Record<string, (ctx: EventActionContext) => EventActionResult> = {
   ssh_connect: () => {
+    // Named for the home → nexacorp first SSH. SshSession only emits this
+    // event for the nexacorp route; other routes (e.g. erik-pc) emit no
+    // ssh_connect event so this flag stays scoped to its original meaning.
     const store = useGameStore.getState();
     store.setStoryFlag("first_ssh_connect", true);
-    return { shouldTransition: true, skipDefault: true };
+    return { skipDefault: true };
   },
   search_tools_accepted: (ctx) => {
     const store = useGameStore.getState();
@@ -87,12 +89,12 @@ interface SessionRouterDeps {
   activeComputerRef: React.MutableRefObject<ComputerId>;
   writePrompt: (term: Terminal) => void;
   getPrompt: () => string;
-  runSshTransition: (term: Terminal) => void;
+  dispatchTransition: (term: Terminal, transitionTo: ComputerId, sourceComputer: ComputerId) => boolean;
   pendingNotificationsRef: React.MutableRefObject<{ email: number; piper: number } | null>;
 }
 
 export function useSessionRouter(deps: SessionRouterDeps) {
-  const { activeComputerRef, writePrompt, getPrompt, runSshTransition, pendingNotificationsRef } = deps;
+  const { activeComputerRef, writePrompt, getPrompt, dispatchTransition, pendingNotificationsRef } = deps;
 
   const sessionMapRef = useRef<Map<string, SessionEntry>>(new Map());
 
@@ -150,12 +152,15 @@ export function useSessionRouter(deps: SessionRouterDeps) {
   }, [activeComputerRef]);
 
   /**
-   * Process trigger events from a session result. Returns true if SSH transition triggered.
+   * Process trigger events from a session result.
    * When notify is false (mid-session), skip terminal notifications since the session owns the screen.
+   *
+   * Note: post-SSH computer transitions are NOT driven by trigger events anymore.
+   * The router reads `result.transitionTo` (set by SshSession) directly and routes
+   * via `dispatchTransition`. Trigger events here are purely for story/email/piper effects.
    */
   const processTriggerEvents = useCallback(
-    (term: Terminal, events: import("../engine/mail/delivery").GameEvent[], notify: boolean): boolean => {
-      let shouldTransition = false;
+    (term: Terminal, events: import("../engine/mail/delivery").GameEvent[], notify: boolean): void => {
       const computerId = activeComputerRef.current;
       const actionCtx: EventActionContext = { term, computerId };
 
@@ -163,7 +168,6 @@ export function useSessionRouter(deps: SessionRouterDeps) {
         // Check for registered event actions
         if (event.type === "objective_completed" && EVENT_ACTIONS[event.detail]) {
           const actionResult = EVENT_ACTIONS[event.detail](actionCtx);
-          if (actionResult.shouldTransition) shouldTransition = true;
           if (actionResult.skipDefault) continue;
         }
 
@@ -267,8 +271,6 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           }
         }
       }
-
-      return shouldTransition;
     },
     [activeComputerRef]
   );
@@ -336,10 +338,13 @@ export function useSessionRouter(deps: SessionRouterDeps) {
 
       // Process exit trigger events AFTER output, with notification
       if (result.triggerEvents?.length) {
-        const shouldTransition = processTriggerEvents(term, result.triggerEvents, true);
-        if (shouldTransition) {
-          pendingNotificationsRef.current = null;
-          runSshTransition(term);
+        processTriggerEvents(term, result.triggerEvents, true);
+      }
+
+      // Computer transition driven directly by the session's transitionTo field
+      if (result.transitionTo) {
+        pendingNotificationsRef.current = null;
+        if (dispatchTransition(term, result.transitionTo, computerId)) {
           return true;
         }
       }
@@ -375,7 +380,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       }
       return true;
     },
-    [activeComputerRef, processTriggerEvents, syncPiperIds, refreshPiperSession, writePrompt, getPrompt, runSshTransition]
+    [activeComputerRef, processTriggerEvents, syncPiperIds, refreshPiperSession, writePrompt, getPrompt, dispatchTransition, pendingNotificationsRef]
   );
 
   /** Start a new session from an AppliedEffects startSession descriptor. */
@@ -457,7 +462,8 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           currentFs,
           session.info.host,
           session.info.username,
-          currentFs.homeDir
+          currentFs.homeDir,
+          session.info.targetComputer
         );
         sessionMapRef.current.set(targetTabId, { session: sshSession, type: "ssh" });
         const enterResult = sshSession.enter();
@@ -465,10 +471,11 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           // Known host — process exit immediately without waiting for input
           sessionMapRef.current.delete(targetTabId);
           if (enterResult.triggerEvents?.length) {
-            const shouldTransition = processTriggerEvents(term, enterResult.triggerEvents, true);
-            if (shouldTransition) {
-              pendingNotificationsRef.current = null;
-              runSshTransition(term);
+            processTriggerEvents(term, enterResult.triggerEvents, true);
+          }
+          if (enterResult.transitionTo) {
+            pendingNotificationsRef.current = null;
+            if (dispatchTransition(term, enterResult.transitionTo, computerId)) {
               return;
             }
           }
@@ -476,10 +483,18 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           return;
         }
       } else if (session.type === "chip") {
-        const chipSession = new ChipSession(term, session.info, (topics) => {
-          const value = topics.join(",");
-          useGameStore.getState().setStoryFlag("used_chip_topics", value);
-        });
+        const store = useGameStore.getState();
+        const currentFs = store.computerState[computerId]!.fs;
+        const chipSession = new ChipSession(
+          term,
+          currentFs,
+          currentFs.homeDir,
+          session.info,
+          (topics) => {
+            const value = topics.join(",");
+            useGameStore.getState().setStoryFlag("used_chip_topics", value);
+          }
+        );
         sessionMapRef.current.set(targetTabId, { session: chipSession, type: "chip" });
         chipSession.enter();
       } else if (session.type === "piper") {
@@ -493,7 +508,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
         piperSession.enter();
       }
     },
-    [activeComputerRef, writePrompt]
+    [activeComputerRef, writePrompt, processTriggerEvents, dispatchTransition, pendingNotificationsRef]
   );
 
   const canCloseCurrentSession = useCallback((): boolean => {

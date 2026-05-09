@@ -48,6 +48,7 @@ import "./man";
 import "./df";
 // Network
 import "./ssh";
+import "./ssh-add";
 // Remote environments
 import "./coder";
 import "./exit";

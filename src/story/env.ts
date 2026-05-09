@@ -1,11 +1,12 @@
 import { ComputerId } from "../state/types";
-import { COMPUTERS } from "./player";
+import { COMPUTERS, getComputerUsername } from "./player";
 
 /**
  * Returns default environment variables for a given computer.
  * These represent what a login shell would have before sourcing user configs.
  */
-export function getDefaultEnv(computerId: ComputerId, username: string): Record<string, string> {
+export function getDefaultEnv(computerId: ComputerId, playerUsername: string): Record<string, string> {
+  const username = getComputerUsername(computerId, playerUsername);
   const home = `/home/${username}`;
   const hostname = COMPUTERS[computerId].hostname;
 
@@ -69,6 +70,17 @@ export function getDefaultEnv(computerId: ComputerId, username: string): Record<
       CHIP_ENDPOINT: "https://chip.platform.internal",
       CHIP_PLATFORM_HOME: "/srv/chip",
       CHIP_PLUGINS_DIR: "/opt/chip/plugins",
+    };
+  }
+
+  if (computerId === "erik-pc") {
+    return {
+      ...base,
+      SHELL: "/bin/zsh",
+      PATH: `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${home}/.local/bin`,
+      LANG: "en_US.UTF-8",
+      LC_ALL: "en_US.UTF-8",
+      SSH_TTY: "/dev/pts/0",
     };
   }
 
@@ -177,10 +189,11 @@ function stripQuotes(value: string): string {
  */
 export function initEnvForComputer(
   computerId: ComputerId,
-  username: string,
+  playerUsername: string,
   fs: { readFile: (path: string) => { content?: string; error?: string } }
 ): Record<string, string> {
-  const env = getDefaultEnv(computerId, username);
+  const env = getDefaultEnv(computerId, playerUsername);
+  const username = getComputerUsername(computerId, playerUsername);
   const home = `/home/${username}`;
   const zshrcResult = fs.readFile(`${home}/.zshrc`);
   if (zshrcResult.content) {
@@ -195,9 +208,10 @@ export function initEnvForComputer(
  */
 export function initAliasesForComputer(
   computerId: ComputerId,
-  username: string,
+  playerUsername: string,
   fs: { readFile: (path: string) => { content?: string; error?: string } }
 ): Record<string, string> {
+  const username = getComputerUsername(computerId, playerUsername);
   const home = `/home/${username}`;
   const zshrcResult = fs.readFile(`${home}/.zshrc`);
   if (zshrcResult.content) {

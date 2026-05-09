@@ -26,7 +26,7 @@ npm run check     # Combined typecheck + test + build
 
 ### In-Game Commands
 
-`ls`, `cd`, `cat`, `pwd`, `clear`, `help`, `nano`, `mail`, `piper`, `python`, `snow`, `dbt`, `chip`, `ssh`, `coder`, `exit`, `shutdown`, `save`, `load`, `newgame`, `grep`, `find`, `head`, `tail`, `diff`, `wc`, `echo`, `chmod`, `mkdir`, `rm`, `mv`, `cp`, `touch`, `history`, `whoami`, `hostname`, `file`, `tree`, `sort`, `uniq`, `date`, `which`, `command`, `type`, `man`, `df`, `pdftotext`, `sudo`, `apt`, `git`, `source`, `alias`, `unalias`, `export`, `printenv`, `env`
+`ls`, `cd`, `cat`, `pwd`, `clear`, `help`, `nano`, `mail`, `piper`, `python`, `snow`, `dbt`, `chip`, `ssh`, `ssh-add`, `coder`, `exit`, `shutdown`, `save`, `load`, `newgame`, `grep`, `find`, `head`, `tail`, `diff`, `wc`, `echo`, `chmod`, `mkdir`, `rm`, `mv`, `cp`, `touch`, `history`, `whoami`, `hostname`, `file`, `tree`, `sort`, `uniq`, `date`, `which`, `command`, `type`, `man`, `df`, `pdftotext`, `sudo`, `apt`, `git`, `source`, `alias`, `unalias`, `export`, `printenv`, `env`
 
 Pipe support (`|`), output redirection (`>`, `>>`), stdin passing between piped commands, and command chaining (`&&`, `||`, `;`) are all supported.
 
@@ -43,7 +43,7 @@ src/
 ├── engine/
 │   ├── filesystem/         # VirtualFS class, types, serialization, builders (__tests__/)
 │   ├── commands/           # Parser, registry, builtin commands, applyResult, availability (__tests__/)
-│   ├── chip/               # Chip interactive CLI (ChipSession, render, types)
+│   ├── chip/               # Chip interactive CLI (ChipSession, render, transcript, types) — writes plaintext transcripts to ~/.chip/sessions/ on exit (NexaCorp only) (__tests__/)
 │   ├── editor/             # Nano text editor (EditorSession, keymap, render) (__tests__/)
 │   ├── ssh/                # SSH client session (SshSession, sshConfig)
 │   ├── python/             # Python REPL via Pyodide
@@ -80,8 +80,9 @@ src/
 │   │   │   ├── home.ts         # /home/{player}, /home/erik, /home/oscar (multi-user shared box)
 │   │   │   ├── opt.ts          # /opt/chip/ plugin runtime (10 plugins + registry.json + SDK)
 │   │   │   ├── srv.ts          # /srv/ai/rag/ (RAG corpus) + /srv/chip/ (embeddings, prompts, cache, logs)
-│   │   │   └── tmp.ts          # /tmp/ with Erik's stale ssh agent socket (world-building only)
+│   │   │   └── tmp.ts          # /tmp/ with Erik's live ssh agent socket — `.user-erik` marker drives the chipinfra→erik-pc pivot
 │   │   ├── devcontainer.ts     # Coder dev container filesystem builder (`coder ssh ai`, per-player)
+│   │   ├── erikpc.ts           # Erik's personal Linux laptop (reached via SSH-agent-forwarding pivot from chipinfra)
 │   │   └── paths.ts            # HOME_PATHS, NEXACORP_PATHS, CHIPINFRA_PATHS constants for story flag triggers
 │   ├── chip/
 │   │   └── menuItems.ts        # Chip menu items and responses
@@ -105,7 +106,7 @@ src/
 - **Single-page app**: Chapter transitions are state changes, not route changes
 - **Dynamic xterm import**: `ssr: false` required because xterm.js needs `window`
 - **Static export**: `output: 'export'` in next.config.ts, deployed to GitHub Pages
-- **Four computers**: Home PC (`"home"`), NexaCorp workstation (`"nexacorp"`), per-player Coder dev container (`"devcontainer"`, hostname `coder-ai`), and the shared Chip platform Coder workspace (`"chipinfra"`, hostname `coder-chip`). Separate filesystems are stored in `computerState` (Zustand). `ComputerId` type in `state/types.ts`; `PLAYER` and `COMPUTERS` config in `story/player.ts`. Both Coder workspaces are reached from NexaCorp via `coder ssh <name>` (`ai` or `chip`) and exited with `exit`. The `chip` workspace is gated behind the `unlock_chip_plugin_development` story flag (set after Edward's Chapter 3 plugin DM). First-time transitions trigger fullscreen animations; subsequent transitions open new tabs instantly.
+- **Five computers**: Home PC (`"home"`), NexaCorp workstation (`"nexacorp"`), per-player Coder dev container (`"devcontainer"`, hostname `coder-ai`), the shared Chip platform Coder workspace (`"chipinfra"`, hostname `coder-chip`), and Erik's personal Linux laptop (`"erik-pc"`, hostname `erik-laptop`). Separate filesystems are stored in `computerState` (Zustand). `ComputerId` type in `state/types.ts`; `PLAYER` and `COMPUTERS` config in `story/player.ts`. Both Coder workspaces are reached from NexaCorp via `coder ssh <name>` (`ai` or `chip`) and exited with `exit`. The `chip` workspace is gated behind the `unlock_chip_plugin_development` story flag (set after Edward's Chapter 3 plugin DM). Erik's PC is reached from chipinfra via SSH-agent-forwarding abuse (read `/tmp/ssh-mZ4xPq/.user-erik` → `export SSH_AUTH_SOCK` → `ssh-add -l` → `ssh erik@erik-laptop`); `exit` returns to chipinfra, not nexacorp. First-time transitions trigger fullscreen animations; subsequent transitions open new tabs instantly. Erik's PC has its own session username (`erik`) via `COMPUTERS["erik-pc"].username`; `getComputerUsername(computer, playerUsername)` is the helper consulted by prompt rendering, FS construction, and env defaults. Computer transitions route through a single source-aware `dispatchTransition(term, transitionTo, sourceComputer)` helper in `useComputerTransitions.ts`; both `useTerminal.ts` (for command results) and `useSessionRouter.ts` (for SSH session results) call it.
 - **Multi-terminal tabs**: Players can open multiple terminal tabs (max 5) on different computers simultaneously. `TabManager.tsx` orchestrates tab lifecycle. Each tab has its own xterm instance, cwd, and session state. Tab state (`tabs[]`, `activeTabId`) lives in Zustand; persisted as `tabs[]` + `activeTabIndex` in save format v5. Tabs are gated behind `tabs_unlocked` story flag (unlocked in Chapter 2). Tmux-style shortcuts: `Ctrl+B, C/X/N/P/1-5`. `Ctrl+B, X` checks `canClose()` on the active session — blocks with warning if unsaved (force-close on second attempt within 2s). "+" button shows computer selection dropdown when multiple computers are available. Per-computer command queue serializes FS mutations to prevent TOCTOU races.
 - **Per-computer FS in store**: `computerState: Record<ComputerId, { fs: VirtualFS }>` holds per-computer filesystem state. There are no legacy `fs`, `cwd`, or `activeComputer` fields — these are derived from `computerState` and `tabs`. Pipeline execution reads fresh FS from `getState().computerState[computerId]`, accumulates in local `runningFs`, writes once at end via `setComputerFs()`. CWD is per-tab via `setTabCwd()`. Active computer is derived from the active tab's `computerId`. Hooks use `getState()` for global state (storyFlags, deliveredEmailIds, etc.) instead of synced refs. Computer transitions use `setTabComputer()` to repurpose the current tab instead of stash/swap.
 - **Delivery extraction**: `processDeliveries()` in `engine/commands/processDeliveries.ts` is a pure function extracted from `computeEffects()`. Handles story flag triggers, email/piper deliveries, piper_delivered flag cascades, and filesystem effects from `STORY_FS_EFFECTS` (`story/fsEffects.ts`). Checkpoint loading in `gameStore.ts` also applies FS effects.

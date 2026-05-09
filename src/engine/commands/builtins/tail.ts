@@ -13,6 +13,9 @@ const tail: CommandHandler = (args, _flags, ctx) => {
   const fileArgs: string[] = [];
 
   for (let i = 0; i < effectiveArgs.length; i++) {
+    if (effectiveArgs[i] === "-f" || effectiveArgs[i] === "--follow") {
+      return { output: "tail: -f: follow not supported in this terminal", exitCode: 2 };
+    }
     if (effectiveArgs[i] === "-n" && i + 1 < effectiveArgs.length) {
       numLines = parseInt(effectiveArgs[i + 1], 10);
       if (isNaN(numLines) || numLines < 0) numLines = 10;

@@ -31,6 +31,27 @@ First-person voice in Chip's responses is fine ("I'm Chip", "I can query Snowfla
 
 The "Chip going proactive / autonomous" content in `/srv/` (roadmap items, Edward's pitch) is plot-relevant and stays — it characterizes Edward's *intent* to push Chip toward autonomy, which is consistent with the rule that Chip is not autonomous *today*.
 
+### Chip CLI writes local transcripts
+
+Like real CLI chatbots (Claude Code's `~/.claude/projects/`), the in-game `chip` CLI persists each session as a plaintext transcript on the user's NexaCorp workstation. On exit, `ChipSession` flushes a file to `~/.chip/sessions/YYYY-MM-DD-HHMMSS.log` via the `newFs` field of its exit `SessionResult` — same pattern as `SshSession` writing to `known_hosts`. Empty sessions write nothing. Currently NexaCorp-only (gated by `info.currentComputer === "nexacorp"` in `flushTranscript()`); devcontainer/chipinfra sessions don't log.
+
+Format (defined in `src/engine/chip/transcript.ts`):
+
+```
+session: sess_2026-05-09-142345
+user: <username>
+started: 2026-05-09 14:23:45
+
+[14:23:45] <username>: <topic label>
+[14:23:45] chip: <chip response>
+  <continuation lines indented by 2 spaces>
+
+[14:24:12] <username>: <next topic>
+...
+```
+
+The player viewing their own transcripts is intentionally low-stakes — the value is groundwork for a future arc where the player SSHes into a colleague's workstation and reads pre-seeded transcripts at the same path. When that arc lands, seed transcripts at `/home/<colleague>/.chip/sessions/` on the new computer and add a `read_<colleague>_chip_logs` trigger using `NEXACORP_PATHS.chipSessionsDir(<colleague>)`.
+
 ## Architecture
 
 ```
@@ -60,7 +81,8 @@ src/story/
 └── filesystem/
     ├── paths.ts           # HOME_PATHS, NEXACORP_PATHS, CHIPINFRA_PATHS constants for story flag trigger paths
     ├── nexacorp/          # createNexacorpFilesystem(username, storyFlags) — split into index, dbt, chip (thin client), srv, home
-    └── chipinfra/         # createChipinfraFilesystem(username, storyFlags) — shared platform workspace (`coder ssh chip`): plugin runtime, RAG corpus, multi-user homes
+    ├── chipinfra/         # createChipinfraFilesystem(username, storyFlags) — shared platform workspace (`coder ssh chip`): plugin runtime, RAG corpus, multi-user homes
+    └── erikpc.ts          # createErikpcFilesystem(playerUsername) — Erik's personal Linux laptop, reached via SSH-agent-forwarding pivot from chipinfra
 
 src/state/
 ├── types.ts               # StoryFlags, ComputerId, GamePhase, GameState
@@ -73,7 +95,7 @@ src/state/
 
 ```ts
 type StoryFlags = Record<string, string | boolean>;
-type ComputerId = "home" | "nexacorp" | "devcontainer" | "chipinfra";
+type ComputerId = "home" | "nexacorp" | "devcontainer" | "chipinfra" | "erik-pc";
 type GamePhase = "login" | "booting" | "playing" | "transitioning";
 ```
 
@@ -84,6 +106,7 @@ interface StoryFlagTrigger {
   event: "file_read" | "command_executed" | "directory_visit" | "directory_created" | "file_created" | "file_modified" | "piper_delivered" | "objective_completed";
   path?: string;          // Exact path match (most common)
   pathPrefix?: string;    // Match any path starting with this prefix (e.g. "~/Downloads/")
+  pathSuffix?: string;    // Match any path ending with this suffix; combine with pathPrefix to bracket a player-chosen segment
   detail?: string;        // Match the event's `detail` field (command names, email IDs, etc.)
   flag: StoryFlagName;    // must be a valid STORY_FLAG_NAMES entry
   value: string | boolean;
@@ -93,6 +116,8 @@ interface StoryFlagTrigger {
 ```
 
 **`pathPrefix`**: lets a trigger fire for any file under a directory — e.g. `used_file_in_downloads` fires when the player runs `file` on anything in `~/Downloads/`, not a specific file.
+
+**`pathSuffix`**: complements `pathPrefix` when the player picks a name in the middle of a path. Example: `wrote_plugin_manifest` uses `pathPrefix: "/opt/chip/plugins/"` + `pathSuffix: "/plugin.json"` so any `/opt/chip/plugins/<plugin-name>/plugin.json` matches regardless of the player's chosen plugin name. Both must match when both are set.
 
 **`requiredFlags`**: gates the trigger on prior story state. Used heavily for Day 2 triggers so they only fire in the correct context (e.g., `dbt_test_failed_day2` only fires if `pulled_day2_updates` is set). Checked in `checkStoryFlagTriggers()` before event matching.
 
@@ -131,7 +156,7 @@ These groupings reflect the comment headers in `src/story/storyFlags.ts`. When a
 
 - **Home PC core flow**: `read_resume`, `read_nexacorp_offer`, `ssh_unlocked`, `read_backup_failure`, `fixed_backup_script`, `ran_auto_apply`, `accepted_at_180k`, `day1_shutdown`, `read_piper_day1_home`, `ssh_day2`, `returned_home_day1`
 - **Home command unlocks**: `pdftotext_unlocked`, `tree_installed`, `apt_unlocked`, `apt_updated`, `apt_upgraded`, `basic_tools_unlocked`, `commands_unlocked`, `first_ssh_connect`, `tabs_unlocked`
-- **Olive's Terminal Challenges (Quest 1)**: `olive_challenges_read`, `used_file_in_downloads`, `used_which_python`, `created_projects_dir`, `used_mv_home`, `used_echo_pipe`, `used_man_command`
+- **Olive's Terminal Challenges (Quest 1)**: `olive_challenges_accepted`, `olive_challenges_declined`, `olive_challenges_read`, `used_file_in_downloads`, `used_which_python`, `created_projects_dir`, `used_mv_home`, `used_echo_pipe`, `used_man_command`
 - **Backup quest (Quest 2)**: `backup_quest_started`, `created_backups_dir`, `copied_scripts_backup`, `created_backup_log`, `verified_backup`
 - **Olive's Power Tools (Quest 4, post day 1)**: `olive_power_tools_read`, `used_grep_at_home`, `used_wc_at_home`, `used_history_redirect`, `used_sort_uniq_home`, `used_find_home`
 - **NexaCorp onboarding & gating**: `read_onboarding`, `read_team_info`, `read_handoff_notes`, `coder_unlocked`, `coder_workspace_stopped`, `chip_unlocked`, `chip_error_seen`, `printenv_unlocked`, `sourced_nexacorp_zshrc`, `piper_unlocked`, `chmod_unlocked`, `search_tools_unlocked`, `inspection_tools_unlocked`, `processing_tools_unlocked`, `devcontainer_visited`
@@ -171,6 +196,28 @@ Some objectives describe an outcome that requires comparing two files (`oscar_di
 ```
 
 The `requiredFlags` ensure the cascade only fires once both halves have been read — order-independent, no double-counting (see `currentFlags[trigger.flag] === undefined` guard in `checkStoryFlagTriggers`).
+
+### Per-reply Piper branching
+
+`after_piper_reply` triggers fire when the player picks **any** option on a delivery — they don't distinguish which option was chosen. To branch on the specific choice (e.g. accept-vs-decline a side-quest), attach distinct `triggerEvents` to each `PiperReplyOption` and gate the next delivery off the resulting flag rather than off the reply itself:
+
+```ts
+// olive_challenges_intro replyOptions
+{ label: "sure, let's do it", messageBody: "...",
+  triggerEvents: [{ type: "command_executed", detail: "olive_challenges_accepted" }] },
+{ label: "maybe later",       messageBody: "...",
+  triggerEvents: [{ type: "command_executed", detail: "olive_challenges_declined" }] },
+
+// storyFlags.ts triggers
+{ event: "command_executed", detail: "olive_challenges_accepted", flag: "olive_challenges_accepted", value: true },
+{ event: "command_executed", detail: "olive_challenges_declined", flag: "olive_challenges_declined", value: true },
+
+// next deliveries gate on the flag, not the reply
+trigger: { type: "after_story_flag", flag: "olive_challenges_accepted" }   // accept path
+trigger: { type: "after_story_flag", flag: "olive_challenges_declined" }   // decline path
+```
+
+`processDeliveries()` runs story-flag triggers before piper deliveries on the same event batch, so the flag is already set by the time the piper-delivery check runs. No engine changes are needed — the `triggerEvents` field on `PiperReplyOption` is already plumbed end-to-end through `PiperSession.ts`.
 
 ### Cascade triggers
 
@@ -298,7 +345,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 
 ### Dev container
 
-`DEVCONTAINER_COMMANDS` is a fixed whitelist (no flag gates). `dbt`, `snow`, `python`, `chip`, `git` are always available. Accessed via `coder ssh ai` from NexaCorp, exited with `exit`. `coder` subcommands: `list`/`ls`, `start`, `stop`, `ssh`, `logs`, `create`, `delete`.
+`DEVCONTAINER_COMMANDS` is a fixed whitelist (no flag gates). `dbt`, `snow`, `python`, `chip`, `git`, `ssh`, `ssh-add` are always available. Accessed via `coder ssh ai` from NexaCorp, exited with `exit`. `coder` subcommands: `list`/`ls`, `start`, `stop`, `ssh`, `logs`, `create`, `delete`. The whitelist is shared with `chipinfra` (per `availability.ts:9-10`); `ssh` and `ssh-add` are present so the chipinfra → erik-pc pivot is reachable. From `devcontainer`, `ssh` has no valid routes and every target fails with `Could not resolve hostname` — that's correct behavior.
 
 ## Event Chain
 
@@ -335,6 +382,51 @@ Full sequence:
 5. Hook sets `gamePhase: "transitioning"` in Zustand store
 6. `useLoginSequence` hook detects transition, builds NexaCorp filesystem via `createNexacorpFilesystem(username, storyFlags)`
 7. Login screen renders inside xterm.js → boot sequence → `gamePhase: "playing"` on NexaCorp
+
+## Chipinfra → Erik's PC Pivot (SSH-agent-forwarding abuse)
+
+The shared `chipinfra` workspace seeds an active ssh-agent socket Erik left behind when he ran `ssh -A coder-chip` from his personal Linux laptop. The player can weaponize it to pivot into Erik's PC — a 5th computer, `erik-pc`.
+
+**Real-world basis.** OpenSSH on the remote side of `ssh -A` creates a Unix-domain socket at `/tmp/ssh-XXXXXX/agent.<PID>` that proxies requests back to the live ssh-agent on the originating laptop. Anyone with read access to that socket can list keys (`ssh-add -l`) and authenticate as the owner — silently — to anywhere those keys are authorized. The keys themselves never leave the laptop. In real Linux the gate is `0600 erik:erik` permissions; VirtualFS has no ownership, so the gate is narrative: a sibling `.user-erik` marker file in the socket dir is the source of truth.
+
+**Player path** (all on `chipinfra`):
+
+1. `cd /tmp && ls` → see `ssh-mZ4xPq/`
+2. `cat /tmp/ssh-mZ4xPq/.user-erik` → marker reveals Erik's session. Sets `cat_erik_socket_marker`.
+3. `export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472`
+4. `ssh-add -l` → prints Erik's two key fingerprints with `erik@erik-laptop` comment. Sets `ran_ssh_add_erik`. (The key comment is the primary surface for discovering the hostname.)
+5. `ssh erik@erik-laptop` → fingerprint prompt → drops into `erik@erik-laptop`. Sets `pivoted_to_erik_pc`.
+6. `exit` → returns to chipinfra (NOT nexacorp).
+
+**Auth chain.** `ssh.ts` consults a source-aware `SSH_ROUTES` map. Routes with `requiresAgent: "erik"` require: SSH_AUTH_SOCK set, the file exists in the FS, and the socket dir contains a `.user-erik` marker. Wrong user (`mallory@erik-laptop`) → `Permission denied (publickey).` Hostname `erik-laptop` and FQDN `erik-laptop.nexa.internal` both resolve.
+
+**Story flags:**
+
+- `cat_erik_socket_marker` — fires on `file_read: /tmp/ssh-mZ4xPq/.user-erik`
+- `ran_ssh_add_erik` — fires on the `command_executed: ran_ssh_add_erik` event emitted by `ssh-add` when keys list successfully
+- `pivoted_to_erik_pc` — fires on first arrival in `runErikpcArrival` (fire-on-arrival, not from ssh.ts)
+
+**Per-computer username.** `COMPUTERS["erik-pc"].username = "erik"` and `getComputerUsername(computer, playerUsername)` (in `story/player.ts`) is consulted by `getPrompt`, `buildFs`, `getDefaultEnv`, and `initEnvForComputer` so the player sees `erik@erik-laptop` and the home dir is `/home/erik`. This is the only computer with a non-player username today; future SSH pivots into colleague boxes can reuse the pattern.
+
+**No narrative payload yet.** `createErikpcFilesystem` is a placeholder: `~/.zshrc`, `~/.zsh_history`, `~/.ssh/config`, `~/.gitconfig`, empty `Documents/Downloads/Desktop/code/notes/`. Investigation contents are intentionally unfilled — when adding payload, treat erik-pc as a Linux dev laptop (apt, systemd, `/home/erik`), matching conventions of the other Linux boxes in the game.
+
+**Realistic SSH UX.** The arrival banner is a single dim line: `Last login: Fri May  9 14:23:18 2026 from coder-chip.platform.internal`. No "Connected to X." (real OpenSSH never prints that). No boot sequence — SSHing into an already-running box just drops you into a shell. No MOTD (Erik's personal laptop has it disabled).
+
+**Story-flag triggers on erik-pc.** `getErikpcStoryFlagTriggers` in `src/story/storyFlags.ts` registers the apt install/update/upgrade triggers so package management actually flips global flags (e.g. `apt_install_tree` → `tree_installed`). Add new triggers here when adding investigation payload that should fire on Erik's laptop.
+
+**Transition routing decoupled.** Post-SSH transitions are now driven by `SessionResult.transitionTo` (mirroring `CommandResult.transitionTo`), not by the `ssh_connect` objective_completed event. `SshSession` only emits `ssh_connect` for the home → nexacorp route — that flag's name is now strictly scoped to its original meaning. Both the known-host short-circuit in `enter()` and the `acceptHost()` first-time path set `transitionTo`. `dispatchTransition(term, transitionTo, sourceComputer)` in `useComputerTransitions.ts` is the single source-aware dispatcher; `useTerminal.ts` and `useSessionRouter.ts` both route through it.
+
+**Exit dispatching.** `runExitToNexacorp` was generalized into `runExitToParent(target)`. The `(transitionTo, sourceComputer)` matrix:
+
+| transitionTo | sourceComputer | handler |
+|---|---|---|
+| devcontainer | (any) | `runCoderTransition("devcontainer")` |
+| chipinfra | nexacorp | `runCoderTransition("chipinfra")` (first-time enter) |
+| chipinfra | erik-pc | `runExitToParent("chipinfra")` (exit to parent) |
+| nexacorp | devcontainer or chipinfra | `runExitToParent("nexacorp")` |
+| nexacorp | home | `runSshTransition("nexacorp")` |
+| erik-pc | chipinfra | `runSshTransition("erik-pc")` |
+| home | nexacorp | `runExitToHome` |
 
 ## Investigation Paths
 

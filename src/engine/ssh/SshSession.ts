@@ -3,6 +3,8 @@ import { VirtualFS } from "../filesystem/VirtualFS";
 import { ISession, SessionResult } from "../session/types";
 import { isBackspace, CTRL_C } from "../terminal/keyCodes";
 import { colorize, ansi } from "../../lib/ansi";
+import type { ComputerId } from "../../state/types";
+import type { GameEvent } from "../mail/delivery";
 
 const FAKE_FINGERPRINT = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8";
 
@@ -12,6 +14,7 @@ export class SshSession implements ISession {
   private host: string;
   private username: string;
   private homeDir: string;
+  private targetComputer: ComputerId;
   private inputBuffer = "";
 
   constructor(
@@ -19,13 +22,29 @@ export class SshSession implements ISession {
     fs: VirtualFS,
     host: string,
     username: string,
-    homeDir: string
+    homeDir: string,
+    targetComputer: ComputerId
   ) {
     this.terminal = terminal;
     this.fs = fs;
     this.host = host;
     this.username = username;
     this.homeDir = homeDir;
+    this.targetComputer = targetComputer;
+  }
+
+  /**
+   * Trigger events emitted on a successful connect. Only the home → nexacorp
+   * route fires `ssh_connect` (which drives the `first_ssh_connect` story flag
+   * named for that connection). Other routes (e.g. chipinfra → erik-pc) emit
+   * no objective_completed event — their narrative flag is set on arrival in
+   * the transition handler instead.
+   */
+  private connectTriggerEvents(): GameEvent[] {
+    if (this.targetComputer === "nexacorp") {
+      return [{ type: "objective_completed", detail: "ssh_connect" }];
+    }
+    return [];
   }
 
   enter(): SessionResult | void {
@@ -40,9 +59,8 @@ export class SshSession implements ISession {
       // can process the transition without waiting for handleInput.
       return {
         type: "exit",
-        triggerEvents: [
-          { type: "objective_completed", detail: "ssh_connect" },
-        ],
+        triggerEvents: this.connectTriggerEvents(),
+        transitionTo: this.targetComputer,
       };
     }
 
@@ -121,9 +139,8 @@ export class SshSession implements ISession {
     return {
       type: "exit",
       newFs,
-      triggerEvents: [
-        { type: "objective_completed", detail: "ssh_connect" },
-      ],
+      triggerEvents: this.connectTriggerEvents(),
+      transitionTo: this.targetComputer,
     };
   }
 }

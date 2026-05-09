@@ -2,7 +2,7 @@ import { PiperDelivery } from "../../../engine/piper/types";
 
 export function getEdwardDeliveries(_username: string): PiperDelivery[] {
   return [
-    // === DM Edward: Jin's security copied over (after reading welcome email) ===
+    // === DM Edward: Chen's security copied over (after reading welcome email) ===
     {
       id: "edward_security_grant",
       channelId: "dm_edward",
@@ -32,7 +32,7 @@ export function getEdwardDeliveries(_username: string): PiperDelivery[] {
           id: "edward_dm_1",
           from: "Edward Torres",
           timestamp: "",
-          body: "Hey, settling in okay? If you haven't already, definitely give Chip a try — just type `chip` in the terminal. It's honestly the fastest way to get answers about how things work around here. We built it to be the single source of truth for the whole team.",
+          body: "Hey, settling in okay? If you haven't already, definitely give Chip a try — just type `chip` in the terminal. Honestly the fastest way to get unstuck around here.",
         },
       ],
       trigger: { type: "after_story_flag", flag: "read_team_info" },
@@ -99,7 +99,7 @@ export function getEdwardDeliveries(_username: string): PiperDelivery[] {
           id: "edward_plugin_2",
           from: "Edward Torres",
           timestamp: "",
-          body: "Plugins live on the platform workspace now, not your laptop — `coder ssh chip` (you should have access). Drop it under `/opt/chip/plugins/<your-username>/` so blame's obvious, then stash an entry in the registry when it's working.",
+          body: "Plugins live on the platform workspace now, not your laptop — `coder ssh chip` (you should have access). Pick a name, scaffold it next to the others under `/opt/chip/plugins/<plugin-name>/` with a `plugin.json` and `SKILL.md`, then add an entry to `registry.json` when it's working.",
         },
         {
           id: "edward_plugin_3",
@@ -129,16 +129,8 @@ export function getEdwardDeliveries(_username: string): PiperDelivery[] {
       trigger: { type: "after_piper_reply", deliveryId: "edward_plugin_request" },
       replyOptions: [
         {
-          label: "Plugin's up. /opt/chip/plugins/<your-username>/, registered.",
+          label: "Plugin's up. Scaffolded under /opt/chip/plugins/, registered.",
           messageBody: "Plugin's up. Wrote plugin.json + SKILL.md, added it to the registry.",
-          visibleWhen: { flag: "wrote_plugin_skill" },
-          triggerEvents: [
-            { type: "objective_completed", detail: "reported_plugin_to_edward" },
-          ],
-        },
-        {
-          label: "Plugin's up. plugin.json + SKILL.md written.",
-          messageBody: "Plugin's up. Wrote plugin.json + SKILL.md.",
           visibleWhen: { flag: "wrote_plugin_skill" },
           triggerEvents: [
             { type: "objective_completed", detail: "reported_plugin_to_edward" },

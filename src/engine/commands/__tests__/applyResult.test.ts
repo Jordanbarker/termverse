@@ -258,12 +258,12 @@ describe("computeEffects", () => {
     it("detects ssh session and suppresses prompt", () => {
       const result: CommandResult = {
         output: "",
-        sshSession: { host: "nexacorp-ws01.nexacorp.internal", username: "ren" },
+        sshSession: { host: "nexacorp-ws01.nexacorp.internal", username: "ren", targetComputer: "nexacorp" },
       };
       const effects = computeEffects(result, createApplyCtx());
       expect(effects.startSession).toEqual({
         type: "ssh",
-        info: { host: "nexacorp-ws01.nexacorp.internal", username: "ren" },
+        info: { host: "nexacorp-ws01.nexacorp.internal", username: "ren", targetComputer: "nexacorp" },
       });
       expect(effects.suppressPrompt).toBe(true);
     });
@@ -271,7 +271,7 @@ describe("computeEffects", () => {
     it("still processes events even when starting ssh session", () => {
       const result: CommandResult = {
         output: "",
-        sshSession: { host: "nexacorp-ws01.nexacorp.internal", username: "ren" },
+        sshSession: { host: "nexacorp-ws01.nexacorp.internal", username: "ren", targetComputer: "nexacorp" },
         triggerEvents: [{ type: "file_read", detail: "welcome" }],
       };
       const effects = computeEffects(result, createApplyCtx());

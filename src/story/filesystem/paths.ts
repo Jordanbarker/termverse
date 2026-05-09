@@ -16,10 +16,10 @@ export const HOME_PATHS = {
 } as const;
 
 export const CHIPINFRA_PATHS = {
-  chipPluginDir: (u: string) => `/opt/chip/plugins/${u}`,
-  chipPluginManifest: (u: string) => `/opt/chip/plugins/${u}/plugin.json`,
-  chipPluginSkill: (u: string) => `/opt/chip/plugins/${u}/SKILL.md`,
   chipPluginRegistry: "/opt/chip/plugins/registry.json",
+  erikSocketDir: "/tmp/ssh-mZ4xPq",
+  erikSocketMarker: "/tmp/ssh-mZ4xPq/.user-erik",
+  erikAgentSocket: "/tmp/ssh-mZ4xPq/agent.18472",
 } as const;
 
 export const NEXACORP_PATHS = {
@@ -43,4 +43,5 @@ export const NEXACORP_PATHS = {
   opsIncidents: "/srv/operations/ops_incidents.csv",
   boardMinutes: "/srv/leadership/board_minutes_feb.md",
   headcountPlan: "/srv/leadership/headcount_plan.csv",
+  chipSessionsDir: (u: string) => `/home/${u}/.chip/sessions`,
 } as const;

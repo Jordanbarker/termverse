@@ -11,13 +11,30 @@ function copyDir(
   srcPath: string,
   destPath: string,
   createdPaths: string[],
-  modifiedPaths: string[]
+  modifiedPaths: string[],
+  createdDirPaths: string[]
 ): { fs: VirtualFS; error?: string } {
   const srcNode = fs.getNode(srcPath);
   if (!srcNode || !isDirectory(srcNode)) {
     return { fs, error: `cp: cannot access '${srcPath}': No such file or directory` };
   }
   let currentFs = fs;
+
+  const destNode = currentFs.getNode(destPath);
+  if (!destNode) {
+    const mk = currentFs.makeDirectory(destPath);
+    if (mk.error) {
+      return { fs: currentFs, error: mk.error.replace(/^mkdir: /, "cp: ") };
+    }
+    currentFs = mk.fs!;
+    createdDirPaths.push(destPath);
+  } else if (!isDirectory(destNode)) {
+    return {
+      fs: currentFs,
+      error: `cp: cannot overwrite non-directory '${destPath}' with directory '${srcPath}'`,
+    };
+  }
+
   for (const child of Object.values((srcNode as DirectoryNode).children)) {
     const childSrc = srcPath + "/" + child.name;
     const childDest = destPath + "/" + child.name;
@@ -28,7 +45,7 @@ function copyDir(
       if (result.fs) currentFs = result.fs;
       (existedBefore ? modifiedPaths : createdPaths).push(childDest);
     } else if (isDirectory(child)) {
-      const result = copyDir(currentFs, childSrc, childDest, createdPaths, modifiedPaths);
+      const result = copyDir(currentFs, childSrc, childDest, createdPaths, modifiedPaths, createdDirPaths);
       if (result.error) return result;
       currentFs = result.fs;
     }
@@ -60,12 +77,14 @@ const cp: CommandHandler = (args, flags, ctx) => {
     }
     const createdPaths: string[] = [];
     const modifiedPaths: string[] = [];
-    const result = copyDir(ctx.fs, srcPath, destPath, createdPaths, modifiedPaths);
+    const createdDirPaths: string[] = [];
+    const result = copyDir(ctx.fs, srcPath, destPath, createdPaths, modifiedPaths, createdDirPaths);
     if (result.error) return { output: result.error, exitCode: 1 };
     return {
       output: "",
       newFs: result.fs,
       triggerEvents: [
+        ...createdDirPaths.map((p) => ({ type: "directory_created" as const, detail: p })),
         ...createdPaths.map((p) => ({ type: "file_created" as const, detail: p })),
         ...modifiedPaths.map((p) => ({ type: "file_modified" as const, detail: p })),
       ],

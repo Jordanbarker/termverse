@@ -3,6 +3,8 @@ import { execute } from "../registry";
 import { CommandContext } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
+import { getErikpcStoryFlagTriggers } from "../../../story/storyFlags";
+import { checkStoryFlagTriggers } from "../../narrative/storyFlags";
 
 import "../builtins";
 
@@ -75,6 +77,24 @@ describe("apt install", () => {
   it("errors on unknown package", () => {
     const result = execute("apt", ["install", "vim"], {}, ctx({ elevated: true }));
     expect(result.output).toContain("Unable to locate package vim");
+  });
+});
+
+describe("apt install tree on erik-pc", () => {
+  it("emits apt_install_tree trigger event on erik-pc", () => {
+    const result = execute("apt", ["install", "tree"], {}, ctx({ elevated: true, activeComputer: "erik-pc" }));
+    expect(result.output).toContain("Setting up tree");
+    expect(result.triggerEvents).toEqual([{ type: "command_executed", detail: "apt_install_tree" }]);
+  });
+
+  it("flips tree_installed via the erik-pc trigger list", () => {
+    const triggers = getErikpcStoryFlagTriggers("erik");
+    const results = checkStoryFlagTriggers(
+      { type: "command_executed", detail: "apt_install_tree" },
+      triggers,
+      {},
+    );
+    expect(results).toEqual([{ flag: "tree_installed", value: true, toast: "tree command installed!" }]);
   });
 });
 

@@ -1,40 +1,141 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
+import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
+import { isDirectory, FSNode } from "../../filesystem/types";
+import { VirtualFS } from "../../filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";
+
+const PERM_MAP: Record<string, string> = {
+  "0": "---", "1": "--x", "2": "-w-", "3": "-wx",
+  "4": "r--", "5": "r-x", "6": "rw-", "7": "rwx",
+};
 
 function octalToPermString(octal: string): string | null {
   if (!/^[0-7]{3}$/.test(octal)) return null;
-
-  const map: Record<string, string> = {
-    "0": "---", "1": "--x", "2": "-w-", "3": "-wx",
-    "4": "r--", "5": "r-x", "6": "rw-", "7": "rwx",
-  };
-
-  return octal.split("").map((d) => map[d]).join("");
+  return octal.split("").map((d) => PERM_MAP[d]).join("");
 }
 
-const chmod: CommandHandler = (args, _flags, ctx) => {
+interface SymbolicClause {
+  who: string; // any of u, g, o (resolved — 'a' and empty expand to "ugo")
+  op: "+" | "-" | "=";
+  perms: string; // any of r, w, x
+}
+
+function parseSymbolicMode(mode: string): SymbolicClause[] | null {
+  const clauses = mode.split(",");
+  const parsed: SymbolicClause[] = [];
+  for (const raw of clauses) {
+    const m = raw.match(/^([ugoa]*)([+\-=])([rwx]*)$/);
+    if (!m) return null;
+    let who = m[1];
+    if (who === "" || who.includes("a")) who = "ugo";
+    // dedupe (e.g. "uu" → "u")
+    who = Array.from(new Set(who.split(""))).join("");
+    parsed.push({ who, op: m[2] as "+" | "-" | "=", perms: m[3] });
+  }
+  return parsed;
+}
+
+function applySymbolic(current: string, clauses: SymbolicClause[]): string {
+  // current is a 9-char permission string like "rwxr-xr-x"
+  // index layout: u=[0..2], g=[3..5], o=[6..8]; each triplet is r,w,x
+  const bits = current.split("");
+  const classOffset: Record<string, number> = { u: 0, g: 3, o: 6 };
+  const permOffset: Record<string, number> = { r: 0, w: 1, x: 2 };
+  const permChar: Record<string, string> = { r: "r", w: "w", x: "x" };
+
+  for (const clause of clauses) {
+    for (const w of clause.who) {
+      const base = classOffset[w];
+      if (clause.op === "=") {
+        // clear all three bits in this class first
+        bits[base] = "-";
+        bits[base + 1] = "-";
+        bits[base + 2] = "-";
+      }
+      for (const p of clause.perms) {
+        const idx = base + permOffset[p];
+        if (clause.op === "+" || clause.op === "=") {
+          bits[idx] = permChar[p];
+        } else if (clause.op === "-") {
+          bits[idx] = "-";
+        }
+      }
+    }
+  }
+
+  return bits.join("");
+}
+
+function defaultPermsForNode(node: FSNode): string {
+  return node.permissions ?? (isDirectory(node) ? "rwxr-xr-x" : "rw-r--r--");
+}
+
+function collectPaths(fs: VirtualFS, root: string): string[] {
+  const out: string[] = [root];
+  const node = fs.getNode(root);
+  if (!node || !isDirectory(node)) return out;
+  const { entries } = fs.listDirectory(root);
+  for (const entry of entries) {
+    const childPath = root === "/" ? `/${entry.name}` : `${root}/${entry.name}`;
+    if (isDirectory(entry)) {
+      out.push(...collectPaths(fs, childPath));
+    } else {
+      out.push(childPath);
+    }
+  }
+  return out;
+}
+
+const chmod: CommandHandler = (args, flags, ctx) => {
   if (args.length < 2) {
-    return { output: "chmod: missing operand\nUsage: chmod MODE FILE" };
+    return { output: "chmod: missing operand\nUsage: chmod [-R] MODE FILE...", exitCode: 1 };
   }
 
   const mode = args[0];
-  const filePath = args[1];
-  const permissions = octalToPermString(mode);
+  const targets = args.slice(1);
+  const recursive = !!(flags["R"] || flags["recursive"]);
 
-  if (!permissions) {
-    return { output: `chmod: invalid mode: '${mode}'` };
+  // Determine mode style
+  const octalPerms = octalToPermString(mode);
+  const symbolicClauses = octalPerms ? null : parseSymbolicMode(mode);
+
+  if (!octalPerms && !symbolicClauses) {
+    return { output: `chmod: invalid mode: '${mode}'`, exitCode: 1 };
   }
 
-  const absPath = resolvePath(filePath, ctx.cwd, ctx.homeDir);
-  const result = ctx.fs.setPermissions(absPath, permissions);
+  let currentFs = ctx.fs;
+  const errors: string[] = [];
 
-  if (result.error) {
-    return { output: result.error };
+  for (const target of targets) {
+    const absPath = resolvePath(target, ctx.cwd, ctx.homeDir);
+    const rootNode = currentFs.getNode(absPath);
+    if (!rootNode) {
+      errors.push(`chmod: cannot access '${target}': No such file or directory`);
+      continue;
+    }
+
+    const paths = recursive ? collectPaths(currentFs, absPath) : [absPath];
+    for (const p of paths) {
+      const node = currentFs.getNode(p);
+      if (!node) continue;
+      const currentPerms = defaultPermsForNode(node);
+      const newPerms = octalPerms ?? applySymbolic(currentPerms, symbolicClauses!);
+      const result = currentFs.setPermissions(p, newPerms);
+      if (result.error) {
+        errors.push(result.error);
+      } else if (result.fs) {
+        currentFs = result.fs;
+      }
+    }
   }
 
-  return { output: "", newFs: result.fs };
+  if (errors.length > 0) {
+    return { output: errors.join("\n"), exitCode: 1, newFs: currentFs };
+  }
+  return { output: "", newFs: currentFs };
 };
 
 register("chmod", chmod, "Change file permissions", HELP_TEXTS.chmod);
+setKnownFlags("chmod", { short: ["R"], long: ["recursive"] });

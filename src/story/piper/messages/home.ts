@@ -295,12 +295,30 @@ that last one is your best friend. if you forget how something works, just man i
         {
           label: "sure, let's do it",
           messageBody: "sure, let's do it.",
+          triggerEvents: [{ type: "command_executed", detail: "olive_challenges_accepted" }],
         },
         {
           label: "maybe later",
           messageBody: "maybe later — a bit busy right now.",
+          triggerEvents: [{ type: "command_executed", detail: "olive_challenges_declined" }],
         },
       ],
+    },
+
+    // === dm_olive — decline ack (only fires if player chose "maybe later") ===
+    {
+      id: "olive_challenges_decline_ack",
+      channelId: "dm_olive",
+      computer: "home",
+      messages: [
+        {
+          id: "olive_decline_1",
+          from: "Olive Borden",
+          timestamp: "",
+          body: "no worries — ping me whenever you want to run them.",
+        },
+      ],
+      trigger: { type: "after_story_flag", flag: "olive_challenges_declined" },
     },
 
     // === dm_olive — challenge 1: file ===
@@ -322,7 +340,7 @@ that last one is your best friend. if you forget how something works, just man i
           body: "'file' reads magic bytes — more reliable than file extensions. the output tells you exactly what kind of data it is.",
         },
       ],
-      trigger: { type: "after_piper_reply", deliveryId: "olive_challenges_intro" },
+      trigger: { type: "after_story_flag", flag: "olive_challenges_accepted" },
       replyOptions: [
         {
           label: "Done!",

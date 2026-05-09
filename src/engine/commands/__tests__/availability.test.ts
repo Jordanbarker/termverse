@@ -190,16 +190,41 @@ describe("isCommandAvailable", () => {
     });
 
     it("blocks commands not in devcontainer whitelist", () => {
-      expect(isCommandAvailable("ssh", "devcontainer")).toBe(false);
       expect(isCommandAvailable("mail", "devcontainer")).toBe(false);
       expect(isCommandAvailable("sudo", "devcontainer")).toBe(false);
       expect(isCommandAvailable("apt", "devcontainer")).toBe(false);
       expect(isCommandAvailable("pdftotext", "devcontainer")).toBe(false);
     });
 
+    it("ssh is available in devcontainer/chipinfra (every Linux box has it)", () => {
+      // ssh is on the DEVCONTAINER_COMMANDS whitelist so the chipinfra→erik-pc
+      // pivot is reachable. From devcontainer it has no valid routes and every
+      // target fails with "Could not resolve hostname" — that's correct behavior.
+      expect(isCommandAvailable("ssh", "devcontainer")).toBe(true);
+      expect(isCommandAvailable("ssh", "chipinfra")).toBe(true);
+      expect(isCommandAvailable("ssh-add", "devcontainer")).toBe(true);
+      expect(isCommandAvailable("ssh-add", "chipinfra")).toBe(true);
+    });
+
     it("does not require story flags in devcontainer", () => {
       expect(isCommandAvailable("dbt", "devcontainer", {})).toBe(true);
       expect(isCommandAvailable("grep", "devcontainer", {})).toBe(true);
+    });
+  });
+
+  describe("erik-pc", () => {
+    it("blocks tree without tree_installed flag", () => {
+      expect(isCommandAvailable("tree", "erik-pc")).toBe(false);
+      expect(isCommandAvailable("tree", "erik-pc", {})).toBe(false);
+    });
+
+    it("unlocks tree with tree_installed flag", () => {
+      expect(isCommandAvailable("tree", "erik-pc", { tree_installed: true })).toBe(true);
+    });
+
+    it("apt is available once apt_unlocked (Erik runs Linux)", () => {
+      expect(isCommandAvailable("apt", "erik-pc", { apt_unlocked: true })).toBe(true);
+      expect(isCommandAvailable("sudo", "erik-pc", { apt_unlocked: true })).toBe(true);
     });
   });
 });

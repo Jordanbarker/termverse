@@ -36,6 +36,7 @@ const DAY1_START: Checkpoint = {
     apt_unlocked: true,
     first_ssh_connect: true,
     // Olive basic challenges flags
+    olive_challenges_accepted: true,
     olive_challenges_read: true,
     used_file_in_downloads: true,
     used_which_python: true,

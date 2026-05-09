@@ -8,6 +8,16 @@ RAG quest
             curl -X GET http://localhost:8081/v1/health | jq
             curl -X GET http://localhost:1976/v1/health/ready | jq
 
+1d. Unused discovery flags read_board_minutes / read_headcount_plan
+
+Pulling at a Loose Thread                                                                                                           
+  1. cd /tmp && ls on chipinfra → see ssh-mZ4xPq/
+  2. cat /tmp/ssh-mZ4xPq/.user-erik → marker reveals Erik's session (sets cat_erik_socket_marker)
+  3. export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472
+  4. ssh-add -l → prints two key fingerprints with erik@erik-laptop comment (sets ran_ssh_add_erik)                                 
+  5. ssh erik@erik-laptop → fingerprint accept → drops into erik@erik-laptop with last-login banner (sets pivoted_to_erik_pc)
+  6. exit → returns to chipinfra (NOT nexacorp)
+
 Player finds Erik's ssh key in logs and can ssh into Erik's pc: 
     .bash_history shows them running firefox https://kalshi.com/... or curl-ing prediction-market APIs.
     chip logs 
@@ -24,6 +34,7 @@ Edward asks player who they think is taking advantage of chip (Sarah or Erik or 
     (Good ending) Erik is chosen, Erik and Edward are fired, Sarah takes over as CTO
     Omni-Z buyout, they rebranded from ScrollSphere like 2 years ago but people still call it ScrollSphere
 
+If the player nukes something at Nexacorp, they should get fired
 
 - note about deleting old data to keep snowflake bill cheap
 - you're absolutely right!

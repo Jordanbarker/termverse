@@ -4,14 +4,14 @@ import { file, dir } from "../../../engine/filesystem/builders";
 /**
  * /tmp for the chipinfra workspace.
  *
- * Erik's stale SSH agent socket lives here. VirtualFS does not model file
- * ownership, so we convey "this is Erik's" with an adjacent .user-erik
- * marker file, an oscar one for contrast (older), and the .zsh_history /
- * /home/erik tree elsewhere on the box.
+ * Erik's still-active SSH agent socket lives here. VirtualFS does not model
+ * file ownership, so we convey "this socket belongs to Erik" with an
+ * adjacent .user-erik marker file. Oscar's older socket is kept for contrast.
  *
- * Phase 1 (current plan): pure world-building. No story flag fires when
- * /tmp is listed. If a future plan wires up SSH_AUTH_SOCK impersonation,
- * the marker files become the source of truth for "whose socket is this."
+ * The `.user-erik` marker is the source of truth for ssh-add and ssh: when
+ * SSH_AUTH_SOCK points at agent.18472, those commands look at the sibling
+ * marker to decide whose keys are loaded. Reading the marker is what
+ * surfaces the pivot opportunity to the player (sets `cat_erik_socket_marker`).
  */
 export function buildTmpDirectory(): DirectoryNode {
   return dir("tmp", {
@@ -35,10 +35,5 @@ forwarded: yes
     }),
 
     ".X11-unix": dir(".X11-unix", {}),
-
-    "build-cache-erik": dir("build-cache-erik", {
-      "vite.lock": file("vite.lock", `# stale build cache from erik's recent session
-`),
-    }),
   });
 }

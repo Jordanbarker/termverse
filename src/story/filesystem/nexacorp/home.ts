@@ -67,6 +67,9 @@ __pycache__/
 `),
         }),
       }),
+      ".chip": dir(".chip", {
+        sessions: dir("sessions", {}),
+      }),
       ".zsh_history": file(".zsh_history", `ls
 cd Desktop
 cat welcome.txt

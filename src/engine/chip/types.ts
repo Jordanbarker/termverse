@@ -13,3 +13,9 @@ export interface ChipSessionInfo {
   storyFlags: StoryFlags;
   currentComputer: ComputerId;
 }
+
+export interface ChipExchange {
+  timestamp: Date;
+  role: "user" | "chip";
+  text: string;
+}

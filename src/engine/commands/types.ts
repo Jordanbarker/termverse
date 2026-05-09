@@ -68,6 +68,7 @@ export interface SnowSqlSessionInfo {
 export interface SshSessionInfo {
   host: string;
   username: string;
+  targetComputer: ComputerId;
 }
 
 export interface CommandResult {
