@@ -19,6 +19,7 @@ import "./grep";
 import "./find";
 import "./head";
 import "./tail";
+import "./less";
 import "./diff";
 import "./wc";
 import "./echo";

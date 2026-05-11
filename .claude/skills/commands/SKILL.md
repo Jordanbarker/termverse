@@ -27,6 +27,12 @@ src/engine/commands/
 src/engine/session/
 └── types.ts               # ISession, SessionResult — shared interface for interactive modes
 
+src/engine/pager/          # less (pager) session — alt-screen scroll/search over file or piped stdin
+├── LessSession.ts         # ISession impl; alt-screen lifecycle, topLine clamp, n/N search, Ctrl+L redraw
+├── render.ts              # ANSI-aware truncation, search highlight, status line, help overlay
+├── keymap.ts              # CSI parser → PagerAction union (mode-agnostic)
+└── types.ts               # LessSessionInfo
+
 src/hooks/
 ├── useTerminal.ts         # Pipeline orchestrator: chains commands, handles redirection, applies effects
 ├── useCommandLine.ts      # Input buffer, history navigation, autosuggestions
@@ -81,6 +87,7 @@ interface CommandResult {
   sshSession?: { ... };         // Enter SSH session
   chipSession?: { ... };        // Enter Chip assistant
   piperSession?: { ... };       // Enter Piper session
+  lessSession?: { filename, content };  // Enter less pager (file or piped stdin)
   gameAction?: GameAction;      // save/load/newgame/shutdown/listCheckpoints/loadCheckpoint
   triggerEvents?: GameEvent[];  // Events for email/story processing
   transitionTo?: ComputerId;    // Transition to another computer (devcontainer, nexacorp)
@@ -192,7 +199,7 @@ interface AppliedEffects {
   output: string;
   newFs?: VirtualFS;
   newCwd?: string;
-  startSession?: SessionToStart;  // "editor" | "snow-sql" | "pythonRepl" | "prompt" | "ssh" | "chip" | "piper"
+  startSession?: SessionToStart;  // "editor" | "snow-sql" | "pythonRepl" | "prompt" | "ssh" | "chip" | "piper" | "less"
   gameAction?: GameAction;
   events: GameEvent[];
   storyFlagUpdates: StoryFlagUpdate[];
@@ -252,7 +259,9 @@ interface SessionResult {
 }
 ```
 
-Session types: editor (nano), snow-sql (Snowflake CLI REPL), pythonRepl (Pyodide), prompt (inline choices), ssh (SSH connection), chip (Chip assistant), piper (team chat).
+Session types: editor (nano), snow-sql (Snowflake CLI REPL), pythonRepl (Pyodide), prompt (inline choices), ssh (SSH connection), chip (Chip assistant), piper (team chat), less (pager).
+
+Alt-screen sessions: editor, piper, less — `useSessionRouter.routeInput` recognizes these in its `usedAltScreen` check so the post-session prompt is written cleanly without a leading `\r\n`. Add new alt-screen sessions to that list.
 
 ## Command Availability (`availability.ts`)
 

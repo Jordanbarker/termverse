@@ -48,6 +48,7 @@ export const NEXACORP_GATED: Record<string, StoryFlagName> = {
   head: "inspection_tools_unlocked",
   tail: "inspection_tools_unlocked",
   wc: "inspection_tools_unlocked",
+  less: "inspection_tools_unlocked",
   sort: "processing_tools_unlocked",
   uniq: "processing_tools_unlocked",
   coder: "coder_unlocked",
@@ -78,7 +79,7 @@ export const DEVCONTAINER_ONLY: ReadonlySet<string> = new Set([
 /** Commands available in the Coder dev container. */
 export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
   "ls", "cd", "cat", "pwd", "clear", "help", "nano", "python", "python3", "dbt",
-  "snow", "chip", "grep", "find", "diff", "head", "tail", "wc",
+  "snow", "chip", "grep", "find", "diff", "head", "tail", "wc", "less",
   "sort", "uniq", "echo", "whoami", "hostname", "file", "tree",
   "date", "which", "command", "type", "man", "mkdir", "rm", "mv", "cp", "touch", "chmod",
   "history", "exit", "save", "load", "newgame", "cheat", "git", "bash", "sh", "zsh",
@@ -116,6 +117,7 @@ export const HOME_GATED: Record<string, StoryFlagName> = {
   head: "returned_home_day1",
   tail: "returned_home_day1",
   diff: "returned_home_day1",
+  less: "returned_home_day1",
   shutdown: "returned_home_day1",
   mount: "accepted_usb_drive",
   umount: "accepted_usb_drive",

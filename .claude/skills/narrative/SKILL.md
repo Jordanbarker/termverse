@@ -35,6 +35,8 @@ The "Chip going proactive / autonomous" content in `/srv/` (roadmap items, Edwar
 
 Like real CLI chatbots (Claude Code's `~/.claude/projects/`), the in-game `chip` CLI persists each session as a plaintext transcript on the user's NexaCorp workstation. On exit, `ChipSession` flushes a file to `~/.chip/sessions/YYYY-MM-DD-HHMMSS.log` via the `newFs` field of its exit `SessionResult` — same pattern as `SshSession` writing to `known_hosts`. Empty sessions write nothing. Currently NexaCorp-only (gated by `info.currentComputer === "nexacorp"` in `flushTranscript()`); devcontainer/chipinfra sessions don't log.
 
+The transcript's filename, `started:` header, and per-message `[HH:MM:SS]` timestamps are all anchored to the **game clock**, not the wall clock — so they agree with the `date` command, `current_timestamp()`, and dbt run timestamps. The session-start `Date` is computed at the construction site (`useSessionRouter.ts`) via `gameNowFor(deliveredPiperIds, username, computer)` and passed into the `ChipSession` constructor. Per-message timestamps advance by real elapsed seconds during the chat, rebased onto that game-clock start.
+
 Format (defined in `src/engine/chip/transcript.ts`):
 
 ```

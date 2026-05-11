@@ -141,6 +141,25 @@ export const HELP_TEXTS: Record<string, string> = {
     "  -f       follow appended data (not supported in this terminal)",
   ].join("\n"),
 
+  less: [
+    "Usage: less [FILE]",
+    "",
+    "View file contents with paging. With no FILE, read from standard input.",
+    "",
+    "  q  Ctrl+C       Quit",
+    "  j  Down  Enter  Forward one line",
+    "  k  Up           Backward one line",
+    "  Space  f  PgDn  Forward one page",
+    "  b  PgUp         Backward one page",
+    "  g               Go to first line",
+    "  G               Go to last line",
+    "  /pattern        Search forward",
+    "  ?pattern        Search backward",
+    "  n / N           Next / previous match",
+    "  Ctrl+L          Redraw screen",
+    "  h               In-pager help",
+  ].join("\n"),
+
   diff: [
     "Usage: diff [OPTION]... FILE1 FILE2",
     "",

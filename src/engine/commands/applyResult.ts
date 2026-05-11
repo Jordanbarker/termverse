@@ -6,6 +6,7 @@ import { resolvePath } from "../../lib/pathUtils";
 import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
+import { LessSessionInfo } from "../pager/types";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { colorize, ansi } from "../../lib/ansi";
 import { listSaveSlots, formatSlotName } from "../../state/saveManager";
@@ -20,7 +21,8 @@ export type SessionToStart =
   | { type: "prompt"; info: PromptSessionInfo }
   | { type: "ssh"; info: SshSessionInfo }
   | { type: "chip"; info: ChipSessionInfo }
-  | { type: "piper"; info: PiperSessionInfo };
+  | { type: "piper"; info: PiperSessionInfo }
+  | { type: "less"; info: LessSessionInfo };
 
 export interface StoryFlagUpdate {
   flag: string;
@@ -134,6 +136,9 @@ export function computeEffects(
     effects.suppressPrompt = true;
   } else if (result.piperSession) {
     effects.startSession = { type: "piper", info: result.piperSession };
+    effects.suppressPrompt = true;
+  } else if (result.lessSession) {
+    effects.startSession = { type: "less", info: result.lessSession };
     effects.suppressPrompt = true;
   }
 

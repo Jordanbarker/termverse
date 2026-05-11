@@ -3,6 +3,7 @@ import { Mounts } from "../filesystem/mounts";
 import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
+import { LessSessionInfo } from "../pager/types";
 import type { ComputerId, StoryFlags } from "../../state/types";
 import { GameEvent } from "../mail/delivery";
 import { SnowflakeState } from "../snowflake/state";
@@ -87,6 +88,7 @@ export interface CommandResult {
   sshSession?: SshSessionInfo;
   chipSession?: ChipSessionInfo;
   piperSession?: PiperSessionInfo;
+  lessSession?: LessSessionInfo;
   triggerEvents?: GameEvent[];
   transitionTo?: ComputerId;
   incrementalLines?: IncrementalLine[];

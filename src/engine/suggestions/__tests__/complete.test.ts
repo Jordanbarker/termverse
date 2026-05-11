@@ -149,6 +149,12 @@ describe("getCompletions", () => {
       expect(result!.displayNames).toEqual(["notes.txt"]);
     });
 
+    it("less shows files and directories", () => {
+      const result = getCompletions("less n", createCtx());
+      expect(result).not.toBeNull();
+      expect(result!.displayNames).toEqual(["notes.txt"]);
+    });
+
     it("completes after flags", () => {
       const result = getCompletions("head -n 5 n", createCtx());
       expect(result).not.toBeNull();

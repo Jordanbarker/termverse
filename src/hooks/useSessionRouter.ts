@@ -14,6 +14,7 @@ import { PromptSession } from "../engine/prompt/PromptSession";
 import { SshSession } from "../engine/ssh/SshSession";
 import { ChipSession } from "../engine/chip/ChipSession";
 import { PiperSession } from "../engine/piper/PiperSession";
+import { LessSession } from "../engine/pager/LessSession";
 import { deliverPiperAndCascade } from "../engine/piper/delivery";
 import { ISession } from "../engine/session/types";
 import { SessionToStart } from "../engine/commands/applyResult";
@@ -335,7 +336,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       // FS was already synced to store via setComputerFs above
       // Piper and editor use the alternate screen buffer — no leading \r\n needed
       // (but if notifications were just written, we need a newline before the prompt)
-      const usedAltScreen = type === "piper" || type === "editor";
+      const usedAltScreen = type === "piper" || type === "editor" || type === "less";
       if (usedAltScreen) {
         term.write((wroteNotifications ? "\r\n" : "") + getPrompt());
       } else {
@@ -452,11 +453,17 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       } else if (session.type === "chip") {
         const store = useGameStore.getState();
         const currentFs = store.computerState[computerId]!.fs;
+        const sessionStart = gameNowFor(
+          store.deliveredPiperIds,
+          store.username,
+          computerId,
+        );
         const chipSession = new ChipSession(
           term,
           currentFs,
           currentFs.homeDir,
           session.info,
+          sessionStart,
           (topics) => {
             const value = topics.join(",");
             useGameStore.getState().setStoryFlag("used_chip_topics", value);
@@ -473,6 +480,10 @@ export function useSessionRouter(deps: SessionRouterDeps) {
         const piperSession = new PiperSession(term, piperInfo, store.username);
         sessionMapRef.current.set(targetTabId, { session: piperSession, type: "piper", piperInfo });
         piperSession.enter();
+      } else if (session.type === "less") {
+        const lessSession = new LessSession(term, session.info);
+        sessionMapRef.current.set(targetTabId, { session: lessSession, type: "less" });
+        lessSession.enter();
       }
     },
     [activeComputerRef, writePrompt, processTriggerEvents, dispatchTransition, pendingNotificationsRef]

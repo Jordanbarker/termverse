@@ -26,6 +26,7 @@ import "../builtins/git";
 import "../builtins/grep";
 import "../builtins/find";
 import "../builtins/head";
+import "../builtins/less";
 import "../builtins/tree";
 import "../builtins/mkdir";
 import "../builtins/command";
@@ -773,6 +774,45 @@ describe("wc", () => {
     const result = execute("wc", ["notes.txt"], { c: true, h: true }, ctx());
     // 11 bytes is below 1024, stays as "11"
     expect(result.output).toContain("11");
+  });
+});
+
+describe("less", () => {
+  it("returns a lessSession with file content when given a file path", () => {
+    const result = execute("less", ["notes.txt"], {}, ctx());
+    expect(result.output).toBe("");
+    expect(result.lessSession).toBeDefined();
+    expect(result.lessSession?.filename).toBe("notes.txt");
+    expect(result.lessSession?.content).toBe("hello world");
+  });
+
+  it("uses piped stdin when no file arg is given", () => {
+    const c: CommandContext = { ...ctx(), stdin: "line1\nline2\nline3" };
+    const result = execute("less", [], {}, c);
+    expect(result.lessSession).toBeDefined();
+    expect(result.lessSession?.filename).toBeNull();
+    expect(result.lessSession?.content).toBe("line1\nline2\nline3");
+  });
+
+  it("errors when no file and no stdin", () => {
+    const result = execute("less", [], {}, ctx());
+    expect(result.output).toContain("missing file operand");
+    expect(result.exitCode).toBe(1);
+    expect(result.lessSession).toBeUndefined();
+  });
+
+  it("errors when the file does not exist", () => {
+    const result = execute("less", ["missing.txt"], {}, ctx());
+    expect(result.output).toMatch(/less:/);
+    expect(result.exitCode).toBe(1);
+    expect(result.lessSession).toBeUndefined();
+  });
+
+  it("errors when the target is a directory", () => {
+    const result = execute("less", ["docs"], {}, ctx());
+    expect(stripAnsi(result.output)).toMatch(/Is a directory/);
+    expect(result.exitCode).toBe(1);
+    expect(result.lessSession).toBeUndefined();
   });
 });
 

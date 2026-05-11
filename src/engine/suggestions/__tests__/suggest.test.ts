@@ -114,6 +114,10 @@ describe("getSuggestion", () => {
       expect(getSuggestion("cat no", createCtx())).toBe("cat notes.txt");
     });
 
+    it("completes file path for less", () => {
+      expect(getSuggestion("less no", createCtx())).toBe("less notes.txt");
+    });
+
     it("completes directory path for cd", () => {
       expect(getSuggestion("cd do", createCtx())).toBe("cd docs/");
     });
