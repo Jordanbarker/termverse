@@ -76,8 +76,7 @@ src/story/
 ├── piper/
 │   ├── channels.ts        # PIPER_CHANNELS array (channel/DM definitions)
 │   └── messages.ts        # getPiperDeliveries() — all Piper message definitions with triggers
-├── fsEffects.ts           # STORY_FS_EFFECTS — filesystem effects applied when story flags are set (registry; currently empty)
-├── checkpoints.ts         # Checkpoint definitions — checkpoint loading also applies FS effects
+├── checkpoints.ts         # Checkpoint definitions
 └── filesystem/
     ├── paths.ts           # HOME_PATHS, NEXACORP_PATHS, CHIPINFRA_PATHS constants for story flag trigger paths
     ├── nexacorp/          # createNexacorpFilesystem(username, storyFlags) — split into index, dbt, chip (thin client), srv, home
@@ -163,6 +162,7 @@ These groupings reflect the comment headers in `src/story/storyFlags.ts`. When a
 - **Investigation breadcrumbs**: `oscar_searched_logs`, `oscar_checked_backups`, `oscar_diffed_logs`, `oscar_access_completed`, `auri_listed_handoff`, `auri_read_todo`, `auri_used_head`, `auri_used_tail`, `auri_used_wc`, `found_backup_files`, `found_auth_backup`, `found_chip_directives`, `found_cleanup_script`, `discovered_log_tampering`, `found_inflated_metrics`, `used_chip_topics`
 - **Side quests (Day 1)**: `read_end_of_day`, `read_ops_incidents`, `read_board_minutes`, `read_headcount_plan`, `auri_dbt_reported`, `dbt_project_cloned`, `ran_dbt`
 - **Day 2 pipeline fix (devcontainer)**: `pulled_day2_updates`, `dbt_test_failed_day2`, `investigated_null_data`, `created_fix_branch`, `fixed_campaign_model`, `pushed_fix_branch`, `reported_fix_to_auri`
+- **Day 2 anonymous USB tip + Loose Thread**: `anon_tip_quest_started`, `anon_tip_dm_resolved`, `accepted_usb_drive`, `declined_usb_tip`, `ran_lsblk_for_usb`, `mounted_usb_drive`, `read_usb_note`, `loose_thread_quest_started` (drives the home-side `dm_anon` Piper DM that introduces `mount`/`umount` and opens "Pulling at a Loose Thread" once `chipinfra_visited`)
 
 ### Special triggers in `applyResult.ts` (not in StoryFlagTrigger tables)
 
@@ -196,6 +196,30 @@ Some objectives describe an outcome that requires comparing two files (`oscar_di
 ```
 
 The `requiredFlags` ensure the cascade only fires once both halves have been read — order-independent, no double-counting (see `currentFlags[trigger.flag] === undefined` guard in `checkStoryFlagTriggers`).
+
+### Cross-arc cascades (two-flag gates without a flag-set event)
+
+The trigger system has no `flag_set` event — triggers fire on game *events* (file_read, command_executed, etc.), so a quest that needs to open the moment **both** of two flags become true can't be expressed cleanly with one trigger. The pattern is to wire **both directions** explicitly:
+
+1. The flag that's set via a real game event uses a normal trigger with `requiredFlags: [other_flag]`.
+2. The flag that's set programmatically (in a hook or transition handler) checks the partner flag inline and fires the cascade flag itself.
+
+Example — "Pulling at a Loose Thread" opens iff `read_usb_note` AND `chipinfra_visited` are both true:
+
+```ts
+// storyFlags.ts — handles the read-after-visit ordering
+{ event: "file_read", path: "/mnt/usb/note.txt", flag: "loose_thread_quest_started",
+  value: true, requiredFlags: ["chipinfra_visited"],
+  toast: "New quest: Pulling at a Loose Thread" },
+
+// useComputerTransitions.ts — handles the visit-after-read ordering
+if (target === "chipinfra" && s.storyFlags.read_usb_note && !s.storyFlags.loose_thread_quest_started) {
+  s.setStoryFlag("loose_thread_quest_started", true);
+  s.addToast("New quest: Pulling at a Loose Thread");
+}
+```
+
+Both branches set the same flag with the same toast, so the player gets the same UX regardless of order. Avoid duplicating the toast logic when extending — keep the two branches in lockstep.
 
 ### Per-reply Piper branching
 
@@ -277,9 +301,12 @@ interface ChapterDefinition { id: string; title: string; objectives: ObjectiveDe
   - `explore_jchen` group → `discover_tampering`, `find_directives`
   - `closing_time` group → `read_eod_email`, `head_home`, `shutdown_day1` (plus optional ungrouped `read_piper_home`)
   - `olive_power_tools` group → `olive_pt_grep/wc/redirect/sort_uniq/find`
-- **chapter-3** ("Getting the Hang of This"): Day 2
+- **chapter-3** ("In Production"): Day 2
   - Top-level: `update_system`, `ssh_to_work_day2`
+  - `anon_tip_quest` group (allVisibleChildren) → `anon_tip_check_piper`, `anon_tip_lsblk`, `anon_tip_mount`, `anon_tip_read` — anonymous USB tip arc that introduces `mount`/`umount`. Visible after `anon_tip_quest_started` (set by `command_executed:shutdown`); scaffold children only appear if the player accepts (`accepted_usb_drive`).
   - `fix_pipeline_quest` group (allVisibleChildren) → `read_auri_day2_morning`, `pull_day2_updates`, `discover_test_failure`, `investigate_null_data`, `create_fix_branch`, `fix_the_model`, `push_fix`, `report_to_auri`
+  - `build_chip_plugin_quest` group (allVisibleChildren) → `accepted_edward_plugin_request`, `ssh_to_chip_workspace`, `read_existing_plugin`, `create_plugin_dir`, `write_plugin_manifest`, `write_plugin_skill`, `register_plugin`, `report_plugin_to_edward`
+  - `loose_thread_quest` group (allVisibleChildren) → `loose_thread_find_socket`, `loose_thread_export_sock`, `loose_thread_inspect_keys`, `loose_thread_pivot` — opens once **both** `read_usb_note` (anonymous USB note read at home) AND `chipinfra_visited` are true. Children walk the existing chipinfra → erik-pc pivot.
 
 ### Objective Resolution (`objectives.ts`)
 
@@ -308,7 +335,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 
 | Constant | Purpose |
 |----------|---------|
-| `HOME_COMMANDS` | Always-available on Home PC (ls, cd, cat, pwd, clear, help, mail, nano, piper, save, load, newgame, history, python/python3, bash/sh/zsh, source/`.`, printenv, env, export, alias, unalias, cheat, command, type) |
+| `HOME_COMMANDS` | Always-available on Home PC (ls, cd, cat, pwd, clear, help, mail, nano, piper, save, load, newgame, history, python/python3, bash/sh/zsh, source/`.`, printenv, env, export, alias, unalias, cheat, command, type, lsblk, mount, umount) |
 | `HOME_GATED` | Home commands behind a flag |
 | `NEXACORP_GATED` | NexaCorp commands behind a flag |
 | `NEXACORP_ONLY` | Never available on Home (`coder`, `chip`) |
@@ -326,6 +353,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 | `tree` | `tree_installed` | running `apt install tree` |
 | `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `whoami`, `hostname`, `date`, `which`, `man`, `file` | `basic_tools_unlocked` | Olive's "Linux basics" Piper reply |
 | `grep`, `find`, `wc`, `sort`, `uniq`, `head`, `tail`, `diff`, `shutdown` | `returned_home_day1` | end of Day 1 (these were learned at NexaCorp; only available at home after the player has been there) |
+| `mount`, `umount` | `accepted_usb_drive` | accepting the anonymous USB tip Piper DM (`dm_anon`) on Day 2 morning |
 
 ### `NEXACORP_GATED` (current map)
 
@@ -340,8 +368,15 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 | `piper` | `piper_unlocked` | reading Edward's welcome email |
 | `chmod` | `chmod_unlocked` | Day 1 quest reward |
 | `sudo`, `apt` | `apt_unlocked` | (carried over from home) |
+| `mount`, `umount` | `accepted_usb_drive` | (carried over from home — same gate, since the USB lives on home) |
 
 `coder_workspace_stopped` is a workspace-state flag rather than an unlock: set `true` by `coder stop`, `false` by `coder start`, absent = running. `coder ssh` is blocked when `true`; `coder stop` closes devcontainer tabs via `closeTabsForComputer`.
+
+### Block devices (`lsblk`, `mount`, `umount`)
+
+`lsblk` is universally available so the player can discover newly-visible drives. `mount` and `umount` are gated behind `accepted_usb_drive` on both home and nexacorp — they unlock the first time the player accepts the anonymous USB tip Piper DM (`dm_anon` on home, triggered by `day1_shutdown`). On `devcontainer`/`chipinfra` all three are in `DEVCONTAINER_COMMANDS` with no per-flag gate (those workspaces have no devices today, but the commands are present).
+
+Story content gates devices via the `BLOCK_DEVICES` registry in `src/story/blockDevices.ts`. Each `BlockDevice` entry can carry an optional `visibleFlag: StoryFlagName` — `lsblk` and `mount`/`umount` only show or accept devices whose flag is set (or which have no flag). The first concrete device is `BLOCK_DEVICES.home` (the anonymous USB at `/dev/sdb` + partition `/dev/sdb1`), gated on `accepted_usb_drive`. To introduce a new device, add an entry under the relevant `ComputerId` with `visibleFlag` pointing at whatever flag is flipped when the questline starts (e.g. a `directory_visit` trigger or a Piper reply), and provide a `getContents(): Record<string, FSNode>` builder for the files that appear once the player runs `mount`. Active mounts live in `computerState[id].mounts` (per-computer), keyed by normalized mountpath. `mount.ts` emits `command_executed: mounted_usb_drive` only when `/dev/sdb1` is mounted at `/mnt/usb` — that's how the `mounted_usb_drive` flag is fired (the auto-emitted `command_executed: mount` event is too generic to credit the questline by itself).
 
 ### Dev container
 
@@ -358,7 +393,6 @@ Command execution
       → checkStoryFlagTriggers() → StoryFlagUpdate[]
       → checkEmailDeliveries() → new emails in FS
       → checkPiperDeliveries() → new piper deliveries
-      → STORY_FS_EFFECTS for set flags → FS mutations
     → transition detection → triggerTransition flag
   → AppliedEffects returned to hook
   → Hook applies: terminal output, FS updates, state updates, email/piper notifications
@@ -393,7 +427,7 @@ The shared `chipinfra` workspace seeds an active ssh-agent socket Erik left behi
 
 1. `cd /tmp && ls` → see `ssh-mZ4xPq/`
 2. `cat /tmp/ssh-mZ4xPq/.user-erik` → marker reveals Erik's session. Sets `cat_erik_socket_marker`.
-3. `export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472`
+3. `export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472` → sets `exported_erik_ssh_auth_sock` (export builtin matches the literal path, mirroring the `CHIP_API_KEY` pattern).
 4. `ssh-add -l` → prints Erik's two key fingerprints with `erik@erik-laptop` comment. Sets `ran_ssh_add_erik`. (The key comment is the primary surface for discovering the hostname.)
 5. `ssh erik@erik-laptop` → fingerprint prompt → drops into `erik@erik-laptop`. Sets `pivoted_to_erik_pc`.
 6. `exit` → returns to chipinfra (NOT nexacorp).
@@ -403,12 +437,15 @@ The shared `chipinfra` workspace seeds an active ssh-agent socket Erik left behi
 **Story flags:**
 
 - `cat_erik_socket_marker` — fires on `file_read: /tmp/ssh-mZ4xPq/.user-erik`
+- `exported_erik_ssh_auth_sock` — fires on the `command_executed: exported_erik_ssh_auth_sock` event emitted by the `export` builtin when `SSH_AUTH_SOCK` is set to the literal Erik socket path
 - `ran_ssh_add_erik` — fires on the `command_executed: ran_ssh_add_erik` event emitted by `ssh-add` when keys list successfully
 - `pivoted_to_erik_pc` — fires on first arrival in `runErikpcArrival` (fire-on-arrival, not from ssh.ts)
 
 **Per-computer username.** `COMPUTERS["erik-pc"].username = "erik"` and `getComputerUsername(computer, playerUsername)` (in `story/player.ts`) is consulted by `getPrompt`, `buildFs`, `getDefaultEnv`, and `initEnvForComputer` so the player sees `erik@erik-laptop` and the home dir is `/home/erik`. This is the only computer with a non-player username today; future SSH pivots into colleague boxes can reuse the pattern.
 
 **No narrative payload yet.** `createErikpcFilesystem` is a placeholder: `~/.zshrc`, `~/.zsh_history`, `~/.ssh/config`, `~/.gitconfig`, empty `Documents/Downloads/Desktop/code/notes/`. Investigation contents are intentionally unfilled — when adding payload, treat erik-pc as a Linux dev laptop (apt, systemd, `/home/erik`), matching conventions of the other Linux boxes in the game.
+
+**Command availability.** `isCommandAvailable` (`src/engine/commands/availability.ts`) treats erik-pc like the home PC — it falls through to `HOME_COMMANDS` / `HOME_GATED` rules (so `tree`, `apt`, `sudo` stay flag-gated and any nexacorp-unlocked tools carry over). The one explicit exception is `exit`, which is always allowed on erik-pc so the player can return to chipinfra.
 
 **Realistic SSH UX.** The arrival banner is a single dim line: `Last login: Fri May  9 14:23:18 2026 from coder-chip.platform.internal`. No "Connected to X." (real OpenSSH never prints that). No boot sequence — SSHing into an already-running box just drops you into a shell. No MOTD (Erik's personal laptop has it disabled).
 

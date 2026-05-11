@@ -7,7 +7,7 @@ import { planSelect } from "../planner/planner";
 import * as Plan from "../planner/plan";
 import * as AST from "../parser/ast";
 import { QueryResult, ResultSet } from "../formatter/result_types";
-import { evaluate, EvalContext, toBool, compareValues } from "./evaluator";
+import { evaluate, EvalContext, evalContextFromSession, toBool, compareValues } from "./evaluator";
 import { nestedLoopJoin } from "./joins";
 import { executeAggregation } from "./aggregation";
 import { executeWindowFunctions } from "./window_exec";
@@ -141,14 +141,9 @@ function executeSubqueryInner(
   const plan = planSelect(subQuery, planCtx);
 
   // Create an eval context for the subquery that also has subquery support
-  const subEvalCtx: EvalContext = {
-    currentDatabase: ctx.currentDatabase,
-    currentSchema: ctx.currentSchema,
-    currentUser: ctx.currentUser,
-    currentRole: ctx.currentRole,
-    currentWarehouse: ctx.currentWarehouse,
+  const subEvalCtx: EvalContext = evalContextFromSession(ctx, {
     executeSubquery: (q, row) => executeSubqueryInner(q, row, state, ctx, subQuery.ctes),
-  };
+  });
 
   // Execute the plan with outer row context for correlated references
   const rows = executePlan(plan, state, subEvalCtx, subQuery, outerRow);
@@ -157,17 +152,12 @@ function executeSubqueryInner(
 }
 
 function executeSelect(stmt: AST.SelectStatement, state: SnowflakeState, ctx: SessionContext, parentEvalCtx?: EvalContext): QueryResult {
-  const evalCtx: EvalContext = {
-    currentDatabase: ctx.currentDatabase,
-    currentSchema: ctx.currentSchema,
-    currentUser: ctx.currentUser,
-    currentRole: ctx.currentRole,
-    currentWarehouse: ctx.currentWarehouse,
+  const evalCtx: EvalContext = evalContextFromSession(ctx, {
     executeSubquery: (query: AST.SelectStatement, outerRow: Row) => {
       return executeSubqueryInner(query, outerRow, state, ctx, stmt.ctes);
     },
     viewDepth: parentEvalCtx?.viewDepth,
-  };
+  });
 
   const planCtx = {
     currentDatabase: ctx.currentDatabase,
@@ -249,6 +239,7 @@ function executePlan(plan: Plan.LogicalPlan, state: SnowflakeState, ctx: EvalCon
             currentWarehouse: ctx.currentWarehouse,
             currentRole: ctx.currentRole,
             currentUser: ctx.currentUser,
+            gameNow: ctx.gameNow,
           }, viewCtx);
           if (viewResult.type === "resultset") {
             return viewResult.data.rows.map((valueRow) => {

@@ -448,23 +448,35 @@ export function getCommitLog(fs: VirtualFS, root: string): GitCommit[] {
 
 // ── git branch ───────────────────────────────────────────────────────
 
-export function listBranches(fs: VirtualFS, root: string): { branches: string[]; current: string | null } {
+export type BranchListMode = "local" | "remotes" | "all";
+
+export function listBranches(
+  fs: VirtualFS,
+  root: string,
+  mode: BranchListMode = "local",
+): { branches: string[]; remotes: string[]; current: string | null } {
   const current = getCurrentBranch(readHead(fs, root));
-  const headsRoot = `${root}/.git/refs/heads`;
-  const branches: string[] = [];
-  const walk = (dirPath: string, prefix: string) => {
-    const { entries } = fs.listDirectory(dirPath);
-    for (const entry of entries) {
-      if (isFile(entry)) {
-        branches.push(prefix + entry.name);
-      } else if (isDirectory(entry)) {
-        walk(`${dirPath}/${entry.name}`, `${prefix}${entry.name}/`);
+
+  const collect = (startPath: string, initialPrefix: string): string[] => {
+    const out: string[] = [];
+    const walk = (dirPath: string, prefix: string) => {
+      const { entries } = fs.listDirectory(dirPath);
+      for (const entry of entries) {
+        if (isFile(entry)) {
+          out.push(prefix + entry.name);
+        } else if (isDirectory(entry)) {
+          walk(`${dirPath}/${entry.name}`, `${prefix}${entry.name}/`);
+        }
       }
-    }
+    };
+    walk(startPath, initialPrefix);
+    out.sort();
+    return out;
   };
-  walk(headsRoot, "");
-  branches.sort();
-  return { branches, current };
+
+  const branches = mode === "remotes" ? [] : collect(`${root}/.git/refs/heads`, "");
+  const remotes = mode === "local" ? [] : collect(`${root}/.git/refs/remotes`, "remotes/");
+  return { branches, remotes, current };
 }
 
 export function createBranch(

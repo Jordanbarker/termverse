@@ -16,6 +16,9 @@ export function isCommandAvailable(commandName: string, computer: ComputerId, st
     if (requiredFlag && !storyFlags?.[requiredFlag]) return false;
     return true;
   }
+  // erik-pc is reached via SSH from chipinfra — `exit` returns there.
+  // Otherwise erik-pc shares gating with home (a personal Linux laptop).
+  if (computer === "erik-pc" && commandName === "exit") return true;
   if (DEVCONTAINER_ONLY.has(commandName)) return false;
   const homeFlag = HOME_GATED[commandName];
   if (homeFlag) {

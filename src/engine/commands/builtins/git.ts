@@ -8,6 +8,7 @@ import {
   listBranches, createBranch, deleteBranch, gitCheckout, gitDiffFiles,
   gitStashSave, gitStashPop, gitStashList,
   gitClone, gitPush, gitPull,
+  type BranchListMode,
 } from "../../git/repo";
 import { formatStatus, formatLog, formatDiff, formatBranches } from "../../git/output";
 import { PLAYER } from "../../../story/player";
@@ -79,7 +80,7 @@ const GIT_SUBCOMMAND_FLAGS: Record<string, KnownFlags> = {
   commit: { short: ["m", "a"], long: ["amend"] },
   status: { short: ["s"] },
   log: { long: ["oneline", "graph"] },
-  branch: { short: ["d", "D"] },
+  branch: { short: ["d", "D", "a", "r"] },
   checkout: { short: ["b"] },
   switch: { short: ["c"] },
   diff: { long: ["staged", "cached"] },
@@ -188,12 +189,16 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
         return { output: result.output, newFs: result.fs };
       }
       if (subArgs[0]) {
+        if (flags["a"] || flags["r"]) {
+          return { output: "fatal: branch name required", exitCode: 128 };
+        }
         const result = createBranch(ctx.fs, root, subArgs[0]);
         if (result.error) return { output: result.error, exitCode: 128 };
         return { output: result.output, newFs: result.fs, triggerEvents: result.triggerEvents };
       }
-      const { branches, current } = listBranches(ctx.fs, root);
-      return { output: formatBranches(branches, current, plain) };
+      const mode: BranchListMode = flags["a"] ? "all" : flags["r"] ? "remotes" : "local";
+      const { branches, remotes, current } = listBranches(ctx.fs, root, mode);
+      return { output: formatBranches(branches, remotes, current, plain) };
     }
 
     case "checkout": {

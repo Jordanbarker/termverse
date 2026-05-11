@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { SnowflakeState } from "../state";
-import { executeQuery, rows, singleValue } from "./testHelpers";
+import { createTestContext, executeQuery, rows, singleValue } from "./testHelpers";
 import type { ExecutionResult } from "../executor/executor";
 
 // ─── Test State Factory ──────────────────────────────────────────────
@@ -344,6 +344,71 @@ describe("SQL Functions", () => {
       const val = singleValue(result);
       expect(val).toBeDefined();
       expect(val instanceof Date ? val.toISOString() : String(val)).toContain("2024-01-15");
+    });
+
+    describe("story-clock (ctx.gameNow)", () => {
+      const storyNow = new Date(2026, 1, 23, 9, 30, 15); // Day 1, 09:30:15
+
+      function runWithGameNow(sql: string): ExecutionResult {
+        return executeQuery(sql, createTestState(), createTestContext({ gameNow: storyNow }));
+      }
+
+      it("CURRENT_DATE honors ctx.gameNow", () => {
+        const val = singleValue(runWithGameNow("SELECT CURRENT_DATE() AS val"));
+        expect(val).toBeInstanceOf(Date);
+        expect((val as Date).getFullYear()).toBe(2026);
+        expect((val as Date).getMonth()).toBe(1);
+        expect((val as Date).getDate()).toBe(23);
+        // CURRENT_DATE truncates time
+        expect((val as Date).getHours()).toBe(0);
+      });
+
+      it("CURRENT_TIMESTAMP honors ctx.gameNow with full time", () => {
+        const val = singleValue(runWithGameNow("SELECT CURRENT_TIMESTAMP() AS val"));
+        expect(val).toBeInstanceOf(Date);
+        expect((val as Date).getTime()).toBe(storyNow.getTime());
+      });
+
+      it("NOW honors ctx.gameNow", () => {
+        const val = singleValue(runWithGameNow("SELECT NOW() AS val"));
+        expect((val as Date).getTime()).toBe(storyNow.getTime());
+      });
+
+      it("GETDATE/SYSDATE/LOCALTIMESTAMP honor ctx.gameNow", () => {
+        for (const fn of ["GETDATE", "SYSDATE", "LOCALTIMESTAMP"]) {
+          const val = singleValue(runWithGameNow(`SELECT ${fn}() AS val`));
+          expect((val as Date).getTime()).toBe(storyNow.getTime());
+        }
+      });
+
+      it("CURRENT_TIME honors ctx.gameNow", () => {
+        const val = singleValue(runWithGameNow("SELECT CURRENT_TIME() AS val"));
+        expect(val).toBe("09:30:15");
+      });
+
+      it("returns a fresh Date — mutating result does not leak into ctx", () => {
+        const ctx = createTestContext({ gameNow: storyNow });
+        const result = executeQuery("SELECT NOW() AS val", createTestState(), ctx);
+        const val = singleValue(result) as Date;
+        val.setFullYear(1999);
+        expect(ctx.gameNow!.getFullYear()).toBe(2026);
+      });
+
+      it("falls back to wall-clock when ctx.gameNow is absent", () => {
+        const before = Date.now();
+        const val = singleValue(run("SELECT NOW() AS val")) as Date;
+        const after = Date.now();
+        expect(val.getTime()).toBeGreaterThanOrEqual(before);
+        expect(val.getTime()).toBeLessThanOrEqual(after);
+      });
+
+      it("DATEDIFF against CURRENT_DATE uses story clock", () => {
+        // Hire date 2025-02-23, story today 2026-02-23 → 365 days
+        const val = singleValue(runWithGameNow(
+          "SELECT DATEDIFF('day', '2025-02-23', CURRENT_DATE()) AS val"
+        ));
+        expect(val).toBe(365);
+      });
     });
   });
 

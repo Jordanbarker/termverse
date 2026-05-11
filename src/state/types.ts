@@ -6,10 +6,3 @@ export type ComputerId = "home" | "nexacorp" | "devcontainer" | "chipinfra" | "e
 export { PLAYER, COMPUTERS } from "../story/player";
 
 export type StoryFlags = Record<string, string | boolean>;
-
-export interface GameState {
-  commandHistory: string[];
-  currentChapter: string;
-  completedObjectives: string[];
-  gamePhase: GamePhase;
-}

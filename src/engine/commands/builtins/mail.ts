@@ -2,6 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { colorize, ansi } from "../../../lib/ansi";
+import { pad2 } from "../../../lib/format";
 import { HELP_TEXTS } from "./helpTexts";
 import {
   getMailDir,
@@ -28,8 +29,7 @@ function deriveReplyDate(originalDate: string): string {
   const reply = new Date(parsed.getTime() + offsetMs);
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${days[reply.getUTCDay()]}, ${pad(reply.getUTCDate())} ${months[reply.getUTCMonth()]} ${reply.getUTCFullYear()} ${pad(reply.getUTCHours())}:${pad(reply.getUTCMinutes())}:${pad(reply.getUTCSeconds())}`;
+  return `${days[reply.getUTCDay()]}, ${pad2(reply.getUTCDate())} ${months[reply.getUTCMonth()]} ${reply.getUTCFullYear()} ${pad2(reply.getUTCHours())}:${pad2(reply.getUTCMinutes())}:${pad2(reply.getUTCSeconds())}`;
 }
 
 function formatInbox(entries: MailEntry[], mailDir: string, headerLabel: string): string {

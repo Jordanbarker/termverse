@@ -55,7 +55,7 @@ function createCtx(overrides?: Partial<CommandContext>): CommandContext {
     homeDir: "/home/ren",
     username: "ren",
     activeComputer: "home",
-    storyFlags: { commands_unlocked: true, ssh_unlocked: true },
+    storyFlags: { ssh_unlocked: true },
     ...overrides,
   };
 }

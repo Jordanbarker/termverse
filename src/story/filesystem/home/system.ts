@@ -57,5 +57,8 @@ nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
 `),
     }),
     tmp: dir("tmp", {}),
+    mnt: dir("mnt", {
+      usb: dir("usb", {}),
+    }),
   };
 }

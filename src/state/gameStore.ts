@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createDebouncedStorage } from "./debouncedStorage";
 import { VirtualFS } from "../engine/filesystem/VirtualFS";
+import { Mounts } from "../engine/filesystem/mounts";
 import { createNexacorpFilesystem } from "../story/filesystem/nexacorp";
 import { createHomeFilesystem } from "../story/filesystem/home";
 import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
@@ -18,8 +19,6 @@ import { serializeSnowflake, deserializeSnowflake, SerializedSnowflake } from ".
 import { syncToVirtualFS } from "../engine/snowflake/bridge/fs_bridge";
 import { seedDeliveredEmails } from "../engine/mail/delivery";
 import { getDefaultEnv, initEnvForComputer, initAliasesForComputer } from "../story/env";
-import { STORY_FS_EFFECTS } from "../story/fsEffects";
-
 const MAX_HISTORY = 500;
 
 export interface Toast {
@@ -44,7 +43,7 @@ interface GameStore {
   storyFlags: StoryFlags;
   hasSeenIntro: boolean;
   toasts: Toast[];
-  computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }>>;
+  computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>;
   tabs: TabState[];
   activeTabId: string;
   activeSnowSession: string | null;
@@ -68,6 +67,7 @@ interface GameStore {
   loadGame: (slotId: SaveSlotId) => boolean;
   loadCheckpointData: (data: { chapter: string; activeComputer: ComputerId; storyFlags: StoryFlags; deliveredEmailIds: string[]; deliveredPiperIds: string[]; completedObjectives: string[]; computers: ComputerId[]; commandHistory?: Partial<Record<ComputerId, string[]>>; aliases?: Partial<Record<ComputerId, Record<string, string>>>; envVars?: Partial<Record<ComputerId, Record<string, string>>> }) => boolean;
   setComputerFs: (computer: ComputerId, fs: VirtualFS) => void;
+  setComputerMounts: (computer: ComputerId, mounts: Mounts) => void;
   initComputer: (computer: ComputerId, fs: VirtualFS) => void;
   addTab: (computerId: ComputerId, cwd: string) => string;
   removeTab: (tabId: string) => void;
@@ -127,7 +127,7 @@ function createInitialState(username = PLAYER.username) {
     storyFlags: {} as StoryFlags,
     hasSeenIntro: false,
     toasts: [] as Toast[],
-    computerState: { home: { fs, commandHistory: ["nano terminal_notes.txt"], envVars: initEnvForComputer("home", username, fs), aliases: initAliasesForComputer("home", username, fs) } } as Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }>>,
+    computerState: { home: { fs, commandHistory: ["nano terminal_notes.txt"], envVars: initEnvForComputer("home", username, fs), aliases: initAliasesForComputer("home", username, fs), mounts: {} } } as Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>,
     tabs: [{ id: initialTabId, computerId: "home" as ComputerId, cwd: fs.cwd }] as TabState[],
     activeTabId: initialTabId,
     activeSnowSession: null as string | null,
@@ -153,7 +153,7 @@ export const useGameStore = create<GameStore>()(
         }
         set({
           username,
-          computerState: { ...state.computerState, [computerId]: { ...state.computerState[computerId], fs: finalFs } },
+          computerState: { ...state.computerState, [computerId]: { ...state.computerState[computerId], fs: finalFs, mounts: state.computerState[computerId]?.mounts ?? {} } },
         });
       },
       pushHistory: (computerId, command) =>
@@ -210,11 +210,15 @@ export const useGameStore = create<GameStore>()(
         })),
       setComputerFs: (computer, fs) =>
         set((state) => ({
-          computerState: { ...state.computerState, [computer]: { ...state.computerState[computer], fs, commandHistory: state.computerState[computer]?.commandHistory ?? [], envVars: state.computerState[computer]?.envVars ?? getDefaultEnv(computer, state.username), aliases: state.computerState[computer]?.aliases ?? {} } },
+          computerState: { ...state.computerState, [computer]: { ...state.computerState[computer], fs, commandHistory: state.computerState[computer]?.commandHistory ?? [], envVars: state.computerState[computer]?.envVars ?? getDefaultEnv(computer, state.username), aliases: state.computerState[computer]?.aliases ?? {}, mounts: state.computerState[computer]?.mounts ?? {} } },
+        })),
+      setComputerMounts: (computer, mounts) =>
+        set((state) => ({
+          computerState: { ...state.computerState, [computer]: { ...state.computerState[computer]!, mounts } },
         })),
       initComputer: (computer, fs) =>
         set((state) => ({
-          computerState: { ...state.computerState, [computer]: { fs, commandHistory: state.computerState[computer]?.commandHistory ?? [], envVars: initEnvForComputer(computer, state.username, fs), aliases: initAliasesForComputer(computer, state.username, fs) } },
+          computerState: { ...state.computerState, [computer]: { fs, commandHistory: state.computerState[computer]?.commandHistory ?? [], envVars: initEnvForComputer(computer, state.username, fs), aliases: initAliasesForComputer(computer, state.username, fs), mounts: state.computerState[computer]?.mounts ?? {} } },
         })),
       addTab: (computerId, cwd) => {
         const state = get();
@@ -287,7 +291,7 @@ export const useGameStore = create<GameStore>()(
         const data = loadFromSlot(slotId);
         if (!data) return false;
 
-        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }>> = {};
+        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
         for (const [id, cs] of Object.entries(data.computerStates)) {
           try {
             const loadedFs = deserializeFS(cs.fs);
@@ -296,6 +300,7 @@ export const useGameStore = create<GameStore>()(
               commandHistory: cs.commandHistory,
               envVars: cs.envVars,
               aliases: cs.aliases,
+              mounts: cs.mounts ?? {},
             };
           } catch { /* skip corrupted entries */ }
         }
@@ -329,15 +334,11 @@ export const useGameStore = create<GameStore>()(
         const homeDir = `/home/${username}`;
         const sfState = createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown });
 
-        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }>> = {};
+        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
         for (const computerId of data.computers) {
           let fs = buildFs(username, computerId, data.storyFlags, data.deliveredEmailIds);
           if (computerId === "nexacorp") {
             fs = syncToVirtualFS(sfState, fs);
-          }
-          // Apply story-driven filesystem effects (e.g. IT provisioning API keys)
-          for (const [flag, effect] of Object.entries(STORY_FS_EFFECTS)) {
-            if (data.storyFlags[flag]) fs = effect(fs, username);
           }
           const baseAliases = initAliasesForComputer(computerId, username, fs);
           const checkpointAliases = data.aliases?.[computerId] ?? {};
@@ -346,6 +347,7 @@ export const useGameStore = create<GameStore>()(
             commandHistory: data.commandHistory?.[computerId] ?? [],
             envVars: { ...initEnvForComputer(computerId, username, fs), ...(data.envVars?.[computerId] ?? {}) },
             aliases: { ...baseAliases, ...checkpointAliases },
+            mounts: {},
           };
         }
 
@@ -374,9 +376,9 @@ export const useGameStore = create<GameStore>()(
       storage: createDebouncedStorage(1000),
       partialize: (state) => {
         // Serialize all computer FS entries (including per-computer history)
-        const serializedComputerState: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }> = {};
+        const serializedComputerState: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }> = {};
         for (const [id, cs] of Object.entries(state.computerState)) {
-          if (cs) serializedComputerState[id] = { fs: serializeFS(cs.fs), commandHistory: cs.commandHistory.slice(-MAX_HISTORY), envVars: cs.envVars, aliases: cs.aliases };
+          if (cs) serializedComputerState[id] = { fs: serializeFS(cs.fs), commandHistory: cs.commandHistory.slice(-MAX_HISTORY), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
         }
         // Persist tab layout
         const activeTabIndex = state.tabs.findIndex((t) => t.id === state.activeTabId);
@@ -416,8 +418,8 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Restore computerState from serialized data
-        const computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }>> = {};
-        const serializedCS = p.serializedComputerState as Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }> | undefined;
+        const computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
+        const serializedCS = p.serializedComputerState as Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts?: Mounts }> | undefined;
         if (serializedCS) {
           for (const [id, cs] of Object.entries(serializedCS)) {
             try {
@@ -427,6 +429,7 @@ export const useGameStore = create<GameStore>()(
                 commandHistory: cs.commandHistory,
                 envVars: cs.envVars,
                 aliases: cs.aliases,
+                mounts: cs.mounts ?? {},
               };
             } catch { /* skip corrupted entries */ }
           }
@@ -464,6 +467,7 @@ export const useGameStore = create<GameStore>()(
               commandHistory: [],
               envVars: initEnvForComputer(t.computerId, username, finalFs),
               aliases: initAliasesForComputer(t.computerId, username, finalFs),
+              mounts: {},
             };
           }
         }

@@ -1,4 +1,5 @@
 import { VirtualFS } from "../filesystem/VirtualFS";
+import { Mounts } from "../filesystem/mounts";
 import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
@@ -36,6 +37,7 @@ export interface CommandContext {
   aliases?: Record<string, string>;
   setAliases?: (aliases: Record<string, string>) => void;
   deliveredPiperIds?: string[];
+  mounts?: Mounts;
 }
 
 export interface EditorSessionInfo {
@@ -89,6 +91,7 @@ export interface CommandResult {
   transitionTo?: ComputerId;
   incrementalLines?: IncrementalLine[];
   closeTabsForComputer?: ComputerId;
+  newMounts?: Mounts;
 }
 
 export interface IncrementalLine {

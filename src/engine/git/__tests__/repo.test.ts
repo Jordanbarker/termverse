@@ -305,6 +305,64 @@ describe("git branch", () => {
     const result = createBranch(fs, "/home/player", "hi");
     expect(result.error).toContain("Not a valid object name");
   });
+
+  it("returns empty remotes by default (mode='local')", () => {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile("/home/player/a.txt", "v1").fs!;
+    fs = addAndCommit(fs, "/home/player", "first");
+    const { branches, remotes } = listBranches(fs, "/home/player");
+    expect(branches).toContain("main");
+    expect(remotes).toEqual([]);
+  });
+});
+
+// ── git branch -a / -r (remote-tracking branches) ────────────────────
+
+describe("git branch -a / -r", () => {
+  const TEST_URL = "__test__/branch-a-remote";
+
+  beforeEach(() => {
+    REMOTE_REPOS[TEST_URL] = buildSimpleRemote(
+      { "README.md": "# Test" },
+      { author: AUTHOR, defaultBranch: "main", commitMessage: "init" },
+    );
+  });
+
+  afterEach(() => {
+    delete REMOTE_REPOS[TEST_URL];
+  });
+
+  it("mode='all' includes both local heads and remotes/origin/<branch>", () => {
+    const fs = makeFs();
+    const cloneResult = gitClone(fs, "/home/player", TEST_URL, AUTHOR);
+    const root = "/home/player/branch-a-remote";
+    const { branches, remotes, current } = listBranches(cloneResult.fs, root, "all");
+    expect(branches).toContain("main");
+    expect(remotes).toContain("remotes/origin/main");
+    expect(current).toBe("main");
+  });
+
+  it("mode='remotes' returns only remote-tracking branches, no locals", () => {
+    const fs = makeFs();
+    const cloneResult = gitClone(fs, "/home/player", TEST_URL, AUTHOR);
+    const root = "/home/player/branch-a-remote";
+    const { branches, remotes } = listBranches(cloneResult.fs, root, "remotes");
+    expect(branches).toEqual([]);
+    expect(remotes).toContain("remotes/origin/main");
+  });
+
+  it("remotes are sorted", () => {
+    const fs = makeFs();
+    const cloneResult = gitClone(fs, "/home/player", TEST_URL, AUTHOR);
+    const root = "/home/player/branch-a-remote";
+    // Manually add a second remote ref to verify sort order
+    let withExtra = cloneResult.fs.writeFile(
+      `${root}/.git/refs/remotes/origin/develop`,
+      resolveHead(cloneResult.fs, root) ?? "",
+    ).fs!;
+    const { remotes } = listBranches(withExtra, root, "all");
+    expect(remotes).toEqual(["remotes/origin/develop", "remotes/origin/main"]);
+  });
 });
 
 // ── nested branch names (refs/heads/feature/x) ───────────────────────

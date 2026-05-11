@@ -331,6 +331,28 @@ export const HELP_TEXTS: Record<string, string> = {
     "  -h, --human-readable   print sizes in human readable format",
   ].join("\n"),
 
+  lsblk: [
+    "Usage: lsblk [OPTION]...",
+    "",
+    "List information about all available block devices.",
+    "",
+    "  -a   include empty devices",
+    "  -f   show filesystem type and mountpoints",
+  ].join("\n"),
+
+  mount: [
+    "Usage: mount [DEVICE DIR]",
+    "",
+    "Mount a filesystem at DIR. With no arguments, list active mounts.",
+    "DIR must be an existing empty directory.",
+  ].join("\n"),
+
+  umount: [
+    "Usage: umount {DIR | DEVICE}",
+    "",
+    "Unmount a filesystem. The argument may be the mountpoint or the device.",
+  ].join("\n"),
+
   git: [
     "Usage: git <command> [<args>]",
     "",
@@ -342,7 +364,7 @@ export const HELP_TEXTS: Record<string, string> = {
     "  git commit -m 'msg'         Record changes to the repository",
     "  git status [-s]             Show the working tree status",
     "  git log [--oneline]         Show commit history",
-    "  git branch [<name>|-d <name>] List, create, or delete branches",
+    "  git branch [-a|-r] [<name>|-d <name>] List, create, or delete branches",
     "  git switch [-c] <branch>    Switch (or create and switch) branches",
     "  git checkout [-b] <branch>  Switch or create branches (legacy)",
     "  git diff [--staged]         Show changes",

@@ -26,6 +26,7 @@ export class SnowSqlSession implements ISession {
   private terminal: Terminal;
   private onStateChange: (state: SnowflakeState) => void;
   private onReleaseLock?: () => void;
+  private getGameNow?: () => Date;
   private pendingEvents: GameEvent[] = [];
   private queriedCampaign = false;
 
@@ -34,13 +35,15 @@ export class SnowSqlSession implements ISession {
     state: SnowflakeState,
     context: SessionContext,
     onStateChange: (state: SnowflakeState) => void,
-    onReleaseLock?: () => void
+    onReleaseLock?: () => void,
+    getGameNow?: () => Date
   ) {
     this.terminal = terminal;
     this.state = state;
     this.context = context;
     this.onStateChange = onStateChange;
     this.onReleaseLock = onReleaseLock;
+    this.getGameNow = getGameNow;
   }
 
   canClose(): boolean {
@@ -308,7 +311,12 @@ export class SnowSqlSession implements ISession {
 
   private executeSql(sql: string): void {
     const start = performance.now();
-    const { results, state, context } = execute(sql, this.state, this.context);
+    // Refresh gameNow per statement so the REPL clock tracks story progression
+    // (e.g. Piper messages arriving while the REPL is open).
+    const ctx = this.getGameNow
+      ? { ...this.context, gameNow: this.getGameNow() }
+      : this.context;
+    const { results, state, context } = execute(sql, this.state, ctx);
     const elapsed = (performance.now() - start) / 1000;
 
     this.state = state;

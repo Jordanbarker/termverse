@@ -10,6 +10,7 @@ import { getEdwardDeliveries } from "./messages/edward";
 import { getJordanDeliveries } from "./messages/jordan";
 import { getMayaDeliveries } from "./messages/maya";
 import { getAmbientDeliveries } from "./messages/ambient";
+import { getAnonDeliveries } from "./messages/anon";
 
 export const PIPER_DELIVERY_IDS = [
   // Home deliveries
@@ -37,6 +38,7 @@ export const PIPER_DELIVERY_IDS = [
   "olive_pt_challenge_redirect",
   "olive_pt_challenge_sort_uniq",
   "olive_pt_challenge_find",
+  "anon_usb_tip",
   "openclam_history",
   "openclam_end_of_day",
   "bubble_buddies_history",
@@ -122,6 +124,7 @@ export function getPiperDeliveries(username: string): PiperDelivery[] {
     ...getSarahDeliveries(username),
     ...getCassieDeliveries(username),
     ...getEdwardDeliveries(username),
+    ...getAnonDeliveries(username),
     ...getAmbientDeliveries(username),
   ];
   return cachedDeliveries;

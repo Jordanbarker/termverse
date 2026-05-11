@@ -16,8 +16,9 @@ export function getSentDir(username: string) {
   return `${getMailDir(username)}/sent`;
 }
 
-function usernameFromHomeDir(homeDir: string): string {
-  return homeDir.split("/").pop() || PLAYER.username;
+export function usernameFromHomeDir(homeDir: string): string {
+  const parts = homeDir.split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? PLAYER.username;
 }
 
 export function slugify(subject: string): string {

@@ -2052,7 +2052,7 @@
               "PLAN_TIER": "enterprise",
               "ANNUAL_CONTRACT_VALUE": 280000,
               "STATUS": "active",
-              "LAST_ACTIVITY_DATE": "2026-03-25",
+              "LAST_ACTIVITY_DATE": "2026-02-23",
               "ACCOUNT_MANAGER": "James Wilson"
             },
             {
@@ -2063,7 +2063,7 @@
               "PLAN_TIER": "professional",
               "ANNUAL_CONTRACT_VALUE": 95000,
               "STATUS": "active",
-              "LAST_ACTIVITY_DATE": "2026-03-27",
+              "LAST_ACTIVITY_DATE": "2026-02-22",
               "ACCOUNT_MANAGER": "James Wilson"
             },
             {
@@ -2074,7 +2074,7 @@
               "PLAN_TIER": "enterprise",
               "ANNUAL_CONTRACT_VALUE": 320000,
               "STATUS": "active",
-              "LAST_ACTIVITY_DATE": "2026-03-28",
+              "LAST_ACTIVITY_DATE": "2026-02-24",
               "ACCOUNT_MANAGER": "James Wilson"
             },
             {
@@ -2096,18 +2096,18 @@
               "PLAN_TIER": "professional",
               "ANNUAL_CONTRACT_VALUE": 110000,
               "STATUS": "active",
-              "LAST_ACTIVITY_DATE": "2026-03-26",
+              "LAST_ACTIVITY_DATE": "2026-02-21",
               "ACCOUNT_MANAGER": "James Wilson"
             },
             {
               "CUSTOMER_ID": "C006",
               "COMPANY_NAME": "Meridian Labs",
               "INDUSTRY": "Healthcare",
-              "SIGNUP_DATE": "2026-03-15",
+              "SIGNUP_DATE": "2026-02-17",
               "PLAN_TIER": "enterprise",
               "ANNUAL_CONTRACT_VALUE": 240000,
               "STATUS": "active",
-              "LAST_ACTIVITY_DATE": "2026-03-28",
+              "LAST_ACTIVITY_DATE": "2026-02-23",
               "ACCOUNT_MANAGER": "James Wilson"
             }
           ],
@@ -2213,7 +2213,7 @@
               "SERVICE": "chip-orchestrator",
               "DEPLOYED_BY": "chip_service_account",
               "VERSION": "0.9.4",
-              "DEPLOYED_AT": "2026-02-25T03:00:00Z",
+              "DEPLOYED_AT": "2026-02-22T03:00:00Z",
               "STATUS": "success",
               "ROLLBACK_REASON": null
             },
@@ -2222,7 +2222,7 @@
               "SERVICE": "ingestion-service",
               "DEPLOYED_BY": "odiaz",
               "VERSION": "1.8.2",
-              "DEPLOYED_AT": "2026-03-01T02:05:00Z",
+              "DEPLOYED_AT": "2026-02-23T02:05:00Z",
               "STATUS": "rolled_back",
               "ROLLBACK_REASON": "Schema migration failed — column type mismatch on events table"
             },
@@ -2231,7 +2231,7 @@
               "SERVICE": "analytics-worker",
               "DEPLOYED_BY": "odiaz",
               "VERSION": "1.2.1",
-              "DEPLOYED_AT": "2026-03-05T10:15:00Z",
+              "DEPLOYED_AT": "2026-02-23T10:15:00Z",
               "STATUS": "success",
               "ROLLBACK_REASON": null
             },
@@ -2240,7 +2240,7 @@
               "SERVICE": "auth-service",
               "DEPLOYED_BY": "sknight",
               "VERSION": "3.1.3",
-              "DEPLOYED_AT": "2026-03-10T13:40:00Z",
+              "DEPLOYED_AT": "2026-02-24T08:40:00Z",
               "STATUS": "success",
               "ROLLBACK_REASON": null
             }

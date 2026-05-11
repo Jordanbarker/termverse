@@ -31,14 +31,14 @@ src/hooks/useTerminal.ts                 # gameAction handler (save/load/listSav
 Full snapshot of all game state:
 ```ts
 {
-  version: number;        // SAVE_FORMAT_VERSION (currently 8)
+  version: number;        // SAVE_FORMAT_VERSION (currently 11)
   timestamp: number;      // Date.now() at save time
   label: string;          // Display label
   username, gamePhase, currentChapter, completedObjectives,
   deliveredEmailIds, deliveredPiperIds: string[];
   storyFlags: StoryFlags;
-  // Keyed by ComputerId ("home" | "nexacorp" | "devcontainer" | "chipinfra")
-  computerStates: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string> }>;
+  // Keyed by ComputerId ("home" | "nexacorp" | "devcontainer" | "chipinfra" | "erik-pc")
+  computerStates: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>;
   tabs: SavedTabState[];      // Tab layout: {computerId, cwd}[]
   activeTabIndex: number;     // Index of active tab in tabs[]
 }
@@ -109,7 +109,7 @@ Zustand auto-save key: `terminal-turmoil-save`
 ### Store state (auto-persisted via Zustand `partialize`)
 | Field | What it tracks |
 |-------|---------------|
-| `serializedComputerState` | Per-computer serialized filesystems, command history, env vars, and aliases |
+| `serializedComputerState` | Per-computer serialized filesystems, command history, env vars, aliases, and mounts |
 | `persistedTabs` / `persistedActiveTabIndex` | Tab layout and active tab position |
 | `username` | Player's chosen username |
 | `gamePhase` | `"login" \| "booting" \| "playing" \| "transitioning"` |

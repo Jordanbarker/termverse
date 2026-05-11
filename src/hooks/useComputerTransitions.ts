@@ -8,8 +8,7 @@ import { createHomeFilesystem } from "../story/filesystem/home";
 import { checkEmailDeliveries, seedDeliveredEmails, GameEvent } from "../engine/mail/delivery";
 import { getReadEmailIds } from "../engine/mail/mailUtils";
 import { getEmailDefinitions } from "../engine/mail/emails";
-import { seedImmediatePiper, checkPiperDeliveries } from "../engine/piper/delivery";
-import { getTriggersForComputer, checkStoryFlagTriggers } from "../engine/narrative/storyFlags";
+import { seedImmediatePiper, deliverPiperAndCascade } from "../engine/piper/delivery";
 import { gitClone } from "../engine/git/repo";
 import { syncToVirtualFS } from "../engine/snowflake/bridge/fs_bridge";
 import { createInitialSnowflakeState } from "../engine/snowflake/seed/initial_data";
@@ -129,29 +128,18 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
             // Deliver Piper messages triggered by ssh_day2 (e.g. auri_day2_morning)
             const sshState = useGameStore.getState();
-            const sshEvent: GameEvent = { type: "command_executed", detail: "ssh_nexacorp" };
-            const newPiperIds = checkPiperDeliveries(
-              sshEvent,
-              [...sshState.deliveredPiperIds],
-              sshState.username,
+            const cascade = deliverPiperAndCascade(
+              { type: "command_executed", detail: "ssh_nexacorp" },
               "nexacorp",
+              sshState.username,
+              sshState.deliveredPiperIds,
               sshState.storyFlags
             );
-            if (newPiperIds.length > 0) {
+            if (cascade.newPiperIds.length > 0) {
               hadNewPiper = true;
-              sshState.addDeliveredPiperMessages(newPiperIds);
-
-              // Process piper_delivered story flag triggers (4th pass pattern)
-              const storyFlagTriggers = getTriggersForComputer("nexacorp", sshState.username);
-              const latestFlags = useGameStore.getState().storyFlags;
-              let currentFlags = { ...latestFlags };
-              for (const id of newPiperIds) {
-                const pdEvent: GameEvent = { type: "piper_delivered", detail: id };
-                const flagResults = checkStoryFlagTriggers(pdEvent, storyFlagTriggers, currentFlags);
-                for (const flagResult of flagResults) {
-                  useGameStore.getState().setStoryFlag(flagResult.flag, flagResult.value);
-                  currentFlags = { ...currentFlags, [flagResult.flag]: flagResult.value };
-                }
+              useGameStore.getState().addDeliveredPiperMessages(cascade.newPiperIds);
+              for (const update of cascade.flagUpdates) {
+                useGameStore.getState().setStoryFlag(update.flag, update.value);
               }
             }
           }
@@ -249,6 +237,18 @@ export function useComputerTransitions(deps: TransitionDeps) {
           s.setStoryFlag(visitedFlag, true);
           if (target === "devcontainer") {
             s.addToast("dbt and snow commands unlocked on NexaCorp!");
+          }
+          // Cross-arc bridge: if the player already read the USB note before
+          // first chipinfra visit, open "Pulling at a Loose Thread" now. The
+          // reverse ordering (visit-first, read-later) is handled by a
+          // file_read trigger in storyFlags.ts requiring chipinfra_visited.
+          if (
+            target === "chipinfra" &&
+            s.storyFlags.read_usb_note &&
+            !s.storyFlags.loose_thread_quest_started
+          ) {
+            s.setStoryFlag("loose_thread_quest_started", true);
+            s.addToast("New quest: Pulling at a Loose Thread");
           }
         }
 
@@ -413,29 +413,19 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
         // Deliver Piper messages triggered by returned_home_day1
         const latestForPiper = useGameStore.getState();
-        const newPiperIds = checkPiperDeliveries(
+        const cascade = deliverPiperAndCascade(
           { type: "objective_completed", detail: "head_home" },
-          [...latestForPiper.deliveredPiperIds],
-          username,
           "home",
+          username,
+          latestForPiper.deliveredPiperIds,
           latestForPiper.storyFlags
         );
-        if (newPiperIds.length > 0) {
-          latestForPiper.addDeliveredPiperMessages(newPiperIds);
+        if (cascade.newPiperIds.length > 0) {
+          useGameStore.getState().addDeliveredPiperMessages(cascade.newPiperIds);
           term.writeln("");
           term.writeln(colorize("You have new messages on Piper", ansi.yellow, ansi.bold));
-
-          // Process piper_delivered story flag triggers (mirrors processDeliveries 4th pass)
-          const storyFlagTriggers = getTriggersForComputer("home", username);
-          const latestFlags = useGameStore.getState().storyFlags;
-          let currentFlags = { ...latestFlags };
-          for (const id of newPiperIds) {
-            const pdEvent: GameEvent = { type: "piper_delivered", detail: id };
-            const flagResults = checkStoryFlagTriggers(pdEvent, storyFlagTriggers, currentFlags);
-            for (const flagResult of flagResults) {
-              useGameStore.getState().setStoryFlag(flagResult.flag, flagResult.value);
-              currentFlags = { ...currentFlags, [flagResult.flag]: flagResult.value };
-            }
+          for (const update of cascade.flagUpdates) {
+            useGameStore.getState().setStoryFlag(update.flag, update.value);
           }
         }
 
@@ -519,27 +509,17 @@ export function useComputerTransitions(deps: TransitionDeps) {
       }
 
       const latestForPiper = useGameStore.getState();
-      const newPiperIds = checkPiperDeliveries(
+      const cascade = deliverPiperAndCascade(
         shutdownEvent,
-        [...latestForPiper.deliveredPiperIds],
-        username,
         "home",
+        username,
+        latestForPiper.deliveredPiperIds,
         latestForPiper.storyFlags
       );
-      if (newPiperIds.length > 0) {
-        latestForPiper.addDeliveredPiperMessages(newPiperIds);
-
-        // Process piper_delivered story flag triggers
-        const storyFlagTriggers = getTriggersForComputer("home", username);
-        const latestFlags = useGameStore.getState().storyFlags;
-        let currentFlags = { ...latestFlags };
-        for (const id of newPiperIds) {
-          const pdEvent: GameEvent = { type: "piper_delivered", detail: id };
-          const flagResults = checkStoryFlagTriggers(pdEvent, storyFlagTriggers, currentFlags);
-          for (const flagResult of flagResults) {
-            useGameStore.getState().setStoryFlag(flagResult.flag, flagResult.value);
-            currentFlags = { ...currentFlags, [flagResult.flag]: flagResult.value };
-          }
+      if (cascade.newPiperIds.length > 0) {
+        useGameStore.getState().addDeliveredPiperMessages(cascade.newPiperIds);
+        for (const update of cascade.flagUpdates) {
+          useGameStore.getState().setStoryFlag(update.flag, update.value);
         }
       }
 

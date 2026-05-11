@@ -5,7 +5,9 @@ describe("isCommandAvailable", () => {
   describe("home computer", () => {
     it("allows all ungated home commands from the start", () => {
       for (const cmd of HOME_COMMANDS) {
+        // Gated commands — handled by their own dedicated tests below.
         if (cmd === "pdftotext" || cmd === "tree") continue;
+        if (cmd === "mount" || cmd === "umount") continue;
         expect(isCommandAvailable(cmd, "home")).toBe(true);
         expect(isCommandAvailable(cmd, "home", {})).toBe(true);
       }
@@ -225,6 +227,11 @@ describe("isCommandAvailable", () => {
     it("apt is available once apt_unlocked (Erik runs Linux)", () => {
       expect(isCommandAvailable("apt", "erik-pc", { apt_unlocked: true })).toBe(true);
       expect(isCommandAvailable("sudo", "erik-pc", { apt_unlocked: true })).toBe(true);
+    });
+
+    it("exit is available (returns to chipinfra)", () => {
+      expect(isCommandAvailable("exit", "erik-pc")).toBe(true);
+      expect(isCommandAvailable("exit", "erik-pc", {})).toBe(true);
     });
   });
 });

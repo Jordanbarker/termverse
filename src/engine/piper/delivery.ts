@@ -5,6 +5,7 @@ import { PIPER_CHANNELS } from "../../story/piper/channels";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { matchesCommonTrigger } from "../narrative/triggerMatcher";
 import { computeTimestamp, interpolateDeliveries } from "./timestamp";
+import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";
 
 /**
  * Check if any piper deliveries should fire for the given event.
@@ -57,6 +58,60 @@ function matchesTrigger(
     default:
       return matchesCommonTrigger(trigger, event, deliveredIds, newDeliveries, storyFlags);
   }
+}
+
+export interface PiperCascadeResult {
+  newPiperIds: string[];
+  flagUpdates: { flag: string; value: string | boolean; toast?: string }[];
+}
+
+/**
+ * Run the post-event piper delivery cascade for a single event:
+ *   1. Computer-scoped piper deliveries.
+ *   2. Cross-computer piper deliveries (story-flag triggers are global).
+ *   3. piper_delivered story-flag triggers fired through the originating
+ *      computer's trigger list (mirrors processDeliveries.ts).
+ *
+ * Pure: returns the deltas. Callers apply them to the store and own any UI
+ * side-effects (toasts, "new messages" notices) — the helper does not write
+ * to the terminal or the toast queue.
+ */
+export function deliverPiperAndCascade(
+  event: GameEvent,
+  computerId: ComputerId,
+  username: string,
+  deliveredPiperIds: string[],
+  storyFlags: StoryFlags
+): PiperCascadeResult {
+  const result: PiperCascadeResult = { newPiperIds: [], flagUpdates: [] };
+  let piperIds = [...deliveredPiperIds];
+  let currentFlags = { ...storyFlags };
+
+  const scoped = checkPiperDeliveries(event, piperIds, username, computerId, currentFlags);
+  if (scoped.length > 0) {
+    piperIds = [...piperIds, ...scoped];
+    result.newPiperIds.push(...scoped);
+  }
+
+  const cross = checkPiperDeliveries(event, piperIds, username, undefined, currentFlags);
+  if (cross.length > 0) {
+    piperIds = [...piperIds, ...cross];
+    result.newPiperIds.push(...cross);
+  }
+
+  if (result.newPiperIds.length > 0) {
+    const triggers = getTriggersForComputer(computerId, username);
+    for (const id of result.newPiperIds) {
+      const pdEvent: GameEvent = { type: "piper_delivered", detail: id };
+      const flagResults = checkStoryFlagTriggers(pdEvent, triggers, currentFlags);
+      for (const flagResult of flagResults) {
+        result.flagUpdates.push(flagResult);
+        currentFlags = { ...currentFlags, [flagResult.flag]: flagResult.value };
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

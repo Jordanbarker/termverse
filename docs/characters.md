@@ -1,5 +1,11 @@
 # NexaCorp Character Bible
 
+NexaCorp (founded February 15, 2025 ) is a Series-A B2B SaaS company built around Chip, a full-stack AI platform with deep integration, and broad service-account permissions. 15 employees serving healthcare and finance customers.
+
+- Day 1 (player starts at NexaCorp): 2026-02-23 (Monday) — confirmed by Edward's offer email (src/story/emails/home.ts, "start Monday, February 23")
+- Day 2: 2026-02-24
+
+
 ## Org Chart
 
 ```

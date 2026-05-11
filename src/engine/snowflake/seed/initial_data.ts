@@ -64,7 +64,7 @@ function generateChipAutoTickets(): Row[] {
   const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
 
   const startDate = new Date("2026-02-03");
-  const endDate = new Date("2026-03-15");
+  const endDate = new Date("2026-02-24");
   const daySpan = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
 
   for (let i = 0; i < 43; i++) {
@@ -160,8 +160,8 @@ function loadDatabase(json: JsonDatabase, opts?: LogOptions): Database {
 
       if (tableName === "CAMPAIGN_METRICS" && opts?.includeDay2) {
         rows.push(
-          { CAMPAIGN_ID: "CM-101", CAMPAIGN_NAME: "partner_referral_q2", CHANNEL: "referral", IMPRESSIONS: 42000, CLICKS: null, CONVERSIONS: null, SPEND: 6200, REPORT_DATE: "2026-03-22" },
-          { CAMPAIGN_ID: "CM-102", CAMPAIGN_NAME: "partner_referral_q2", CHANNEL: "referral", IMPRESSIONS: 38000, CLICKS: null, CONVERSIONS: null, SPEND: 5800, REPORT_DATE: "2026-03-23" },
+          { CAMPAIGN_ID: "CM-101", CAMPAIGN_NAME: "partner_referral_q2", CHANNEL: "referral", IMPRESSIONS: 42000, CLICKS: null, CONVERSIONS: null, SPEND: 6200, REPORT_DATE: "2026-02-23" },
+          { CAMPAIGN_ID: "CM-102", CAMPAIGN_NAME: "partner_referral_q2", CHANNEL: "referral", IMPRESSIONS: 38000, CLICKS: null, CONVERSIONS: null, SPEND: 5800, REPORT_DATE: "2026-02-23" },
         );
       }
 

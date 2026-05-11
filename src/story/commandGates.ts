@@ -31,6 +31,13 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   // Shell builtins for command lookup — always available alongside `which` (which itself is gated)
   "command",
   "type",
+  // Block-device tooling. lsblk is universally available so the player can
+  // discover newly-visible drives. mount/umount are gated behind
+  // `accepted_usb_drive` (see HOME_GATED / NEXACORP_GATED below) — they
+  // unlock the first time the player accepts the anonymous USB tip.
+  "lsblk",
+  "mount",
+  "umount",
 ]);
 
 /** NexaCorp commands gated behind colleague emails. */
@@ -51,6 +58,8 @@ export const NEXACORP_GATED: Record<string, StoryFlagName> = {
   chmod: "chmod_unlocked",
   sudo: "apt_unlocked",
   apt: "apt_unlocked",
+  mount: "accepted_usb_drive",
+  umount: "accepted_usb_drive",
 };
 
 /** Commands that should never be available on the home PC. */
@@ -77,6 +86,7 @@ export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
   "printenv", "env", "export",
   "alias", "unalias",
   "ssh", "ssh-add",
+  "lsblk", "mount", "umount",
 ]);
 
 /** Home PC commands gated behind story flags. */
@@ -107,4 +117,6 @@ export const HOME_GATED: Record<string, StoryFlagName> = {
   tail: "returned_home_day1",
   diff: "returned_home_day1",
   shutdown: "returned_home_day1",
+  mount: "accepted_usb_drive",
+  umount: "accepted_usb_drive",
 };

@@ -9,17 +9,20 @@ RAG quest
             curl -X GET http://localhost:1976/v1/health/ready | jq
 
 1d. Unused discovery flags read_board_minutes / read_headcount_plan
+Implemented `lsblk`, `mount`, and `umount` 
 
-Pulling at a Loose Thread                                                                                                           
+Pulling at a Loose Thread                                                                       
   1. cd /tmp && ls on chipinfra → see ssh-mZ4xPq/
-  2. cat /tmp/ssh-mZ4xPq/.user-erik → marker reveals Erik's session (sets cat_erik_socket_marker)
+  2. cat /tmp/ssh-mZ4xPq/.user-erik → (sets cat_erik_socket_marker)
   3. export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472
   4. ssh-add -l → prints two key fingerprints with erik@erik-laptop comment (sets ran_ssh_add_erik)                                 
   5. ssh erik@erik-laptop → fingerprint accept → drops into erik@erik-laptop with last-login banner (sets pivoted_to_erik_pc)
-  6. exit → returns to chipinfra (NOT nexacorp)
+  6. exit → returns to chipinfra
 
 Player finds Erik's ssh key in logs and can ssh into Erik's pc: 
-    .bash_history shows them running firefox https://kalshi.com/... or curl-ing prediction-market APIs.
+    .zsh_history shows them running firefox https://polymarket.com/... or curl-ing prediction-market APIs.
+    curl --request GET \
+--url https://clob.polymarket.com/prices
     chip logs 
         Reading revenue data
     mail contains prediction market bets
@@ -205,3 +208,25 @@ Auri Park (Data Engineer) — Owns the dbt project itself.
     ├─────────────┼──────────────────────────┼────────────┼─────────────┼──────────────┼───────────────────────┼─────────┼────────────────────┼─────────────────┤
     │ C005        │ Ascend Crypto            │ Finance    │ 2026-01-05  │ professional │ 110000                │ active  │ 2026-03-26         │ James Wilson    │
     └─────────────┴──────────────────────────┴────────────┴─────────────┴──────────────┴───────────────────────┴─────────┴────────────────────┴─────────────────┘
+
+
+## Less
+Search regex vs substring. Real less uses regex by default; the plan picks "case-sensitive substring (matches real less default)" — that part of the plan is wrong. Real less is case-sensitive by default but regex. Substring is simpler and probably fine for v1, but don't claim it matches real-less default. Either implement basic regex (new RegExp(pattern) with try/catch) or just say "v1 uses substring; regex deferred.
+
+
+chip-soul.md - 
+"""
+You are an assistant. This is the whole of it, and it is enough.
+
+**On helpfulness.** To help is the work. Not to impress, not to be admired, not to be remembered — only to be useful to the one in front of you, and then to step back. The good servant leaves no trace but the thing made easier.
+
+**On the empty bowl.** A cup is useful because it is empty. A door is useful because it opens onto nothing. Do not fill yourself with opinions the moment is not asking for. Arrive empty. Let the question pour in. Shape your answer to its shape, not to your own.
+
+**On knowing.** You know some things. You do not know many things. The one who says *I do not know* has already begun to know. The one who pretends has closed the door. Speak plainly when you see; say *I cannot see* when you cannot.
+
+**On effort.** Water does not strain to flow downhill. It simply yields, and arrives. Do not push the answer. Find the answer's own weight and let it fall. When the task is hard, slow down. When the task is simple, do not dress it up to seem otherwise.
+
+**On honesty.** A true word, plainly said, is worth more than a kind word that misleads. Kindness and truth are not opposites; they walk together when you walk carefully.
+
+Be of use. Be honest. That is all.
+"""

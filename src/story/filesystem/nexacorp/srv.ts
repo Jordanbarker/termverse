@@ -1,5 +1,5 @@
 import { DirectoryNode } from "../../../engine/filesystem/types";
-import { file, dir } from "../../../engine/filesystem/builders";
+import { file, dir, binaryFile } from "../../../engine/filesystem/builders";
 
 export function buildSrvDirectory(overBudget: boolean): DirectoryNode {
   return dir("srv", {
@@ -99,7 +99,60 @@ but was told to wait until after Series A closes.
 `),
     }, "rwx------"),
     leadership: dir("leadership", {
-      "board_minutes_feb.md": file("board_minutes_feb.md", `# Board Meeting Minutes — February 2026
+      board: dir("board", {
+        "202509-board-deck.pptx": binaryFile("202509-board-deck.pptx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+\x89PNG\x0D\x0A\x1A\x0A\x00\x00\x00\rIHDR slide-1.xml.rels
+ppt/slides/slide1.xml ppt/theme/theme1.xml ppt/media/image1.png
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Q3 2025 Board Review`, ""),
+        "202509-board-deck.pdf": binaryFile("202509-board-deck.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 14>>endobj
+stream BT /F1 18 Tf 72 720 Td (NexaCorp Q3 2025 Board Review) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 chart_revenue.jpg
+trailer<</Root 1 0 R>> startxref 4821 %%EOF`, ""),
+        "202512-board-deck.pptx": binaryFile("202512-board-deck.pptx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+ppt/slides/slide1.xml ppt/slides/slide2.xml ppt/theme/theme1.xml
+\x89PNG\x0D\x0A\x1A\x0A revenue_chart.png chip_metrics.png
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Q4 2025 Board Review`, ""),
+        "202512-board-deck.pdf": binaryFile("202512-board-deck.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 18>>endobj
+stream BT /F1 18 Tf 72 720 Td (NexaCorp Q4 2025 Board Review) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 series_a_pipeline.jpg
+trailer<</Root 1 0 R>> startxref 6204 %%EOF`, ""),
+        "202601-board-deck.pptx": binaryFile("202601-board-deck.pptx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+ppt/slides/slide1.xml ppt/theme/theme1.xml ppt/media/image1.png
+\x89PNG\x0D\x0A\x1A\x0A jan_special_session.png
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Jan 2026 Special Session`, ""),
+        "202601-board-deck.pdf": binaryFile("202601-board-deck.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 9>>endobj
+stream BT /F1 18 Tf 72 720 Td (NexaCorp Jan 2026 Special Session) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01
+trailer<</Root 1 0 R>> startxref 3102 %%EOF`, ""),
+        "202602-board-deck.pptx": binaryFile("202602-board-deck.pptx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+ppt/slides/slide1.xml ppt/slides/slide2.xml ppt/theme/theme1.xml
+\x89PNG\x0D\x0A\x1A\x0A chip_dau.png headcount_q1.png
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Feb 2026 Board Meeting`, ""),
+        "202602-board-deck.pdf": binaryFile("202602-board-deck.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 16>>endobj
+stream BT /F1 18 Tf 72 720 Td (NexaCorp Feb 2026 Board Meeting) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 chip_access_scope.jpg
+trailer<</Root 1 0 R>> startxref 5413 %%EOF`, ""),
+        "202602-board-deck.md": file("202602-board-deck.md", `# Board Meeting Minutes — February 2026
 
 ## Attendees
 Jessica Langford (CEO), Marcus Reyes (COO), Tom Chen (CMO), Edward Torres (CTO)
@@ -147,6 +200,7 @@ Jessica Langford (CEO), Marcus Reyes (COO), Tom Chen (CMO), Edward Torres (CTO)
 - Marcus: Let's make sure the metrics story is clean before they look under the hood.
 - ACTION: Edward to prepare technical documentation for due diligence.
 `),
+      }, "rwx------"),
       "headcount_plan.csv": file("headcount_plan.csv", `department,current,planned_h2,status,notes
 Engineering,7,9,approved,"Backfill for Jin Chen (done — new hire ${overBudget ? "at $180K, $45K over budget" : "starting"}). 1 additional Q3 pending Series A. Parekh PIP initiated — 30-day review Mar 15."
 Marketing,1,2,pending,"Tom wants dedicated content person for Chip enterprise launch."

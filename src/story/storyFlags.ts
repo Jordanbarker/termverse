@@ -36,7 +36,6 @@ export const STORY_FLAG_NAMES = [
   "ran_dbt",
   "auri_dbt_reported",
   "read_nexacorp_offer",
-  "commands_unlocked",
   "first_ssh_connect",
   "ssh_unlocked",
   "apt_unlocked",
@@ -129,8 +128,19 @@ export const STORY_FLAG_NAMES = [
 
   // Chipinfra → Erik's PC pivot (SSH-agent-forwarding abuse)
   "cat_erik_socket_marker",
+  "exported_erik_ssh_auth_sock",
   "ran_ssh_add_erik",
   "pivoted_to_erik_pc",
+
+  // Day 2: Anonymous USB tip + "Pulling at a Loose Thread"
+  "anon_tip_quest_started",
+  "anon_tip_dm_resolved",
+  "accepted_usb_drive",
+  "declined_usb_tip",
+  "ran_lsblk_for_usb",
+  "mounted_usb_drive",
+  "read_usb_note",
+  "loose_thread_quest_started",
 ] as const;
 
 export type StoryFlagName = (typeof STORY_FLAG_NAMES)[number];
@@ -193,6 +203,32 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
     { event: "command_executed", detail: "shutdown", flag: "day1_shutdown", value: true },
     { event: "command_executed", detail: "piper", flag: "read_piper_day1_home", value: true },
     { event: "command_executed", detail: "ssh_nexacorp", flag: "ssh_day2", value: true },
+
+    // Day 2: "Anonymous Tip" quest. Surfaces on first home boot of Day 2.
+    { event: "command_executed", detail: "shutdown", flag: "anon_tip_quest_started", value: true },
+
+    // Reply branches — both resolve the "Check Piper" objective; only the
+    // accept branch sets accepted_usb_drive and reveals the device + scaffold.
+    { event: "objective_completed", detail: "accepted_usb_drive", flag: "accepted_usb_drive", value: true, toast: "USB drive plugged in." },
+    { event: "objective_completed", detail: "accepted_usb_drive", flag: "anon_tip_dm_resolved", value: true },
+    { event: "objective_completed", detail: "declined_usb_tip",   flag: "declined_usb_tip",   value: true },
+    { event: "objective_completed", detail: "declined_usb_tip",   flag: "anon_tip_dm_resolved", value: true },
+
+    // Scaffold step flags. ran_lsblk_for_usb only counts if the player has
+    // accepted (lsblk is universal; the requiredFlags gate makes the
+    // command_executed event credit only post-accept).
+    { event: "command_executed", detail: "lsblk", flag: "ran_lsblk_for_usb", value: true, requiredFlags: ["accepted_usb_drive"] },
+    // mounted_usb_drive emitted from mount.ts only on /dev/sdb1 → /mnt/usb success
+    { event: "command_executed", detail: "mounted_usb_drive", flag: "mounted_usb_drive", value: true },
+    { event: "file_read", path: "/mnt/usb/note.txt", flag: "read_usb_note", value: true },
+
+    // Cross-arc bridge: opens the loose-thread quest only if chipinfra has
+    // already been visited at the time of note-read. The reverse ordering
+    // (visit-after-read) is handled by a one-line cascade in
+    // useComputerTransitions.ts when chipinfra_visited flips.
+    { event: "file_read", path: "/mnt/usb/note.txt", flag: "loose_thread_quest_started",
+      value: true, requiredFlags: ["chipinfra_visited"],
+      toast: "New quest: Pulling at a Loose Thread" },
   ];
 }
 
@@ -304,6 +340,9 @@ export function getChipinfraStoryFlagTriggers(username: string): StoryFlagTrigge
     // both honor SSH_AUTH_SOCK + this marker; the flag is narrative-only here
     // (lets future content gate on "the player has noticed").
     { event: "file_read", path: p.erikSocketMarker, flag: "cat_erik_socket_marker", value: true },
+
+    // Set by the export builtin when SSH_AUTH_SOCK is pointed at Erik's socket.
+    { event: "command_executed", detail: "exported_erik_ssh_auth_sock", flag: "exported_erik_ssh_auth_sock", value: true },
 
     // Set by the ssh-add builtin when it lists Erik's keys via the agent.
     { event: "command_executed", detail: "ran_ssh_add_erik", flag: "ran_ssh_add_erik", value: true },

@@ -891,6 +891,36 @@ describe("--help", () => {
       expect(result.exitCode).toBe(128);
       expect(stripAnsi(result.output)).toContain("missing branch");
     });
+
+    it("git branch -a lists locals plus remotes/origin/<branch>", () => {
+      let fs = initialRepo();
+      // Fake a remote-tracking ref the same way clone/push would.
+      fs = fs.makeDirectory("/home/player/.git/refs/remotes/origin").fs ?? fs;
+      const headHash = fs.readFile("/home/player/.git/refs/heads/main").content?.trim() ?? "";
+      fs = fs.writeFile("/home/player/.git/refs/remotes/origin/main", headHash).fs ?? fs;
+      const result = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["branch", "-a"] });
+      const out = stripAnsi(result.output);
+      expect(out).toContain("* main");
+      expect(out).toContain("remotes/origin/main");
+    });
+
+    it("git branch -r lists only remotes", () => {
+      let fs = initialRepo();
+      fs = fs.makeDirectory("/home/player/.git/refs/remotes/origin").fs ?? fs;
+      const headHash = fs.readFile("/home/player/.git/refs/heads/main").content?.trim() ?? "";
+      fs = fs.writeFile("/home/player/.git/refs/remotes/origin/main", headHash).fs ?? fs;
+      const result = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["branch", "-r"] });
+      const out = stripAnsi(result.output);
+      expect(out).toContain("remotes/origin/main");
+      expect(out).not.toContain("* main");
+    });
+
+    it("git branch -a <name> errors instead of creating a branch", () => {
+      const fs = initialRepo();
+      const result = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["branch", "-a", "newbranch"] });
+      expect(result.exitCode).toBe(128);
+      expect(stripAnsi(result.output)).toContain("fatal: branch name required");
+    });
   });
 
   const gameCommands = ["save", "load", "newgame", "help"] as const;

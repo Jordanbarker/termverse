@@ -2,14 +2,14 @@ import { SnowflakeState } from "../state";
 import { Row, Value } from "../types";
 import * as AST from "../parser/ast";
 import { QueryResult } from "../formatter/result_types";
-import { evaluate, toBool, EvalContext } from "./evaluator";
+import { evaluate, toBool, EvalContext, evalContextFromSession } from "./evaluator";
 import { SessionContext } from "../session/context";
 import { execute as executeSql } from "./executor";
 import { resolveThreePart, tableNotFoundError } from "./resolve";
 import { checkPermission } from "../session/permissions";
 
 export function executeDML(stmt: AST.Statement, state: SnowflakeState, ctx: SessionContext): { result: QueryResult; state: SnowflakeState } {
-  const evalCtx = sessionToEvalCtx(ctx);
+  const evalCtx = evalContextFromSession(ctx);
   switch (stmt.kind) {
     case "insert": return executeInsert(stmt, state, ctx, evalCtx);
     case "update": return executeUpdate(stmt, state, ctx, evalCtx);
@@ -213,16 +213,6 @@ function executeMerge(stmt: AST.MergeStatement, state: SnowflakeState, ctx: Sess
   return {
     result: { type: "status", data: { message: `${affected} Row(s) affected.`, rowsAffected: affected } },
     state: newState,
-  };
-}
-
-function sessionToEvalCtx(ctx: SessionContext): EvalContext {
-  return {
-    currentDatabase: ctx.currentDatabase,
-    currentSchema: ctx.currentSchema,
-    currentUser: ctx.currentUser,
-    currentRole: ctx.currentRole,
-    currentWarehouse: ctx.currentWarehouse,
   };
 }
 

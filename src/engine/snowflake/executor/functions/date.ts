@@ -8,20 +8,23 @@ function toDate(v: Value): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+// `ctx.gameNow` carries the in-game story clock; falling back to wall-clock time
+// keeps unit tests that don't supply it working. Always return a fresh Date so
+// downstream mutation can't leak into ctx.
 export const dateFunctions: Record<string, ScalarFn> = {
-  CURRENT_DATE: () => {
-    const now = new Date();
+  CURRENT_DATE: (_, ctx) => {
+    const now = ctx.gameNow ?? new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   },
 
-  CURRENT_TIMESTAMP: () => new Date(),
-  NOW: () => new Date(),
-  GETDATE: () => new Date(),
-  SYSDATE: () => new Date(),
-  LOCALTIMESTAMP: () => new Date(),
+  CURRENT_TIMESTAMP: (_, ctx) => (ctx.gameNow ? new Date(ctx.gameNow) : new Date()),
+  NOW: (_, ctx) => (ctx.gameNow ? new Date(ctx.gameNow) : new Date()),
+  GETDATE: (_, ctx) => (ctx.gameNow ? new Date(ctx.gameNow) : new Date()),
+  SYSDATE: (_, ctx) => (ctx.gameNow ? new Date(ctx.gameNow) : new Date()),
+  LOCALTIMESTAMP: (_, ctx) => (ctx.gameNow ? new Date(ctx.gameNow) : new Date()),
 
-  CURRENT_TIME: () => {
-    const now = new Date();
+  CURRENT_TIME: (_, ctx) => {
+    const now = ctx.gameNow ?? new Date();
     return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   },
 

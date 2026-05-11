@@ -240,11 +240,14 @@ const DAY2_START: Checkpoint = {
     ...DAY1_END.storyFlags,
     apt_upgraded: true,
     ssh_day2: true,
+    day1_shutdown: true,
+    anon_tip_quest_started: true,
   },
   deliveredPiperIds: [
     ...DAY1_END.deliveredPiperIds,
     "bubble_buddies_day2_nova",
     "auri_day2_morning",
+    "anon_usb_tip",
   ],
   completedObjectives: [
     ...DAY1_END.completedObjectives,
@@ -252,7 +255,7 @@ const DAY2_START: Checkpoint = {
     "ssh_to_work_day2",
   ],
   commandHistory: {
-    home: [...(DAY1_END.commandHistory?.home ?? []), "sudo apt update && sudo apt upgrade -y", "ssh nexacorp"],
+    home: [...(DAY1_END.commandHistory?.home ?? []), "shutdown", "sudo apt update && sudo apt upgrade -y", "ssh nexacorp"],
   },
   aliases: {
     ...DAY1_END.aliases,

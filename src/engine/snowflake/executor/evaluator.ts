@@ -1,6 +1,7 @@
 import * as AST from "../parser/ast";
 import { Value, Row } from "../types";
 import { callFunction } from "./functions/registry";
+import type { SessionContext } from "../session/context";
 
 export interface EvalContext {
   currentDatabase: string;
@@ -12,6 +13,28 @@ export interface EvalContext {
   executeSubquery?: (query: AST.SelectStatement, outerRow: Row) => Row[];
   /** Tracks view expansion depth to prevent infinite recursion */
   viewDepth?: number;
+  /** In-game "now" — when omitted, date functions fall back to real wall-clock time. */
+  gameNow?: Date;
+}
+
+/**
+ * Build an EvalContext from a SessionContext, copying every shared field
+ * (currentDatabase/Schema/User/Role/Warehouse, gameNow). Pass `extras` for
+ * the EvalContext-only fields (executeSubquery, viewDepth).
+ */
+export function evalContextFromSession(
+  ctx: SessionContext,
+  extras?: Pick<EvalContext, "executeSubquery" | "viewDepth">,
+): EvalContext {
+  return {
+    currentDatabase: ctx.currentDatabase,
+    currentSchema: ctx.currentSchema,
+    currentUser: ctx.currentUser,
+    currentRole: ctx.currentRole,
+    currentWarehouse: ctx.currentWarehouse,
+    gameNow: ctx.gameNow,
+    ...extras,
+  };
 }
 
 /**

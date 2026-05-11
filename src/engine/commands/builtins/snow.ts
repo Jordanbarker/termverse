@@ -4,6 +4,7 @@ import { CommandResult, CommandContext } from "../types";
 import { HELP_TEXTS } from "./helpTexts";
 import { execute } from "../../snowflake/executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "../../snowflake/formatter/table_formatter";
+import { gameNowFor } from "../../snowflake/session/gameClock";
 
 register(
   "snow",
@@ -39,8 +40,13 @@ register(
       const sql = sqlArgs.join(" ");
       const sfState = ctx.snowflakeState;
 
+      const sessionCtx = {
+        ...ctx.snowflakeContext,
+        gameNow: gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+      };
+
       const start = performance.now();
-      const { results, state, context: newCtx } = execute(sql, sfState, ctx.snowflakeContext);
+      const { results, state, context: newCtx } = execute(sql, sfState, sessionCtx);
       const elapsed = (performance.now() - start) / 1000;
 
       // Update state

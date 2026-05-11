@@ -46,6 +46,9 @@ import "./command";
 import "./type";
 import "./man";
 import "./df";
+import "./lsblk";
+import "./mount";
+import "./umount";
 // Network
 import "./ssh";
 import "./ssh-add";

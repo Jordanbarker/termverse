@@ -1,5 +1,6 @@
 import { colorize, ansi } from "../../lib/ansi";
 import { computeDiff, formatDiffLines } from "../../lib/diff";
+import { pad2 } from "../../lib/format";
 import { GitCommit } from "./types";
 import { StatusResult, DiffFile } from "./repo";
 
@@ -71,7 +72,6 @@ function formatGitDate(ts: number): string {
   const d = new Date(ts - OFFSET_MS);
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const pad2 = (n: number) => String(n).padStart(2, "0");
   return `${days[d.getUTCDay()]} ${months[d.getUTCMonth()]} ${d.getUTCDate()} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())} ${d.getUTCFullYear()} -0700`;
 }
 
@@ -118,12 +118,24 @@ export function formatDiff(diffs: DiffFile[], plain: boolean): string {
   return outputLines.join("\n").trimEnd();
 }
 
-export function formatBranches(branches: string[], current: string | null, plain: boolean): string {
-  return branches.map((b) => {
+export function formatBranches(
+  branches: string[],
+  remotes: string[],
+  current: string | null,
+  plain: boolean,
+): string {
+  const lines: string[] = [];
+  for (const b of branches) {
     if (b === current) {
       const label = `* ${b}`;
-      return plain ? label : colorize(label, ansi.green);
+      lines.push(plain ? label : colorize(label, ansi.green));
+    } else {
+      lines.push(`  ${b}`);
     }
-    return `  ${b}`;
-  }).join("\n");
+  }
+  for (const r of remotes) {
+    const label = `  ${r}`;
+    lines.push(plain ? label : colorize(label, ansi.red));
+  }
+  return lines.join("\n");
 }

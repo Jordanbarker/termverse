@@ -562,6 +562,53 @@ export const CHAPTERS: ChapterDefinition[] = [
         description: "SSH to NexaCorp to start your second day",
         check: { source: "storyFlag", key: "ssh_day2" },
       },
+
+      // Quest: Anonymous Tip — surfaces on Day 2 boot at home; introduces
+      // mount/umount via the unknown-sender USB drop.
+      {
+        id: "anon_tip_quest",
+        description: "Anonymous Tip",
+        check: { source: "allVisibleChildren" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "anon_tip_quest_started" },
+      },
+      {
+        id: "anon_tip_check_piper",
+        description: "Check your Piper messages at home",
+        check: { source: "storyFlag", key: "anon_tip_dm_resolved" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "anon_tip_quest_started" },
+        group: "anon_tip_quest",
+      },
+      {
+        id: "anon_tip_lsblk",
+        description: "List block devices to find the drive",
+        check: { source: "storyFlag", key: "ran_lsblk_for_usb" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "accepted_usb_drive" },
+        group: "anon_tip_quest",
+      },
+      {
+        id: "anon_tip_mount",
+        description: "Mount the drive at /mnt/usb",
+        check: { source: "storyFlag", key: "mounted_usb_drive" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "ran_lsblk_for_usb" },
+        group: "anon_tip_quest",
+      },
+      {
+        id: "anon_tip_read",
+        description: "Read the note on the drive",
+        check: { source: "storyFlag", key: "read_usb_note" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "mounted_usb_drive" },
+        group: "anon_tip_quest",
+      },
       // Quest: Fix the Broken Pipeline
       {
         id: "fix_pipeline_quest",
@@ -708,6 +755,54 @@ export const CHAPTERS: ChapterDefinition[] = [
         hidden: true,
         visibleWhen: { source: "storyFlag", key: "wrote_plugin_skill" },
         group: "build_chip_plugin_quest",
+      },
+
+      // Quest: Pulling at a Loose Thread — opens once the player has both
+      // read the USB note (at home) and visited chipinfra. Children walk
+      // the existing SSH-agent-forwarding pivot to Erik's PC.
+      {
+        id: "loose_thread_quest",
+        description: "Pulling at a Loose Thread",
+        check: { source: "allVisibleChildren" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "loose_thread_quest_started" },
+      },
+      {
+        id: "loose_thread_find_socket",
+        description: "Find the stale ssh agent socket (/tmp)",
+        check: { source: "storyFlag", key: "cat_erik_socket_marker" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "loose_thread_quest_started" },
+        group: "loose_thread_quest",
+      },
+      {
+        id: "loose_thread_export_sock",
+        description: "Point your shell at Erik's ssh-agent socket",
+        check: { source: "storyFlag", key: "exported_erik_ssh_auth_sock" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "cat_erik_socket_marker" },
+        group: "loose_thread_quest",
+      },
+      {
+        id: "loose_thread_inspect_keys",
+        description: "Inspect the forwarded ssh keys",
+        check: { source: "storyFlag", key: "ran_ssh_add_erik" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "exported_erik_ssh_auth_sock" },
+        group: "loose_thread_quest",
+      },
+      {
+        id: "loose_thread_pivot",
+        description: "Pivot to Erik's laptop",
+        check: { source: "storyFlag", key: "pivoted_to_erik_pc" },
+        hidden: true,
+        optional: true,
+        visibleWhen: { source: "storyFlag", key: "ran_ssh_add_erik" },
+        group: "loose_thread_quest",
       },
     ],
   },

@@ -135,6 +135,39 @@ describe("Day 2 Quest: Fix the Broken Pipeline", () => {
   });
 });
 
+describe("SnowflakeState seed: CAMPAIGN_METRICS NULL-clicks invariant", () => {
+  // Auri's `auri_test_failure_details` Piper message tells the player to query
+  // CAMPAIGN_METRICS for `CLICKS IS NULL`. Those rows only exist when the seed
+  // is built with `includeDay2: true` (initial_data.ts:161-166). The flag is
+  // wired in useComputerTransitions.ts to `day1_shutdown`, which is a strict
+  // prerequisite of every flag that gates Auri's message. These tests pin the
+  // seed-data invariant so a future change to the seed or to `includeDay2`'s
+  // call sites can't silently break the quest.
+  const getCampaignMetrics = (state: SnowflakeState) =>
+    state.getTable("NEXACORP_PROD", "RAW_NEXACORP", "CAMPAIGN_METRICS");
+
+  it("default state (Day 1): CAMPAIGN_METRICS has zero rows with NULL clicks", () => {
+    const state = createInitialSnowflakeState();
+    const table = getCampaignMetrics(state);
+    expect(table).toBeDefined();
+    const nullClickRows = table!.rows.filter(r => r.CLICKS === null);
+    expect(nullClickRows).toHaveLength(0);
+  });
+
+  it("includeDay2: true: CAMPAIGN_METRICS contains the partner_referral NULL rows Auri references", () => {
+    const state = createInitialSnowflakeState({ includeDay2: true });
+    const table = getCampaignMetrics(state);
+    expect(table).toBeDefined();
+    const nullClickRows = table!.rows.filter(r => r.CLICKS === null);
+    expect(nullClickRows.length).toBeGreaterThanOrEqual(1);
+    // CONVERSIONS must also be NULL on those rows — the dbt fix has to handle
+    // both, and Auri's message specifies "NULL clicks or conversions".
+    for (const row of nullClickRows) {
+      expect(row.CONVERSIONS).toBeNull();
+    }
+  });
+});
+
 describe("requiredFlags gating", () => {
   it("blocks trigger when requiredFlags are not met", () => {
     const triggers = getDevcontainerStoryFlagTriggers(username);

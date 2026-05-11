@@ -35,6 +35,9 @@ const exportCmd: CommandHandler = (args, _flags, ctx) => {
     if (key === "CHIP_API_KEY" && value === "nxa_live_7f3k9m2x") {
       events.push({ type: "command_executed", detail: "exported_chip_api_key" });
     }
+    if (key === "SSH_AUTH_SOCK" && value === "/tmp/ssh-mZ4xPq/agent.18472") {
+      events.push({ type: "command_executed", detail: "exported_erik_ssh_auth_sock" });
+    }
   }
 
   return { output: "", triggerEvents: events.length ? events : undefined };

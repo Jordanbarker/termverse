@@ -23,6 +23,7 @@ import { DBT_DEFAULT_LINE_DELAY_MS, jitterDelay } from "../../lib/timing";
 import { parseSourceMap, parseMacros, compileSql, extractRefs } from "./compiler";
 import { executeModel, executeTest, queryModel, getModelRowCount } from "./executor";
 import { createDefaultContext } from "../snowflake/session/context";
+import { gameNowFor } from "../snowflake/session/gameClock";
 import { execute as executeSql } from "../snowflake/executor/executor";
 import { isFile, isDirectory } from "../filesystem/types";
 import { SnowflakeState } from "../snowflake/state";
@@ -165,7 +166,10 @@ export function runModels(ctx: CommandContext, selectModel?: string): CommandRes
   let error = 0;
   let skip = 0;
   let runningState = ctx.snowflakeState;
-  const sessionCtx = createDefaultContext();
+  const sessionCtx = createDefaultContext(
+    ctx.username,
+    gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+  );
   const ephemeralSqlMap = new Map<string, string>();
   const failedModels = new Set<string>();
   const displaySet = new Set(modelsToDisplay);
@@ -277,7 +281,10 @@ export function runTests(ctx: CommandContext): CommandResult {
   const matConfig = parseMaterializationConfig(configContent.content);
   const materializationMap = buildMaterializationMap(ctx.fs, project.projectRoot, config, matConfig);
 
-  const sessionCtx = createDefaultContext();
+  const sessionCtx = createDefaultContext(
+    ctx.username,
+    gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+  );
   const allResources = discoverResources(ctx.fs, project.projectRoot, config);
   const testResources = allResources.filter((r) => r.type === "test");
 
@@ -576,7 +583,10 @@ export function showModel(ctx: CommandContext, modelName?: string): CommandResul
     return { output: `Selector error: model '${modelName}' not found` };
   }
 
-  const sessionCtx = createDefaultContext();
+  const sessionCtx = createDefaultContext(
+    ctx.username,
+    gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+  );
   const SHOW_LIMIT = 5;
 
   // Try to query the materialized table/view

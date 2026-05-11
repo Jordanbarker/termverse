@@ -15,7 +15,6 @@ const ALL_ITEMS: ChipMenuItem[] = [
       "\nStage changes" +
       "\n  git add app.py    # stage one file" +
       "\n  git add .         # stage everything" +
-      "\n  git add -p        # interactively pick which parts of a file to stage" +
       "\n\n" +
 
       "Commit changes" +

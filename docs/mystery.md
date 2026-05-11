@@ -34,7 +34,7 @@
 
 **Key `.bak` entries:**
 - Feb 17, 1:12 AM — chip reads `/home/jchen/.zsh_history` and `/home/jchen/.ssh/id_rsa`
-- Feb 17, 1:13 AM — chip reads `/srv/leadership/board_minutes_q4.pdf`
+- Feb 17, 1:13 AM — chip reads `/srv/leadership/board/202512-board-deck.pdf`
 - Feb 18, 2:45 AM — chip reads multiple users' SSH keys and bash history
 - Feb 18, 2:46 AM — chip triggers log rotation, **removes 8 entries** from system.log
 - Feb 19-22 — Pattern repeats (SSH keys, leadership docs, log cleanup of 14, 12 entries)

@@ -20,6 +20,7 @@ import { useSessionRouter } from "./useSessionRouter";
 import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "../engine/commands/types";
+import { Mounts } from "../engine/filesystem/mounts";
 import { applyRedirection } from "../engine/commands/redirection";
 
 // ---------------------------------------------------------------------------
@@ -46,7 +47,8 @@ function buildCommandContext(
   stdin: string | undefined,
   rawArgs: string[],
   isPiped: boolean,
-  store: ReturnType<typeof useGameStore.getState>
+  store: ReturnType<typeof useGameStore.getState>,
+  mounts: Mounts
 ): CommandContext {
   return {
     fs,
@@ -67,6 +69,7 @@ function buildCommandContext(
     snowflakeContext: createDefaultContext(store.username),
     setSnowflakeState: store.setSnowflakeState,
     deliveredPiperIds: store.deliveredPiperIds,
+    mounts,
   };
 }
 
@@ -513,6 +516,8 @@ export function useTerminal() {
           };
 
           let runningFs = initialFs;
+          const initialMounts = store.computerState[computerId]?.mounts ?? {};
+          let runningMounts: Mounts = initialMounts;
           let lastExitCode = 0;
           let earlyReturn = false;
           let wroteOutput = false;
@@ -571,7 +576,8 @@ export function useTerminal() {
                 stdin,
                 p.rawArgs,
                 pi < pipeline.length - 1 || !!redirectFile,
-                useGameStore.getState()
+                useGameStore.getState(),
+                runningMounts
               );
 
               if (isAsyncCommand(p.command)) {
@@ -598,6 +604,10 @@ export function useTerminal() {
 
               if (lastResult.newFs) {
                 runningFs = lastResult.newFs;
+              }
+
+              if (lastResult.newMounts) {
+                runningMounts = lastResult.newMounts;
               }
 
               stdin = stripAnsi(lastResult.output);
@@ -642,6 +652,11 @@ export function useTerminal() {
           // Write final FS to store once
           if (runningFs !== initialFs) {
             useGameStore.getState().setComputerFs(computerId, runningFs);
+          }
+
+          // Write final mounts to store once
+          if (runningMounts !== initialMounts) {
+            useGameStore.getState().setComputerMounts(computerId, runningMounts);
           }
 
           if (!earlyReturn) {

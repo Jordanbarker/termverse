@@ -28,6 +28,12 @@ export const PIPER_CHANNELS: PiperChannel[] = [
     type: "dm",
     computer: "home",
   },
+  {
+    id: "dm_anon",
+    name: "Sabu",
+    type: "dm",
+    computer: "home",
+  },
 
   // NexaCorp channels
   {

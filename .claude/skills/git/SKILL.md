@@ -104,7 +104,7 @@ Supported subcommands today (all in the switch in `git.ts`):
 | `commit -m <msg>` | `gitCommit` | Hashes tree+parent+msg, writes object, updates ref |
 | `status` / `status -s` | `gitStatus` + `formatStatus` | Branch + staged/unstaged/untracked |
 | `log` | `getCommitLog` + formatter | Walks parent chain from HEAD |
-| `branch` / `branch <name>` / `branch -d <name>` | `listBranches` / `createBranch` / `deleteBranch` | `branch <name>` emits `git_checkout_b` (counts as branch creation for cascade) |
+| `branch` / `branch <name>` / `branch -d <name>` / `branch -a` / `branch -r` | `listBranches` / `createBranch` / `deleteBranch` | `branch <name>` emits `git_checkout_b` (counts as branch creation for cascade). `-a` lists locals + `remotes/<remote>/<branch>`, `-r` lists only remotes; both reject a positional branch name with `fatal: branch name required` (exit 128). `listBranches(fs, root, mode)` returns `{ branches, remotes, current }` — callers that don't need remotes can ignore the `remotes` field. |
 | `checkout <ref>` / `checkout -b <name>` | `gitCheckout` / `createBranch` | `-b` emits `git_checkout_b` |
 | `switch <branch>` / `switch -c <name>` | `gitCheckout` / `createBranch` | `-c` emits `git_checkout_b` |
 | `diff` / `diff --staged` | `gitDiffFiles` + diff lib | Unified-diff output |

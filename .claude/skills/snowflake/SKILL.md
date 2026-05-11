@@ -52,7 +52,8 @@ src/engine/snowflake/
 │   ├── result_types.ts            # ResultSet, StatusMessage, QueryResult
 │   └── table_formatter.ts         # ASCII table with ANSI colors (Snowflake CLI-style)
 ├── session/
-│   ├── context.ts                 # SessionContext: current database/schema/warehouse/role
+│   ├── context.ts                 # SessionContext: current database/schema/warehouse/role + gameNow
+│   ├── gameClock.ts               # gameNowFor() — converts Piper-delivery state to a JS Date for ctx.gameNow
 │   ├── permissions.ts             # Role definitions, permission checks (checkPermission, canReadSchema, isValidRole)
 │   └── SnowSqlSession.ts          # Interactive REPL (inline, not alt buffer)
 ├── seed/
@@ -135,8 +136,17 @@ interface SessionContext {
   currentWarehouse: string;
   currentRole: string;
   currentUser: string;
+  /** In-game "now" — when omitted, date functions fall back to wall-clock time. */
+  gameNow?: Date;
 }
 ```
+
+`gameNow` is the story clock for `CURRENT_DATE()`/`NOW()`/`CURRENT_TIMESTAMP()`/`GETDATE()`/`SYSDATE()`/`LOCALTIMESTAMP()`/`CURRENT_TIME()`. It rides through `evalContextFromSession()` (in `executor/evaluator.ts`) into every `EvalContext`, so the date functions in `functions/date.ts` read it via the second `ctx` arg. Producers populate `gameNow` via `gameNowFor(deliveredPiperIds, username, computer)` (`session/gameClock.ts`), which wraps `getGameTime()` from `src/engine/piper/timestamp.ts` — the same source the `date` terminal command uses, so the two clocks agree.
+
+Threading per call site:
+- **`snow sql -q`** (`commands/builtins/snow.ts`): builds `gameNow` from `CommandContext` per invocation.
+- **`SnowSqlSession`** (REPL): receives a `getGameNow?: () => Date` callback; refreshes per-statement so Piper deliveries during the session advance the clock.
+- **dbt runner** (`engine/dbt/runner.ts`): builds `gameNow` from `CommandContext` per `runModels`/`runTests`/`showModel` call.
 
 ## SQL Feature Scope
 

@@ -35,6 +35,7 @@ src/story/piper/
     ├── maya.ts        # Maya Johnson
     ├── soham.ts       # Soham Parekh
     ├── edward.ts      # Edward Torres (Chip onboarding DM chain + Chapter 3 plugin quest)
+    ├── anon.ts        # Anonymous sender ("?") — `dm_anon` USB-tip on Day 2 morning at home
     └── ambient.ts     # Ambient channel chatter (general, engineering)
 
 src/engine/commands/builtins/piper.ts  # Command registration
@@ -125,7 +126,7 @@ Piper message timestamps are computed dynamically at render time in `getConversa
 
 - `interpolateDeliveries(deliveredIds, defMap)` — shared by `getConversationHistory` and `getGameTime`. Returns `deliveryMinutes` map (delivery ID → absolute minutes from midnight) and `lastSegment` (clockKey → current segment ID for calendar lookups)
 - `computeTimestamp(absoluteMinutes, messageIndex)` — formats absolute minutes as "h:mm AM/PM", adding `floor(messageIndex/2)` for within-delivery pairing
-- `getGameTime(deliveredPiperIds, defMap, computer)` — returns time + calendar for the `date` command
+- `getGameTime(deliveredPiperIds, defMap, computer)` — returns time + calendar for the `date` command and (via the `gameNowFor()` bridge in `src/engine/snowflake/session/gameClock.ts`) for SQL `CURRENT_DATE()`/`NOW()`/etc.
 - `SEGMENTS`, `SEGMENT_BOUNDARIES`, `INITIAL_SEGMENTS` — segment configuration
 
 ### Algorithm
@@ -138,6 +139,8 @@ Piper message timestamps are computed dynamically at render time in `getConversa
 
 Defined in `src/story/piper/channels.ts`. Each channel/DM has a `computer` field — `"home"` shows it on Home PC, omitted means NexaCorp.
 
+**Important:** `checkPiperDeliveries` filters by `delivery.computer ?? "nexacorp"` — **set `computer: "home"` on the delivery itself**, not just the channel. A home-side channel with a delivery that omits `computer` will silently fail to fire on home (the filter defaults to nexacorp).
+
 ### Home PC
 
 | ID | Name | Type |
@@ -146,6 +149,7 @@ Defined in `src/story/piper/channels.ts`. Each channel/DM has a `computer` field
 | `bubble_buddies` | `#BubbleBuddies` | channel |
 | `dm_alex` | Alex Rivera | dm |
 | `dm_olive` | Olive Borden | dm |
+| `dm_anon` | `?` | dm (anonymous sender; `anon_usb_tip` delivers off `after_story_flag: day1_shutdown`) |
 
 ### NexaCorp
 
@@ -169,6 +173,7 @@ DMs are visible only after at least one delivery has reached them. `getVisibleCh
 - On NexaCorp, `piper` is unlocked by the `piper_unlocked` story flag (set when the player reads the `welcome_edward` email). Gated in `story/commandGates.ts` via `NEXACORP_GATED`.
 - On Home PC, `piper` is part of `HOME_COMMANDS` and available from the start — Olive's quest lines and Alex's chats live there.
 - Edward's Chip onboarding DM chain (`edward_chip_intro` → `edward_chip_error` → `edward_chip_fix`) unlocks `chip`, teaches the API key puzzle, and unlocks `printenv`/`env`.
+- The `dm_anon` "Anonymous Tip" DM (`anon_usb_tip`) on home PC unlocks `mount`/`umount` via `accepted_usb_drive` when the player picks "Plug it in." The sister flag `declined_usb_tip` keeps the arc dormant. Both reply options resolve `anon_tip_dm_resolved` so the parent quest's "Check Piper" child completes either way.
 - Not available in the dev container.
 
 ## Adding New Messages

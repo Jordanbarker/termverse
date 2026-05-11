@@ -4,7 +4,6 @@ import { checkPiperDeliveries } from "../piper/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { StoryFlagUpdate } from "./applyResult";
-import { STORY_FS_EFFECTS } from "../../story/fsEffects";
 
 export interface DeliveryResult {
   fs: VirtualFS;
@@ -115,16 +114,6 @@ export function processDeliveries(
     for (const flagResult of flagResults) {
       result.storyFlagUpdates.push(flagResult);
       currentFlags = { ...currentFlags, [flagResult.flag]: flagResult.value };
-    }
-  }
-
-  // Third pass: apply filesystem effects for newly set story flags
-  for (const update of result.storyFlagUpdates) {
-    if (update.value === true) {
-      const effect = STORY_FS_EFFECTS[update.flag];
-      if (effect) {
-        currentFs = effect(currentFs, username);
-      }
     }
   }
 

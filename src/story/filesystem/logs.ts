@@ -363,7 +363,7 @@ const CHIP_ONLY_ENTRIES: Record<number, ((d: DateFn) => LogEntry[])> = {
   17: (d) => [
     { date: d(17, 1, 12, 44), msg: "chip_service_account: accessing /home/jchen/.zsh_history (read)", chipOnly: true },
     { date: d(17, 1, 12, 46), msg: "chip_service_account: accessing /home/jchen/.ssh/id_rsa (read)", chipOnly: true },
-    { date: d(17, 1, 13, 2),  msg: "chip_service_account: accessing /srv/leadership/board_minutes_q4.pdf (read)", chipOnly: true },
+    { date: d(17, 1, 13, 2),  msg: "chip_service_account: accessing /srv/leadership/board/202512-board-deck.pdf (read)", chipOnly: true },
   ],
   18: (d) => [
     { date: d(18, 2, 45, 11), msg: "chip_service_account: accessing /home/oscar/.ssh/id_rsa (read)", chipOnly: true },
@@ -387,7 +387,7 @@ const CHIP_ONLY_ENTRIES: Record<number, ((d: DateFn) => LogEntry[])> = {
   21: (d) => [
     { date: d(21, 3, 5, 33),  msg: "chip_service_account: accessing /home/sarah/.ssh/id_rsa (read)", chipOnly: true },
     { date: d(21, 3, 5, 48),  msg: "chip_service_account: accessing /home/sarah/.zsh_history (read)", chipOnly: true },
-    { date: d(21, 3, 6, 12),  msg: "chip_service_account: accessing /srv/leadership/board_minutes_q4.pdf (read)", chipOnly: true },
+    { date: d(21, 3, 6, 12),  msg: "chip_service_account: accessing /srv/leadership/board/202512-board-deck.pdf (read)", chipOnly: true },
     { date: d(21, 3, 7, 1),   msg: "chip_service_account: log_rotation triggered (retention: 7 days)", chipOnly: true },
     { date: d(21, 3, 7, 3),   msg: "chip_service_account: cleanup /var/log/system.log — removed 11 entries", chipOnly: true },
   ],
@@ -404,7 +404,7 @@ const CHIP_ONLY_ENTRIES: Record<number, ((d: DateFn) => LogEntry[])> = {
   ],
   24: (d) => [
     { date: d(24, 2, 22, 18), msg: "chip_service_account: accessing /home/jchen/.ssh/id_rsa (read)", chipOnly: true },
-    { date: d(24, 2, 22, 31), msg: "chip_service_account: accessing /srv/leadership/board_minutes_q4.pdf (read)", chipOnly: true },
+    { date: d(24, 2, 22, 31), msg: "chip_service_account: accessing /srv/leadership/board/202512-board-deck.pdf (read)", chipOnly: true },
     { date: d(24, 2, 23, 5),  msg: "chip_service_account: accessing /home/oscar/.ssh/id_rsa (read)", chipOnly: true },
     { date: d(24, 2, 23, 44), msg: "chip_service_account: log_rotation triggered (retention: 7 days)", chipOnly: true },
     { date: d(24, 2, 23, 46), msg: "chip_service_account: cleanup /var/log/system.log — removed 9 entries", chipOnly: true },
@@ -748,19 +748,19 @@ const EMPLOYEE_FILE_POOLS: Record<string, string[]> = {
 /** Suspicious chip_service_account entries — spread across days 17-24 */
 const CHIP_SUSPICIOUS: { day: number; entry: string }[] = [
   { day: 17, entry: "chip_service_account READ /home/jchen/.ssh/id_rsa" },
-  { day: 17, entry: "chip_service_account READ /srv/leadership/board_minutes_q4.pdf" },
+  { day: 17, entry: "chip_service_account READ /srv/leadership/board/202512-board-deck.pdf" },
   { day: 18, entry: "chip_service_account READ /home/oscar/.ssh/id_rsa" },
   { day: 18, entry: "chip_service_account READ /srv/leadership/investor_update_feb.pdf" },
   { day: 19, entry: "chip_service_account READ /home/sarah/.ssh/id_rsa" },
   { day: 19, entry: "chip_service_account READ /home/jchen/projects/chip-audit/notes.md" },
   { day: 20, entry: "chip_service_account READ /home/edward/.ssh/id_rsa" },
-  { day: 20, entry: "chip_service_account READ /srv/leadership/board_minutes_q4.pdf" },
+  { day: 20, entry: "chip_service_account READ /srv/leadership/board/202512-board-deck.pdf" },
   { day: 21, entry: "chip_service_account READ /home/jchen/.ssh/id_rsa" },
   { day: 21, entry: "chip_service_account READ /srv/leadership/investor_update_feb.pdf" },
   { day: 22, entry: "chip_service_account READ /home/jchen/.ssh/id_rsa" },
   { day: 24, entry: "chip_service_account READ /home/jchen/.ssh/id_rsa" },
   { day: 24, entry: "chip_service_account READ /home/oscar/.ssh/id_rsa" },
-  { day: 24, entry: "chip_service_account READ /srv/leadership/board_minutes_q4.pdf" },
+  { day: 24, entry: "chip_service_account READ /srv/leadership/board/202512-board-deck.pdf" },
 ];
 
 // ---------------------------------------------------------------------------

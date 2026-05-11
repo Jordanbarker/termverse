@@ -65,6 +65,7 @@ interface CommandContext {
   aliases?: Record<string, string>;  // Per-computer shell aliases
   setAliases?: (aliases: Record<string, string>) => void;  // Persist alias changes
   deliveredPiperIds?: string[]; // Piper deliveries already received (for `after_piper_reply` checks)
+  mounts?: Mounts;              // Per-computer { [mountpath]: { device, mountpath, fstype } } — read-only; commands return changes via result.newMounts
 }
 
 interface CommandResult {
@@ -85,6 +86,7 @@ interface CommandResult {
   transitionTo?: ComputerId;    // Transition to another computer (devcontainer, nexacorp)
   incrementalLines?: IncrementalLine[];  // Lines to print with per-line delays (e.g. boot sequences)
   closeTabsForComputer?: ComputerId;     // Close all tabs for a computer (e.g. coder stop)
+  newMounts?: Mounts;                    // Per-computer mount registry update (mount/umount); accumulator-based, mirrors newFs
 }
 
 type CommandHandler = (args: string[], flags: Record<string, boolean>, ctx: CommandContext) => CommandResult;
@@ -202,6 +204,7 @@ interface AppliedEffects {
   transitionTo?: ComputerId;  // Computer transition (coder/exit commands)
   incrementalLines?: IncrementalLine[];  // For boot/login output animations
   closeTabsForComputer?: ComputerId;  // Close all other tabs for this computer (e.g. coder stop)
+  newMounts?: Mounts;                 // Mount registry update copied through from CommandResult
 }
 ```
 
@@ -336,6 +339,14 @@ const cmd: CommandHandler = (args, _flags, ctx) => {
   };
 };
 ```
+
+## Block devices and mounts (`lsblk`, `mount`, `umount`)
+
+Block-device tooling lives in `src/engine/commands/builtins/{lsblk,mount,umount}.ts`. The story-side device registry is `src/story/blockDevices.ts` (`BLOCK_DEVICES: Partial<Record<ComputerId, BlockDevice[]>>`). Each entry can declare `visibleFlag` to hide the device until a story flag flips and `getContents(): Record<string, FSNode>` to populate the mountpoint on `mount`.
+
+`mount` builds the overlay node via `dir(basename(mountpath), device.getContents?.() ?? {})` — wrapping the children map ensures `node.name` matches the mountpath basename, since `VirtualFS.insertNode` writes the node verbatim. `mount` refuses non-empty target directories (stricter than real Linux but avoids silent destruction). `umount` replaces the mountpath with an empty directory of the same name.
+
+The `Mounts` registry is per-computer state alongside `fs`/`commandHistory`/`envVars`/`aliases`. It rides on the same accumulator pattern as `fs`: pipeline reads from `getState().computerState[id].mounts`, threads it through `ctx.mounts`, and commands return `result.newMounts`. `useTerminal` commits via `setComputerMounts` once at the end. Path keying always goes through `normalizeMountKey(input, cwd, homeDir)` (resolves relative paths and trailing slashes via `resolvePath`).
 
 ## Design Principles
 

@@ -1,26 +1,21 @@
 import { ChipExchange } from "./types";
-
-const pad = (n: number) => n.toString().padStart(2, "0");
+import { pad2 } from "../../lib/format";
+import { usernameFromHomeDir } from "../mail/mailUtils";
 
 export function transcriptFilename(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.log`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}.log`;
 }
 
 function formatStartedAt(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
 function formatTimeOfDay(d: Date): string {
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
 function sessionId(d: Date): string {
   return `sess_${transcriptFilename(d).replace(/\.log$/, "")}`;
-}
-
-function usernameFromHomeDir(homeDir: string): string {
-  const parts = homeDir.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? "user";
 }
 
 export function renderTranscript(

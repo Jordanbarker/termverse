@@ -1,5 +1,6 @@
 import { CommandResult, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo } from "./types";
 import { VirtualFS } from "../filesystem/VirtualFS";
+import { Mounts } from "../filesystem/mounts";
 import { GameEvent } from "../mail/delivery";
 import { resolvePath } from "../../lib/pathUtils";
 import { PromptSessionInfo } from "../prompt/types";
@@ -44,6 +45,7 @@ export interface AppliedEffects {
   transitionTo?: ComputerId;
   incrementalLines?: IncrementalLine[];
   closeTabsForComputer?: ComputerId;
+  newMounts?: Mounts;
 }
 
 export interface ApplyContext {
@@ -87,6 +89,10 @@ export function computeEffects(
   if (result.newFs) {
     currentFs = result.newFs;
     effects.newFs = result.newFs;
+  }
+
+  if (result.newMounts) {
+    effects.newMounts = result.newMounts;
   }
 
   if (result.newCwd) {
