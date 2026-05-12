@@ -42,22 +42,35 @@ export function getMarcusDeliveries(_username: string): PiperDelivery[] {
         {
           label: "Edward. He built the access model and looks the other way.",
           messageBody: "Edward. He owns the access model and every time someone raises Chip concerns he waves them off. He's not running the queries himself, but he's the reason nobody's stopped it.",
-          triggerEvents: [{ type: "objective_completed", detail: "accused_edward" }],
+          triggerEvents: [
+            { type: "objective_completed", detail: "accused_edward" },
+            { type: "objective_completed", detail: "chapter_3_done" },
+          ],
         },
         {
           label: "Sarah. She flagged the anomalies — maybe she knows more.",
           messageBody: "Sarah. She raised the API anomalies and got dismissed. That could be a tell — she's the one who knows where to look because she's the one who knows where to hide it.",
-          triggerEvents: [{ type: "objective_completed", detail: "accused_sarah" }],
+          triggerEvents: [
+            { type: "objective_completed", detail: "accused_sarah" },
+            { type: "objective_completed", detail: "chapter_3_done" },
+          ],
         },
         {
-          label: "Erik. Something about him doesn't add up.",
-          messageBody: "Erik. I can't prove it in a sentence, but the more I look at his footprint the less it lines up with someone just doing frontend work. Worth pulling on.",
-          triggerEvents: [{ type: "objective_completed", detail: "accused_erik" }],
+          label: "Erik. He has been using Chip to make polymarket bets and ssh into other systems.",
+          messageBody: "Erik. He has been using Chip to make polymarket bets and ssh into other systems.",
+          triggerEvents: [
+            { type: "objective_completed", detail: "accused_erik" },
+            { type: "objective_completed", detail: "chapter_3_done" },
+          ],
+          visibleWhen: { flag: "pivoted_to_erik_pc" },
         },
         {
-          label: "Nobody — not enough information to identify a person.",
+          label: "Nobody. Not enough information to identify a person.",
           messageBody: "I don't want to throw anyone under the bus without enough evidence. Nobody stands out as the culprit. The problem is the access model, not a person.",
-          triggerEvents: [{ type: "objective_completed", detail: "accused_nobody" }],
+          triggerEvents: [
+            { type: "objective_completed", detail: "accused_nobody" },
+            { type: "objective_completed", detail: "chapter_3_done" },
+          ],
         },
       ],
     },
@@ -77,23 +90,16 @@ export function getMarcusDeliveries(_username: string): PiperDelivery[] {
           id: "marcus_react_edward_2",
           from: "Marcus Reyes",
           timestamp: "",
-          body: "That's the one I was hoping you wouldn't say. He's a co-founder. The board isn't going to swallow that easily — and I'm going to have to sit across from him in two hours.",
+          body: "That's the one I was hoping you wouldn't say. He's a co-founder. The board isn't going to swallow that easily.",
         },
         {
           id: "marcus_react_edward_3",
           from: "Marcus Reyes",
           timestamp: "",
-          body: "I'll bring it up. Not as an accusation — as a question about who's been signing off on Chip's plugin directives. We'll see where he lands.",
+          body: "I'll bring it up as a question about who has been signing off on Chip's directives. We'll see where he lands.",
         },
       ],
       trigger: { type: "after_story_flag", flag: "accused_edward" },
-      replyOptions: [
-        {
-          label: "Got it — good luck tonight.",
-          messageBody: "Got it. Good luck tonight.",
-          triggerEvents: [{ type: "objective_completed", detail: "chapter_3_done" }],
-        },
-      ],
     },
 
     // === Marcus's reaction: accused Sarah ===
@@ -117,17 +123,10 @@ export function getMarcusDeliveries(_username: string): PiperDelivery[] {
           id: "marcus_react_sarah_3",
           from: "Marcus Reyes",
           timestamp: "",
-          body: "Hold that thought. I'll have Oscar pull her query history before the meeting. If you see anything else, ping me.",
+          body: "I'll have Oscar look into her further before the meeting. If you see anything else, ping me.",
         },
       ],
       trigger: { type: "after_story_flag", flag: "accused_sarah" },
-      replyOptions: [
-        {
-          label: "Got it — good luck tonight.",
-          messageBody: "Got it. Good luck tonight.",
-          triggerEvents: [{ type: "objective_completed", detail: "chapter_3_done" }],
-        },
-      ],
     },
 
     // === Marcus's reaction: accused Erik ===
@@ -139,29 +138,22 @@ export function getMarcusDeliveries(_username: string): PiperDelivery[] {
           id: "marcus_react_erik_1",
           from: "Marcus Reyes",
           timestamp: "",
-          body: "Erik. Why him?",
+          body: "That is a damning conviction.",
         },
         {
           id: "marcus_react_erik_2",
           from: "Marcus Reyes",
           timestamp: "",
-          body: "...don't answer that yet. Oscar mentioned something about Erik's session showing up in places his role shouldn't reach. I told him he was paranoid. Maybe I owe him a coffee.",
+          body: "I'll have Oscar dig in further. He has mentioned something about Erik's session showing up in places his role shouldn't reach. I told him he was paranoid. Maybe I owe him a coffee.",
         },
         {
           id: "marcus_react_erik_3",
           from: "Marcus Reyes",
           timestamp: "",
-          body: "I'll bring it to the board carefully. Senior engineer accusations are how you lose senior engineers.",
+          body: "Thank you for digging into this. You saved us a lot of trouble if you are correct.",
         },
       ],
       trigger: { type: "after_story_flag", flag: "accused_erik" },
-      replyOptions: [
-        {
-          label: "Got it — good luck tonight.",
-          messageBody: "Got it. Good luck tonight.",
-          triggerEvents: [{ type: "objective_completed", detail: "chapter_3_done" }],
-        },
-      ],
     },
 
     // === Marcus's reaction: accused Nobody (the system / plugin directives) ===
@@ -189,13 +181,6 @@ export function getMarcusDeliveries(_username: string): PiperDelivery[] {
         },
       ],
       trigger: { type: "after_story_flag", flag: "accused_nobody" },
-      replyOptions: [
-        {
-          label: "Got it — good luck tonight.",
-          messageBody: "Got it. Good luck tonight.",
-          triggerEvents: [{ type: "objective_completed", detail: "chapter_3_done" }],
-        },
-      ],
     },
   ];
 }

@@ -98,6 +98,7 @@ polymarket clob cancel-all
 polymarket clob market-order --token 84219308217492037184... --side buy --amount 12000
 polymarket clob trades
 polymarket data value 0x7a4f...
+chip "draft an email to Cohen & Park CPAs asking how to report consulting income from short-term forecasting work"
 `),
         ".ssh": dir(".ssh", {
           config: file("config", `# ~/.ssh/config

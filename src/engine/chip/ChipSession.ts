@@ -121,18 +121,11 @@ export class ChipSession implements ISession {
         }
         // Final byte — act on it, then reset
         this.escBuffer = "";
-        if (char === "A") {
-          // Up arrow
-          if (this.selectedIndex > 0) {
-            this.selectedIndex--;
-            this.redrawMenu();
-          }
-          continue;
-        }
-        if (char === "B") {
-          // Down arrow
-          if (this.selectedIndex < this.getVisibleItems().length - 1) {
-            this.selectedIndex++;
+        if (char === "A" || char === "B") {
+          const len = this.getVisibleItems().length;
+          if (len > 0) {
+            const delta = char === "A" ? -1 : 1;
+            this.selectedIndex = ((this.selectedIndex + delta) % len + len) % len;
             this.redrawMenu();
           }
           continue;

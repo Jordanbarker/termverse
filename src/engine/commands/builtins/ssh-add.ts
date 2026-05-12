@@ -1,6 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
+import { resolvePath } from "../../../lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 interface AgentKey {
@@ -43,7 +44,11 @@ const sshAdd: CommandHandler = (_args, flags, ctx) => {
     };
   }
 
-  const sockResult = ctx.fs.readFile(sock);
+  // Real ssh-add hands SSH_AUTH_SOCK to connect(2), which resolves a relative
+  // path against the process's CWD. Mirror that here so e.g. `agent.18472`
+  // from `/tmp/ssh-mZ4xPq` finds the socket.
+  const resolvedSock = resolvePath(sock, ctx.cwd, ctx.homeDir);
+  const sockResult = ctx.fs.readFile(resolvedSock);
   if (sockResult.content === undefined) {
     return {
       output: `Error connecting to agent: No such file or directory`,
@@ -54,8 +59,8 @@ const sshAdd: CommandHandler = (_args, flags, ctx) => {
   // Look for a sibling `.user-<name>` marker in the socket's directory to
   // determine whose keys are loaded. VirtualFS does not model ownership, so
   // these markers are how we convey "this socket belongs to <user>".
-  const slash = sock.lastIndexOf("/");
-  const sockDir = slash >= 0 ? sock.slice(0, slash) : "";
+  const slash = resolvedSock.lastIndexOf("/");
+  const sockDir = slash >= 0 ? resolvedSock.slice(0, slash) : "";
   const dir = ctx.fs.listDirectory(sockDir);
   const marker = dir.entries?.find((e) => e.name.startsWith(".user-"));
   if (!marker) {

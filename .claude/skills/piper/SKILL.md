@@ -102,6 +102,15 @@ Two views: **channel list** and **conversation**.
 
 **Navigation**: Arrow keys or number keys, Enter to select, `q` to go back/exit.
 
+**Multi-digit menu selection** (`consumeDigit()` in `PiperSession.ts`): the menu can grow past 9 items (up to ~15 channels+DMs), so digit input is buffered. Rule: a digit `d` becomes a commit when `(buffer+d) * 10 > menuLength` — meaning no longer selection is reachable. Otherwise it's held in `digitBuffer` until Enter or another digit. Effects with `max = 15`:
+- `2`–`9` commit immediately (since `20 > 15`).
+- `1` is buffered (since `10 ≤ 15`).
+- `1` then `0`–`5` commits 10–15.
+- `1` then `6`–`9` rejects the second digit; buffer stays `"1"`; Enter opens item 1.
+- Any non-digit / non-Enter input clears the buffer.
+
+The footer surfaces the in-progress buffer as `[NN_]` next to the hint line. The same rule applies to the reply menu in conversation view.
+
 **Reply flow**: When the player selects a reply in a conversation, the reply ID is added to `deliveredPiperIds`, trigger events are collected, and the conversation re-renders with the player's message shown inline.
 
 On session exit, collected trigger events and updated `deliveredPiperIds` (replies + seen markers) are synced back to the store via `useSessionRouter`.

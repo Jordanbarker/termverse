@@ -121,6 +121,57 @@ describe("ssh-add command", () => {
     expect(result.output).toContain("SHA256:");
     expect(result.output).toContain("erik@erik-laptop");
   });
+
+  it("resolves a bare relative SSH_AUTH_SOCK against cwd", () => {
+    const fs = createTestFS({ socketDir: "ssh-mZ4xPq", markerOwner: "erik" });
+    const result = execute(
+      "ssh-add",
+      [],
+      { l: true },
+      createCtx({
+        fs,
+        cwd: "/tmp/ssh-mZ4xPq",
+        envVars: { SSH_AUTH_SOCK: "agent.18472" },
+      })
+    );
+    expect(result.output).toContain("erik@erik-laptop");
+    expect(result.exitCode).toBeUndefined();
+  });
+
+  it("resolves ./agent.18472 against cwd", () => {
+    const fs = createTestFS({ socketDir: "ssh-mZ4xPq", markerOwner: "erik" });
+    const result = execute(
+      "ssh-add",
+      [],
+      { l: true },
+      createCtx({
+        fs,
+        cwd: "/tmp/ssh-mZ4xPq",
+        envVars: { SSH_AUTH_SOCK: "./agent.18472" },
+      })
+    );
+    expect(result.output).toContain("erik@erik-laptop");
+  });
+
+  it("a relative SSH_AUTH_SOCK that looks like an absolute path no longer accidentally resolves", () => {
+    // Before the fix, `tmp/ssh-mZ4xPq/agent.18472` from any cwd would hit
+    // `/tmp/ssh-mZ4xPq/agent.18472` because normalizePath just prepended `/`.
+    // Now it resolves against cwd, so from `/tmp/ssh-mZ4xPq` it expands to
+    // `/tmp/ssh-mZ4xPq/tmp/ssh-mZ4xPq/agent.18472` — which doesn't exist.
+    const fs = createTestFS({ socketDir: "ssh-mZ4xPq", markerOwner: "erik" });
+    const result = execute(
+      "ssh-add",
+      [],
+      { l: true },
+      createCtx({
+        fs,
+        cwd: "/tmp/ssh-mZ4xPq",
+        envVars: { SSH_AUTH_SOCK: "tmp/ssh-mZ4xPq/agent.18472" },
+      })
+    );
+    expect(result.output).toContain("No such file or directory");
+    expect(result.exitCode).toBe(2);
+  });
 });
 
 describe("ssh chipinfra → erik-pc pivot", () => {
@@ -192,6 +243,24 @@ describe("ssh chipinfra → erik-pc pivot", () => {
       ["erik@erik-laptop.nexa.internal"],
       {},
       chipinfraCtx({ SSH_AUTH_SOCK: "/tmp/ssh-mZ4xPq/agent.18472" })
+    );
+    expect(result.sshSession?.targetComputer).toBe("erik-pc");
+  });
+
+  it("accepts a relative SSH_AUTH_SOCK resolved against cwd", () => {
+    const result = execute(
+      "ssh",
+      ["erik@erik-laptop"],
+      {},
+      {
+        fs: chipinfraFs(),
+        cwd: "/tmp/ssh-mZ4xPq",
+        homeDir: "/home/ren",
+        username: "ren",
+        activeComputer: "chipinfra",
+        storyFlags: {},
+        envVars: { SSH_AUTH_SOCK: "agent.18472" },
+      }
     );
     expect(result.sshSession?.targetComputer).toBe("erik-pc");
   });

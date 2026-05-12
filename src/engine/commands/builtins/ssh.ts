@@ -87,12 +87,14 @@ const ssh: CommandHandler = (args, _flags, ctx) => {
     if (!sock) {
       return { output: `${requestedUser}@${resolved.host}: Permission denied (publickey).` };
     }
-    const sockResult = ctx.fs.readFile(sock);
+    // Resolve against CWD so a relative SSH_AUTH_SOCK behaves like real ssh.
+    const resolvedSock = resolvePath(sock, ctx.cwd, ctx.homeDir);
+    const sockResult = ctx.fs.readFile(resolvedSock);
     if (sockResult.content === undefined) {
       return { output: `${requestedUser}@${resolved.host}: Permission denied (publickey).` };
     }
-    const slash = sock.lastIndexOf("/");
-    const sockDir = slash >= 0 ? sock.slice(0, slash) : "";
+    const slash = resolvedSock.lastIndexOf("/");
+    const sockDir = slash >= 0 ? resolvedSock.slice(0, slash) : "";
     const dir = ctx.fs.listDirectory(sockDir);
     const expectedMarker = `.user-${matchingHostRoute.requiresAgent}`;
     const hasMarker = dir.entries?.some((e) => e.name === expectedMarker);

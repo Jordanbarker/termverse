@@ -433,17 +433,17 @@ The shared `chipinfra` workspace seeds an active ssh-agent socket Erik left behi
 
 1. `cd /tmp && ls` → see `ssh-mZ4xPq/`
 2. `cat /tmp/ssh-mZ4xPq/.user-erik` → marker reveals Erik's session. Sets `cat_erik_socket_marker`.
-3. `export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472` → sets `exported_erik_ssh_auth_sock` (export builtin matches the literal path, mirroring the `CHIP_API_KEY` pattern).
+3. `export SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472` → sets `exported_erik_ssh_auth_sock`. The export builtin resolves the value against `ctx.cwd` and compares to the canonical socket path, so `agent.18472` typed from inside `/tmp/ssh-mZ4xPq/` triggers the flag too (matches real-Unix CWD-relative `connect(2)` semantics).
 4. `ssh-add -l` → prints Erik's two key fingerprints with `erik@erik-laptop` comment. Sets `ran_ssh_add_erik`. (The key comment is the primary surface for discovering the hostname.)
 5. `ssh erik@erik-laptop` → fingerprint prompt → drops into `erik@erik-laptop`. Sets `pivoted_to_erik_pc`.
 6. `exit` → returns to chipinfra (NOT nexacorp).
 
-**Auth chain.** `ssh.ts` consults a source-aware `SSH_ROUTES` map. Routes with `requiresAgent: "erik"` require: SSH_AUTH_SOCK set, the file exists in the FS, and the socket dir contains a `.user-erik` marker. Wrong user (`mallory@erik-laptop`) → `Permission denied (publickey).` Hostname `erik-laptop` and FQDN `erik-laptop.nexa.internal` both resolve.
+**Auth chain.** `ssh.ts` consults a source-aware `SSH_ROUTES` map. Routes with `requiresAgent: "erik"` require: SSH_AUTH_SOCK set, the file exists in the FS (after resolving the env value against `ctx.cwd`, so a relative path like `agent.18472` works from the socket's directory just like real ssh-agent forwarding), and the socket dir contains a `.user-erik` marker. Wrong user (`mallory@erik-laptop`) → `Permission denied (publickey).` Hostname `erik-laptop` and FQDN `erik-laptop.nexa.internal` both resolve.
 
 **Story flags:**
 
 - `cat_erik_socket_marker` — fires on `file_read: /tmp/ssh-mZ4xPq/.user-erik`
-- `exported_erik_ssh_auth_sock` — fires on the `command_executed: exported_erik_ssh_auth_sock` event emitted by the `export` builtin when `SSH_AUTH_SOCK` is set to the literal Erik socket path
+- `exported_erik_ssh_auth_sock` — fires on the `command_executed: exported_erik_ssh_auth_sock` event emitted by the `export` builtin when `SSH_AUTH_SOCK`'s value resolves (against `ctx.cwd`) to `/tmp/ssh-mZ4xPq/agent.18472`
 - `ran_ssh_add_erik` — fires on the `command_executed: ran_ssh_add_erik` event emitted by `ssh-add` when keys list successfully
 - `pivoted_to_erik_pc` — fires on first arrival in `runErikpcArrival` (fire-on-arrival, not from ssh.ts)
 

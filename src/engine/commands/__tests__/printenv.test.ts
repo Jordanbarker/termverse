@@ -267,6 +267,59 @@ describe("export command", () => {
     const result = execute("export", ["FOO=bar"], {}, ctx);
     expect(result.triggerEvents).toBeUndefined();
   });
+
+  it("emits exported_erik_ssh_auth_sock for the canonical absolute socket path", () => {
+    const ctx = makeCtx({
+      activeComputer: "chipinfra",
+      envVars: {},
+      setEnvVars: () => {},
+    });
+    const result = execute(
+      "export",
+      ["SSH_AUTH_SOCK=/tmp/ssh-mZ4xPq/agent.18472"],
+      {},
+      ctx
+    );
+    expect(result.triggerEvents).toEqual([
+      { type: "command_executed", detail: "exported_erik_ssh_auth_sock" },
+    ]);
+  });
+
+  it("emits exported_erik_ssh_auth_sock for a relative socket path resolved from cwd", () => {
+    const ctx = makeCtx({
+      activeComputer: "chipinfra",
+      cwd: "/tmp/ssh-mZ4xPq",
+      envVars: {},
+      setEnvVars: () => {},
+    });
+    const result = execute("export", ["SSH_AUTH_SOCK=agent.18472"], {}, ctx);
+    expect(result.triggerEvents).toEqual([
+      { type: "command_executed", detail: "exported_erik_ssh_auth_sock" },
+    ]);
+  });
+
+  it("does not emit the SSH_AUTH_SOCK event when relative path resolves elsewhere", () => {
+    const ctx = makeCtx({
+      activeComputer: "chipinfra",
+      cwd: "/home/ren",
+      envVars: {},
+      setEnvVars: () => {},
+    });
+    const result = execute("export", ["SSH_AUTH_SOCK=agent.18472"], {}, ctx);
+    expect(result.triggerEvents).toBeUndefined();
+  });
+
+  it("stores SSH_AUTH_SOCK as the raw user-typed value, not the resolved form", () => {
+    let captured: Record<string, string> | undefined;
+    const ctx = makeCtx({
+      activeComputer: "chipinfra",
+      cwd: "/tmp/ssh-mZ4xPq",
+      envVars: {},
+      setEnvVars: (env) => { captured = env; },
+    });
+    execute("export", ["SSH_AUTH_SOCK=agent.18472"], {}, ctx);
+    expect(captured?.SSH_AUTH_SOCK).toBe("agent.18472");
+  });
 });
 
 describe("source updates env", () => {

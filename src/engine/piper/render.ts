@@ -135,19 +135,25 @@ export function renderSeparator(width: number): string {
   return colorize("╌".repeat(width), ansi.dim);
 }
 
-export function renderChannelListFooter(width: number): string {
+export function renderChannelListFooter(width: number, digitBuffer = ""): string {
   const border = colorize("─".repeat(width), ansi.dim);
-  const hints = colorize(" \u2191/\u2193 navigate  Enter select  q exit", ansi.dim);
+  const base = " \u2191/\u2193 navigate  Enter select  q exit";
+  const hints = digitBuffer
+    ? colorize(base, ansi.dim) + colorize(`  [${digitBuffer}_]`, ansi.magenta + ansi.bold)
+    : colorize(base, ansi.dim);
   return `${border}\r\n${hints}`;
 }
 
-export function renderConversationFooter(width: number, hasReply: boolean, canScroll = false): string {
+export function renderConversationFooter(width: number, hasReply: boolean, canScroll = false, digitBuffer = ""): string {
   const border = colorize("─".repeat(width), ansi.dim);
-  const hints = hasReply
-    ? colorize(" \u2191/\u2193 navigate  Enter reply  q back", ansi.dim)
+  const base = hasReply
+    ? " \u2191/\u2193 navigate  Enter reply  q back"
     : canScroll
-      ? colorize(" \u2191/\u2193 scroll  q back", ansi.dim)
-      : colorize(" q back", ansi.dim);
+      ? " \u2191/\u2193 scroll  q back"
+      : " q back";
+  const hints = digitBuffer && hasReply
+    ? colorize(base, ansi.dim) + colorize(`  [${digitBuffer}_]`, ansi.magenta + ansi.bold)
+    : colorize(base, ansi.dim);
   return `${border}\r\n${hints}`;
 }
 

@@ -26,6 +26,36 @@ import { PIPER_TYPING_DELAY_MS } from "../../lib/timing";
 
 type View = "channels" | "conversation";
 
+/**
+ * Speculatively appends a digit to a numeric-selection buffer. Returns the
+ * new buffer state and an optional commit (1-based selection number).
+ *
+ * Rule: commit immediately when no longer selection can be reached
+ * (`num * 10 > max`); otherwise buffer and wait for more input or Enter.
+ * Invalid digits (would push the number above `max`, or start with "0")
+ * are silently rejected and the existing buffer is preserved.
+ *
+ * Exported so the rule can be unit-tested without spinning up a session.
+ */
+export function consumeDigit(
+  buffer: string,
+  char: string,
+  max: number,
+): { buffer: string; commit: number | null } {
+  if (char < "0" || char > "9" || max <= 0) {
+    return { buffer, commit: null };
+  }
+  const candidate = buffer + char;
+  const num = parseInt(candidate, 10);
+  if (num < 1 || num > max) {
+    return { buffer, commit: null };
+  }
+  if (num * 10 > max) {
+    return { buffer: "", commit: num };
+  }
+  return { buffer: candidate, commit: null };
+}
+
 export class PiperSession implements ISession {
   private terminal: Terminal;
   private info: PiperSessionInfo;
@@ -35,6 +65,9 @@ export class PiperSession implements ISession {
   private selectedIndex = 0;
   private pendingEvents: GameEvent[] = [];
   private escBuffer = "";
+  // Accumulates digits typed at the menu so items 10+ are reachable.
+  // "1" with ≥10 items is held until another digit or Enter; 2–9 commits on the spot.
+  private digitBuffer = "";
 
   // Channel list state
   private channelItems: ReturnType<typeof getVisibleChannels> = [];
@@ -99,6 +132,7 @@ export class PiperSession implements ISession {
         if (code === CTRL_C) this.skipAnimation();
         if (char === "q") {
           this.skipAnimation();
+          this.digitBuffer = "";
           if (this.view === "channels") {
             return this.exitSession();
           } else {
@@ -168,30 +202,48 @@ export class PiperSession implements ISession {
 
   private handleChannelListInput(char: string): SessionResult | null {
     if (char === "q") {
+      this.digitBuffer = "";
       return this.exitSession();
     }
 
-    // Number keys — jump to channel
-    if (char >= "1" && char <= "9") {
-      const idx = parseInt(char, 10) - 1;
-      if (idx < this.channelItems.length) {
-        this.selectedIndex = idx;
-        this.openChannel(idx);
+    if (char >= "0" && char <= "9") {
+      const commit = this.tryConsumeDigit(char, this.channelItems.length);
+      if (commit !== null) {
+        this.selectedIndex = commit - 1;
+        this.openChannel(commit - 1);
+      } else {
+        this.redraw();
       }
       return this.flushContinue();
     }
 
-    // Enter — open selected channel
+    // Enter — commit buffered digits if any, else open arrow-selected channel
     if (char === "\r" || char === "\n") {
+      if (this.digitBuffer) {
+        const num = parseInt(this.digitBuffer, 10);
+        this.digitBuffer = "";
+        if (num >= 1 && num <= this.channelItems.length) {
+          this.selectedIndex = num - 1;
+          this.openChannel(num - 1);
+        } else {
+          this.redraw();
+        }
+        return this.flushContinue();
+      }
       this.openChannel(this.selectedIndex);
       return this.flushContinue();
     }
 
+    if (this.digitBuffer) {
+      this.digitBuffer = "";
+      this.redraw();
+    }
     return null;
   }
 
   private handleConversationInput(char: string): SessionResult | null {
     if (char === "q") {
+      this.digitBuffer = "";
       // Go back to channel list
       this.view = "channels";
       this.unreadCountAtOpen = 0;
@@ -201,26 +253,51 @@ export class PiperSession implements ISession {
       return this.flushContinue();
     }
 
-    // Number keys — select reply
-    if (char >= "1" && char <= "9" && this.replyOptions.length > 0) {
-      const idx = parseInt(char, 10) - 1;
-      if (idx < this.replyOptions.length) {
-        this.selectedIndex = idx;
-        this.selectReply(idx);
+    if (char >= "0" && char <= "9" && this.replyOptions.length > 0) {
+      const commit = this.tryConsumeDigit(char, this.replyOptions.length);
+      if (commit !== null) {
+        this.selectedIndex = commit - 1;
+        this.selectReply(commit - 1);
+      } else {
+        this.redraw();
       }
       return this.flushContinue();
     }
 
-    // Enter — select reply
+    // Enter — commit buffered digits if any, else send arrow-selected reply
     if ((char === "\r" || char === "\n") && this.replyOptions.length > 0) {
+      if (this.digitBuffer) {
+        const num = parseInt(this.digitBuffer, 10);
+        this.digitBuffer = "";
+        if (num >= 1 && num <= this.replyOptions.length) {
+          this.selectedIndex = num - 1;
+          this.selectReply(num - 1);
+        } else {
+          this.redraw();
+        }
+        return this.flushContinue();
+      }
       this.selectReply(this.selectedIndex);
       return this.flushContinue();
     }
 
+    if (this.digitBuffer) {
+      this.digitBuffer = "";
+      this.redraw();
+    }
     return null;
   }
 
+  private tryConsumeDigit(char: string, max: number): number | null {
+    const next = consumeDigit(this.digitBuffer, char, max);
+    this.digitBuffer = next.buffer;
+    return next.commit;
+  }
+
   private moveSelection(delta: number): void {
+    const hadBuffer = this.digitBuffer !== "";
+    this.digitBuffer = "";
+
     // In conversation view with no reply options, scroll instead
     if (this.view === "conversation" && this.replyOptions.length === 0) {
       // Up arrow (delta -1) scrolls up (increases offset), down arrow scrolls down
@@ -228,6 +305,8 @@ export class PiperSession implements ISession {
       const clamped = Math.max(0, newOffset);
       if (clamped !== this.scrollOffset) {
         this.scrollOffset = clamped;
+        this.redraw();
+      } else if (hadBuffer) {
         this.redraw();
       }
       return;
@@ -237,11 +316,17 @@ export class PiperSession implements ISession {
       ? this.channelItems.length - 1
       : this.replyOptions.length - 1;
 
-    if (maxIdx < 0) return;
+    if (maxIdx < 0) {
+      if (hadBuffer) this.redraw();
+      return;
+    }
 
-    const newIdx = this.selectedIndex + delta;
-    if (newIdx >= 0 && newIdx <= maxIdx) {
+    const len = maxIdx + 1;
+    const newIdx = ((this.selectedIndex + delta) % len + len) % len;
+    if (newIdx !== this.selectedIndex) {
       this.selectedIndex = newIdx;
+      this.redraw();
+    } else if (hadBuffer) {
       this.redraw();
     }
   }
@@ -256,6 +341,7 @@ export class PiperSession implements ISession {
     this.view = "conversation";
     this.selectedIndex = 0;
     this.scrollOffset = 0;
+    this.digitBuffer = "";
 
     // Capture unread count before marking seen (for "NEW" divider)
     this.unreadCountAtOpen = item.unread;
@@ -469,7 +555,7 @@ export class PiperSession implements ISession {
       this.selectedIndex,
       width
     );
-    const footer = renderChannelListFooter(width);
+    const footer = renderChannelListFooter(width, this.digitBuffer);
 
     return `${header}\r\n\r\n${list}\r\n\r\n${footer}`;
   }
@@ -529,7 +615,7 @@ export class PiperSession implements ISession {
       visibleConv = conversation;
     }
 
-    const footer = renderConversationFooter(width, hasReply, canScroll);
+    const footer = renderConversationFooter(width, hasReply, canScroll, this.digitBuffer);
 
     if (hasReply) {
       return `${header}${visibleConv}\r\n\r\n${sep}\r\n${replyMenu}\r\n${footer}`;
