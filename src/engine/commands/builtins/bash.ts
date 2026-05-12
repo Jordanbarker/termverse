@@ -3,7 +3,7 @@ import { setKnownFlags } from "../flagValidation";
 import { AsyncCommandHandler, CommandContext, CommandResult } from "../types";
 import { parsePipeline, parseInput, parseChainedPipeline } from "../parser";
 import { execute, executeAsync, isAsyncCommand } from "../registry";
-import { applyRedirection } from "../redirection";
+import { applyRedirection, extractStdoutRedirect } from "../redirection";
 import { resolvePath } from "../../../lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "../../filesystem/VirtualFS";
@@ -40,12 +40,66 @@ type ScriptNode =
 // Parsing
 // ---------------------------------------------------------------------------
 
+/**
+ * Quote-aware split of a single line on top-level `;`. Lets inline forms like
+ * `X=hi; echo $X` and `if true; then echo yes; fi` decompose into the same
+ * line-oriented statements parseNodes expects. Does not split inside quotes.
+ */
+function splitLineOnSemicolons(text: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let inSingle = false;
+  let inDouble = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "'" && !inDouble) { inSingle = !inSingle; current += ch; continue; }
+    if (ch === '"' && !inSingle) { inDouble = !inDouble; current += ch; continue; }
+    if (ch === ";" && !inSingle && !inDouble) {
+      const trimmed = current.trim();
+      if (trimmed) parts.push(trimmed);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+
+  const trimmed = current.trim();
+  if (trimmed) parts.push(trimmed);
+  return parts;
+}
+
 /** Join lines ending with `\` (line continuation) and strip comments/blanks. */
 function preprocessLines(content: string): { text: string; lineNumber: number }[] {
   const rawLines = content.split("\n");
   const joined: { text: string; lineNumber: number }[] = [];
   let accumulator = "";
   let startLine = -1;
+
+  /**
+   * Inline forms like `if cond; then BODY; fi` collapse to `then BODY` after
+   * the `;` split. The if-block parser expects the keyword on its own line,
+   * so peel `then`/`else`/`do` off the front into a separate emitted line.
+   */
+  const peelKeyword = (piece: string): string[] => {
+    for (const kw of ["then", "else", "do"] as const) {
+      if (piece === kw) return [piece];
+      if (piece.startsWith(kw + " ")) {
+        return [kw, piece.slice(kw.length + 1).trim()];
+      }
+    }
+    return [piece];
+  };
+
+  const emit = (text: string, lineNumber: number) => {
+    const pieces = splitLineOnSemicolons(text);
+    if (pieces.length === 0) return;
+    for (const piece of pieces) {
+      for (const part of peelKeyword(piece)) {
+        if (part) joined.push({ text: part, lineNumber });
+      }
+    }
+  };
 
   for (let i = 0; i < rawLines.length; i++) {
     const trimmed = rawLines[i].trim();
@@ -55,7 +109,7 @@ function preprocessLines(content: string): { text: string; lineNumber: number }[
       if (trimmed.endsWith("\\")) {
         accumulator = accumulator.slice(0, -1);
       } else {
-        joined.push({ text: accumulator, lineNumber: startLine });
+        emit(accumulator, startLine);
         accumulator = "";
       }
       continue;
@@ -68,12 +122,12 @@ function preprocessLines(content: string): { text: string; lineNumber: number }[
       accumulator = trimmed.slice(0, -1);
       startLine = i + 1;
     } else {
-      joined.push({ text: trimmed, lineNumber: i + 1 });
+      emit(trimmed, i + 1);
     }
   }
 
   if (accumulator) {
-    joined.push({ text: accumulator, lineNumber: startLine });
+    emit(accumulator, startLine);
   }
 
   return joined;
@@ -142,9 +196,11 @@ function parseNodes(lines: { text: string; lineNumber: number }[]): ScriptNode[]
       continue;
     }
 
-    // Variable assignment: NAME=VALUE (not inside a command like `command -v`)
+    // Variable assignment: NAME=VALUE — only when the whole line is a bare
+    // assignment. Lines with top-level separators (`;`, `|`, `&&`, `||`) fall
+    // through to the command branch so executeSingleLine can split the chain.
     const assignMatch = text.match(/^([A-Za-z_]\w*)=(.*)$/);
-    if (assignMatch) {
+    if (assignMatch && !hasTopLevelSeparator(assignMatch[2])) {
       nodes.push({ type: "assignment", name: assignMatch[1], value: assignMatch[2], lineNumber });
       i++;
       continue;
@@ -535,24 +591,12 @@ async function executeSingleLine(
 
     const pipeline = [...seg.pipeline];
 
-    // Extract redirection from last pipeline command
-    let redirectFile: string | null = null;
-    let redirectAppend = false;
+    // Extract redirection from last pipeline command (quote-aware)
     const lastSegment = pipeline[pipeline.length - 1];
-    if (lastSegment.raw.includes(">>") || lastSegment.raw.includes(">")) {
-      const raw = lastSegment.raw;
-      const appendIdx = raw.indexOf(">>");
-      const overwriteIdx = raw.indexOf(">");
-      if (appendIdx !== -1) {
-        redirectAppend = true;
-        const parts = raw.split(">>");
-        pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-        redirectFile = parts[1].trim();
-      } else if (overwriteIdx !== -1) {
-        const parts = raw.split(">");
-        pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-        redirectFile = parts[1].trim();
-      }
+    const { command: stripped, redirectFile, redirectAppend } =
+      extractStdoutRedirect(lastSegment.raw);
+    if (redirectFile) {
+      pipeline[pipeline.length - 1] = parseInput(stripped);
     }
 
     const result = await executePipeline(
@@ -584,6 +628,51 @@ interface ExecContext {
   positionalArgs?: string[];
 }
 
+/**
+ * Quote-aware scan: does `text` contain an unquoted top-level statement
+ * separator (`;`, `|`, `&&`, `||`)? Used to detect compound lines so the
+ * assignment classifier doesn't swallow them.
+ */
+function hasTopLevelSeparator(text: string): boolean {
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "'" && !inDouble) { inSingle = !inSingle; continue; }
+    if (ch === '"' && !inSingle) { inDouble = !inDouble; continue; }
+    if (inSingle || inDouble) continue;
+    if (ch === ";") return true;
+    if (ch === "|") return true; // covers both `|` and `||`
+    if (ch === "&" && text[i + 1] === "&") return true;
+  }
+  return false;
+}
+
+/** Apply an assignment to exec.variables. Mirrors the `case "assignment":` body. */
+async function applyAssignment(
+  exec: ExecContext,
+  name: string,
+  rawValue: string,
+  fs: VirtualFS,
+  cwd: string,
+  allTriggerEvents: GameEvent[],
+): Promise<{ fs: VirtualFS; cwd: string }> {
+  const isSingleQuoted = rawValue.startsWith("'") && rawValue.endsWith("'") && rawValue.length >= 2;
+  const unquoted = stripOuterQuotes(rawValue);
+
+  if (isSingleQuoted) {
+    exec.variables.set(name, unquoted);
+    return { fs, cwd };
+  }
+
+  const varExpanded = expandVariables(unquoted, exec.variables, exec.positionalArgs);
+  const subExpanded = await expandSubstitutions(
+    varExpanded, exec.ctx, fs, cwd, allTriggerEvents, 0,
+  );
+  exec.variables.set(name, subExpanded.text);
+  return { fs: subExpanded.fs, cwd: subExpanded.cwd };
+}
+
 /** Strip matching outer quotes from a string. */
 function stripOuterQuotes(s: string): string {
   if (s.length >= 2) {
@@ -609,23 +698,9 @@ async function executeNodes(
   for (const node of nodes) {
     switch (node.type) {
       case "assignment": {
-        const rawValue = node.value;
-        const isSingleQuoted = rawValue.startsWith("'") && rawValue.endsWith("'") && rawValue.length >= 2;
-        const unquoted = stripOuterQuotes(rawValue);
-
-        if (isSingleQuoted) {
-          // Single-quoted: literal, no expansion
-          exec.variables.set(node.name, unquoted);
-        } else {
-          // Expand variables first, then command substitutions
-          const varExpanded = expandVariables(unquoted, exec.variables, exec.positionalArgs);
-          const subExpanded = await expandSubstitutions(
-            varExpanded, exec.ctx, fs, cwd, exec.allTriggerEvents, 0,
-          );
-          fs = subExpanded.fs;
-          cwd = subExpanded.cwd;
-          exec.variables.set(node.name, subExpanded.text);
-        }
+        const next = await applyAssignment(exec, node.name, node.value, fs, cwd, exec.allTriggerEvents);
+        fs = next.fs;
+        cwd = next.cwd;
         break;
       }
 
@@ -727,19 +802,25 @@ async function executeNodes(
 // ---------------------------------------------------------------------------
 
 /** Execute a script's content. Exported for use by the registry path-execution fallback. */
-export async function executeScript(content: string, ctx: CommandContext): Promise<CommandResult> {
+export async function executeScript(
+  content: string,
+  ctx: CommandContext,
+  positionalArgs?: string[],
+): Promise<CommandResult> {
   const nodes = parseScript(content);
   const exec: ExecContext = {
     ctx,
     variables: new Map(),
     functions: new Map(),
     allTriggerEvents: [],
+    positionalArgs,
   };
 
   const result = await executeNodes(nodes, exec, ctx.fs, ctx.cwd);
 
   const combinedResult: CommandResult = {
     output: result.outputs.join("\n"),
+    exitCode: result.exitCode,
     triggerEvents: exec.allTriggerEvents.length > 0 ? exec.allTriggerEvents : undefined,
   };
 
@@ -783,7 +864,7 @@ const bashHandler: AsyncCommandHandler = async (args, flags, ctx) => {
     return { output: `bash: ${args[0]}: No such file or directory`, exitCode: 1 };
   }
 
-  const result = await executeScript(fileResult.content!, ctx);
+  const result = await executeScript(fileResult.content!, ctx, args.slice(1));
 
   // Add file_read event for the script file itself
   const scriptEvent: GameEvent = { type: "file_read", detail: filePath };

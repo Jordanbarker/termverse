@@ -2066,6 +2066,17 @@ describe("chmod symbolic and -R", () => {
     expect(result.newFs!.getNode("/home/player/docs/notes.txt")!.permissions).toBe("rwxr-x---");
   });
 
+  it("-R descends into directories the player can't read (regression)", () => {
+    // Lock docs/ down to rwx------ so listDirectory() would refuse to open it.
+    // chmod -R should still walk in and flip children.
+    const locked = createTestFS().setPermissions("/home/player/docs", "rwx------").fs!;
+    const result = execute("chmod", ["777", "docs"], { R: true }, ctx(locked));
+    expect(result.newFs).toBeDefined();
+    expect(result.newFs!.getNode("/home/player/docs")!.permissions).toBe("rwxrwxrwx");
+    expect(result.newFs!.getNode("/home/player/docs/readme.md")!.permissions).toBe("rwxrwxrwx");
+    expect(result.newFs!.getNode("/home/player/docs/notes.txt")!.permissions).toBe("rwxrwxrwx");
+  });
+
   it("octal mode still works (regression)", () => {
     const result = execute("chmod", ["644", "notes.txt"], {}, ctx());
     expect(result.newFs!.getNode("/home/player/notes.txt")!.permissions).toBe("rw-r--r--");

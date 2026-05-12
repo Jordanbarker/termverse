@@ -322,4 +322,60 @@ const DAY2_PIPELINE_FIXED: Checkpoint = {
   },
 };
 
-export const CHECKPOINTS: Checkpoint[] = [DAY1_START, DAY1_END, DAY2_START, DAY2_PIPELINE_FIXED];
+const DAY2_CHAPTER3_MARCUS_DM: Checkpoint = {
+  ...DAY2_PIPELINE_FIXED,
+  id: "day2-chapter3-marcus-dm",
+  description: "Day 2, plugin shipped, Marcus's accusation DM waiting (Chapter 3, nexacorp)",
+  storyFlags: {
+    ...DAY2_PIPELINE_FIXED.storyFlags,
+    // Plugin quest completion
+    unlock_chip_plugin_development: true,
+    chipinfra_visited: true,
+    read_plugin_template: true,
+    created_chip_plugin_dir: true,
+    wrote_plugin_manifest: true,
+    wrote_plugin_skill: true,
+    registered_chip_plugin: true,
+    reported_plugin_to_edward: true,
+    // Intentionally NOT set: accused_* / accusation_made / chapter_3_complete.
+    // The cheat drops the player AT the four-way accusation choice.
+  },
+  deliveredPiperIds: [
+    ...DAY2_PIPELINE_FIXED.deliveredPiperIds,
+    // Edward plugin chain: request → accept → report → ack
+    "reply:edward_plugin_request:0",
+    "edward_plugin_report",
+    "reply:edward_plugin_report:0",
+    "edward_plugin_ack",
+    // Marcus opens the accusation DM (trigger: reported_plugin_to_edward)
+    "marcus_endgame_opening",
+  ],
+  completedObjectives: [
+    ...DAY2_PIPELINE_FIXED.completedObjectives,
+    "accepted_edward_plugin_request",
+    "ssh_to_chip_workspace",
+    "read_existing_plugin",
+    "create_plugin_dir",
+    "write_plugin_manifest",
+    "write_plugin_skill",
+    "register_plugin",
+    "report_plugin_to_edward",
+    "build_chip_plugin_quest",
+  ],
+  computers: ["home", "nexacorp", "devcontainer", "chipinfra"],
+  commandHistory: {
+    ...DAY2_PIPELINE_FIXED.commandHistory,
+    nexacorp: [
+      ...(DAY2_PIPELINE_FIXED.commandHistory?.nexacorp ?? []),
+      "coder ssh chip",
+    ],
+  },
+};
+
+export const CHECKPOINTS: Checkpoint[] = [
+  DAY1_START,
+  DAY1_END,
+  DAY2_START,
+  DAY2_PIPELINE_FIXED,
+  DAY2_CHAPTER3_MARCUS_DM,
+];

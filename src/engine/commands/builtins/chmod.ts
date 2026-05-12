@@ -73,19 +73,20 @@ function defaultPermsForNode(node: FSNode): string {
 }
 
 function collectPaths(fs: VirtualFS, root: string): string[] {
-  const out: string[] = [root];
-  const node = fs.getNode(root);
-  if (!node || !isDirectory(node)) return out;
-  const { entries } = fs.listDirectory(root);
-  for (const entry of entries) {
-    const childPath = root === "/" ? `/${entry.name}` : `${root}/${entry.name}`;
-    if (isDirectory(entry)) {
-      out.push(...collectPaths(fs, childPath));
-    } else {
-      out.push(childPath);
-    }
-  }
+  const out: string[] = [];
+  const rootNode = fs.getNode(root);
+  if (!rootNode) return out;
+  walkNode(rootNode, root, out);
   return out;
+}
+
+function walkNode(node: FSNode, path: string, out: string[]): void {
+  out.push(path);
+  if (!isDirectory(node)) return;
+  for (const child of Object.values(node.children)) {
+    const childPath = path === "/" ? `/${child.name}` : `${path}/${child.name}`;
+    walkNode(child, childPath, out);
+  }
 }
 
 const chmod: CommandHandler = (args, flags, ctx) => {

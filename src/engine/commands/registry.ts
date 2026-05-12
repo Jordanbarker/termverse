@@ -136,7 +136,9 @@ async function executePathCommand(pathStr: string, ctx: CommandContext): Promise
   const content = node.type === "file" ? node.content : "";
   // Lazy import to avoid circular dependency at module load time
   const { executeScript } = await import("./builtins/bash");
-  const result = await executeScript(content, ctx);
+  // parseInput strips the command token from rawArgs, so ctx.rawArgs is already
+  // the positional args for ./script.sh — do NOT slice again.
+  const result = await executeScript(content, ctx, ctx.rawArgs);
   // Add file_read event for the script file
   const scriptEvent = { type: "file_read" as const, detail: absPath };
   const events = result.triggerEvents ? [scriptEvent, ...result.triggerEvents] : [scriptEvent];

@@ -67,6 +67,7 @@ import "./shutdown";
 // Shell scripting
 import "./bash";
 import "./source";
+import "./true";
 // Environment
 import "./printenv";
 import "./export";

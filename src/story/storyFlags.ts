@@ -141,6 +141,15 @@ export const STORY_FLAG_NAMES = [
   "mounted_usb_drive",
   "read_usb_note",
   "loose_thread_quest_started",
+
+  // Chapter 3 endgame: Marcus's accusation DM. Carrier flags persist into
+  // Chapter 4 so the board-meeting scene can branch on the player's pick.
+  "accused_edward",
+  "accused_sarah",
+  "accused_erik",
+  "accused_nobody",
+  "accusation_made",
+  "chapter_3_complete",
 ] as const;
 
 export type StoryFlagName = (typeof STORY_FLAG_NAMES)[number];
@@ -209,7 +218,7 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
 
     // Reply branches — both resolve the "Check Piper" objective; only the
     // accept branch sets accepted_usb_drive and reveals the device + scaffold.
-    { event: "objective_completed", detail: "accepted_usb_drive", flag: "accepted_usb_drive", value: true, toast: "USB drive plugged in." },
+    { event: "objective_completed", detail: "accepted_usb_drive", flag: "accepted_usb_drive", value: true, toast: "USB drive plugged in. lsblk and mount unlocked." },
     { event: "objective_completed", detail: "accepted_usb_drive", flag: "anon_tip_dm_resolved", value: true },
     { event: "objective_completed", detail: "declined_usb_tip",   flag: "declined_usb_tip",   value: true },
     { event: "objective_completed", detail: "declined_usb_tip",   flag: "anon_tip_dm_resolved", value: true },
@@ -282,6 +291,19 @@ export function getNexacorpStoryFlagTriggers(_username: string): StoryFlagTrigge
     // unlocks the chipinfra workspace via `coder ssh chip`.
     { event: "objective_completed", detail: "accepted_edward_plugin_request", flag: "unlock_chip_plugin_development", value: true, toast: "Workspace unlocked: coder ssh chip" },
     { event: "objective_completed", detail: "reported_plugin_to_edward", flag: "reported_plugin_to_edward", value: true },
+
+    // Chapter 3 endgame: Marcus's accusation DM. Each reply fires a unique
+    // objective_completed event; the per-suspect flag carries into Chapter 4,
+    // and accusation_made gates the closing reply.
+    { event: "objective_completed", detail: "accused_edward", flag: "accused_edward", value: true },
+    { event: "objective_completed", detail: "accused_edward", flag: "accusation_made", value: true },
+    { event: "objective_completed", detail: "accused_sarah",  flag: "accused_sarah",  value: true },
+    { event: "objective_completed", detail: "accused_sarah",  flag: "accusation_made", value: true },
+    { event: "objective_completed", detail: "accused_erik",   flag: "accused_erik",   value: true },
+    { event: "objective_completed", detail: "accused_erik",   flag: "accusation_made", value: true },
+    { event: "objective_completed", detail: "accused_nobody", flag: "accused_nobody", value: true },
+    { event: "objective_completed", detail: "accused_nobody", flag: "accusation_made", value: true },
+    { event: "objective_completed", detail: "chapter_3_done", flag: "chapter_3_complete", value: true, toast: "Chapter 3 complete — board meeting tonight." },
   ];
 }
 

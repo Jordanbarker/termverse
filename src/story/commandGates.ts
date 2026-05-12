@@ -31,13 +31,16 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   // Shell builtins for command lookup — always available alongside `which` (which itself is gated)
   "command",
   "type",
-  // Block-device tooling. lsblk is universally available so the player can
-  // discover newly-visible drives. mount/umount are gated behind
-  // `accepted_usb_drive` (see HOME_GATED / NEXACORP_GATED below) — they
-  // unlock the first time the player accepts the anonymous USB tip.
+  // Block-device tooling. All three are gated behind `accepted_usb_drive`
+  // (see HOME_GATED / NEXACORP_GATED below) — they unlock together the
+  // first time the player accepts the anonymous USB tip. No reason to
+  // inspect block devices before the USB exists in the world.
   "lsblk",
   "mount",
   "umount",
+  // Shell builtins for conditionals
+  "true",
+  "false",
 ]);
 
 /** NexaCorp commands gated behind colleague emails. */
@@ -88,6 +91,7 @@ export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
   "alias", "unalias",
   "ssh", "ssh-add",
   "lsblk", "mount", "umount",
+  "true", "false",
 ]);
 
 /** Home PC commands gated behind story flags. */
@@ -119,6 +123,7 @@ export const HOME_GATED: Record<string, StoryFlagName> = {
   diff: "returned_home_day1",
   less: "returned_home_day1",
   shutdown: "returned_home_day1",
+  lsblk: "accepted_usb_drive",
   mount: "accepted_usb_drive",
   umount: "accepted_usb_drive",
 };

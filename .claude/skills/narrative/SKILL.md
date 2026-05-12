@@ -167,6 +167,7 @@ These groupings reflect the comment headers in `src/story/storyFlags.ts`. When a
 - **Side quests (Day 1)**: `read_end_of_day`, `read_ops_incidents`, `read_board_minutes`, `read_headcount_plan`, `auri_dbt_reported`, `dbt_project_cloned`, `ran_dbt`
 - **Day 2 pipeline fix (devcontainer)**: `pulled_day2_updates`, `dbt_test_failed_day2`, `investigated_null_data`, `created_fix_branch`, `fixed_campaign_model`, `pushed_fix_branch`, `reported_fix_to_auri`
 - **Day 2 anonymous USB tip + Loose Thread**: `anon_tip_quest_started`, `anon_tip_dm_resolved`, `accepted_usb_drive`, `declined_usb_tip`, `ran_lsblk_for_usb`, `mounted_usb_drive`, `read_usb_note`, `loose_thread_quest_started` (drives the home-side `dm_anon` Piper DM that introduces `mount`/`umount` and opens "Pulling at a Loose Thread" once `chipinfra_visited`)
+- **Chapter 3 endgame (Marcus's accusation)**: `accused_edward`, `accused_sarah`, `accused_erik`, `accused_nobody`, `accusation_made`, `chapter_3_complete` — each reply on `marcus_endgame_opening` fires a distinct `objective_completed` event; storyFlags.ts triggers convert it into the matching `accused_*` carrier flag plus the shared `accusation_made` gate. The carrier flags persist into Chapter 4 so the board-meeting scene can branch on the player's pick. The closing reply on any of the four `marcus_reaction_*` DMs sets `chapter_3_complete` (toast: "Chapter 3 complete — board meeting tonight.").
 
 ### Special triggers in `applyResult.ts` (not in StoryFlagTrigger tables)
 
@@ -311,6 +312,7 @@ interface ChapterDefinition { id: string; title: string; objectives: ObjectiveDe
   - `fix_pipeline_quest` group (allVisibleChildren) → `read_auri_day2_morning`, `pull_day2_updates`, `discover_test_failure`, `investigate_null_data`, `create_fix_branch`, `fix_the_model`, `push_fix`, `report_to_auri`
   - `build_chip_plugin_quest` group (allVisibleChildren) → `accepted_edward_plugin_request`, `ssh_to_chip_workspace`, `read_existing_plugin`, `create_plugin_dir`, `write_plugin_manifest`, `write_plugin_skill`, `register_plugin`, `report_plugin_to_edward`
   - `loose_thread_quest` group (allVisibleChildren) → `loose_thread_find_socket`, `loose_thread_export_sock`, `loose_thread_inspect_keys`, `loose_thread_pivot` — opens once **both** `read_usb_note` (anonymous USB note read at home) AND `chipinfra_visited` are true. Children walk the existing chipinfra → erik-pc pivot.
+  - `marcus_endgame_quest` group (allVisibleChildren, required) → `accuse_chip_abuser`, `chapter_3_finale` — fires on `reported_plugin_to_edward`. Marcus DMs the player on Piper (`dm_marcus`) asking who's abusing Chip's access; 4-way reply (Edward / Sarah / Erik / Nobody) sets a per-suspect carrier flag plus `accusation_made`. Each pick gets a distinct `marcus_reaction_*` DM whose single reply sets `chapter_3_complete` (closing toast). Defined in `src/story/piper/messages/marcus.ts`.
 
 ### Objective Resolution (`objectives.ts`)
 
@@ -339,7 +341,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 
 | Constant | Purpose |
 |----------|---------|
-| `HOME_COMMANDS` | Always-available on Home PC (ls, cd, cat, pwd, clear, help, mail, nano, piper, save, load, newgame, history, python/python3, bash/sh/zsh, source/`.`, printenv, env, export, alias, unalias, cheat, command, type, lsblk, mount, umount) |
+| `HOME_COMMANDS` | Master set of commands that *exist* on Home PC (ls, cd, cat, pwd, clear, help, mail, nano, piper, save, load, newgame, history, python/python3, bash/sh/zsh, source/`.`, printenv, env, export, alias, unalias, cheat, command, type, lsblk, mount, umount). Many of these are still subject to `HOME_GATED` flag checks (e.g. `lsblk`, `mount`, `umount`). |
 | `HOME_GATED` | Home commands behind a flag |
 | `NEXACORP_GATED` | NexaCorp commands behind a flag |
 | `NEXACORP_ONLY` | Never available on Home (`coder`, `chip`) |
@@ -357,7 +359,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 | `tree` | `tree_installed` | running `apt install tree` |
 | `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `whoami`, `hostname`, `date`, `which`, `man`, `file` | `basic_tools_unlocked` | Olive's "Linux basics" Piper reply |
 | `grep`, `find`, `wc`, `sort`, `uniq`, `head`, `tail`, `diff`, `shutdown` | `returned_home_day1` | end of Day 1 (these were learned at NexaCorp; only available at home after the player has been there) |
-| `mount`, `umount` | `accepted_usb_drive` | accepting the anonymous USB tip Piper DM (`dm_anon`) on Day 2 morning |
+| `lsblk`, `mount`, `umount` | `accepted_usb_drive` | accepting the anonymous USB tip Piper DM (`dm_anon`) on Day 2 morning |
 
 ### `NEXACORP_GATED` (current map)
 
@@ -378,7 +380,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 
 ### Block devices (`lsblk`, `mount`, `umount`)
 
-`lsblk` is universally available so the player can discover newly-visible drives. `mount` and `umount` are gated behind `accepted_usb_drive` on both home and nexacorp — they unlock the first time the player accepts the anonymous USB tip Piper DM (`dm_anon` on home, triggered by `day1_shutdown`). On `devcontainer`/`chipinfra` all three are in `DEVCONTAINER_COMMANDS` with no per-flag gate (those workspaces have no devices today, but the commands are present).
+On home, all three of `lsblk`, `mount`, and `umount` are gated behind `accepted_usb_drive` — they unlock together the first time the player accepts the anonymous USB tip Piper DM (`dm_anon` on home, triggered by `day1_shutdown`). The accept reply also fires the toast `"USB drive plugged in. lsblk and mount unlocked."` (see `src/story/storyFlags.ts`). On nexacorp, `mount`/`umount` carry the same gate but `lsblk` is unrestricted (no devices live on nexacorp anyway). On `devcontainer`/`chipinfra` all three are in `DEVCONTAINER_COMMANDS` with no per-flag gate (those workspaces have no devices today, but the commands are present).
 
 Story content gates devices via the `BLOCK_DEVICES` registry in `src/story/blockDevices.ts`. Each `BlockDevice` entry can carry an optional `visibleFlag: StoryFlagName` — `lsblk` and `mount`/`umount` only show or accept devices whose flag is set (or which have no flag). The first concrete device is `BLOCK_DEVICES.home` (the anonymous USB at `/dev/sdb` + partition `/dev/sdb1`), gated on `accepted_usb_drive`. To introduce a new device, add an entry under the relevant `ComputerId` with `visibleFlag` pointing at whatever flag is flipped when the questline starts (e.g. a `directory_visit` trigger or a Piper reply), and provide a `getContents(): Record<string, FSNode>` builder for the files that appear once the player runs `mount`. Active mounts live in `computerState[id].mounts` (per-computer), keyed by normalized mountpath. `mount.ts` emits `command_executed: mounted_usb_drive` only when `/dev/sdb1` is mounted at `/mnt/usb` — that's how the `mounted_usb_drive` flag is fired (the auto-emitted `command_executed: mount` event is too generic to credit the questline by itself).
 

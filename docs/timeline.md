@@ -1,5 +1,8 @@
 # In-Game Timeline
 
+- Day 1 (player starts at NexaCorp): 2026-02-23 (Monday)
+- Day 2: 2026-02-24
+
 A chronological reference for narrative dates scattered across Terminal Turmoil's source. Use this when adding dated content to catch continuity drift (a new email pre-dating Jin's resignation, a log entry on the wrong weekday, a board action after the fiscal close).
 
 **Source of truth = source files.** This doc is derived and can drift. When in doubt, re-read:
@@ -280,7 +283,7 @@ Attendees: Jessica (CEO), Marcus (COO), Tom (CMO), Edward (CTO). Key actions/dat
 - ACTION: Edward to document Chip's access scope for the board — **"No follow-up as of 2/28"**.
 - Series A due-diligence meetings start **March 15**.
 - Headcount: Jin Chen backfill complete (new hire — the player); ops analyst tabled pending metrics reconciliation.
-- Earlier board decks present as binary artifacts: `202509-`, `202512-`, `202601-`, `202602-board-deck.{pptx,pdf}` (`srv.ts:103-154`).
+- Earlier board decks present as binary artifacts: `2025-09-`, `2025-12-`, `2026-01-`, `2026-02-board-deck.{pptx,pdf}` in `nexacorp/srv.ts`. Sibling subdirs `investors/`, `finance/`, `strategy/` plus `org_chart.md` flesh out the exec-suite drive; `headcount_plan.csv` lives at `finance/headcount_plan.csv`.
 
 ### K. Pipeline run history (`nexacorp/srv.ts:331-362`)
 

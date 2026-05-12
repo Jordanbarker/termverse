@@ -8,6 +8,7 @@ import { getSarahDeliveries } from "./messages/sarah";
 import { getCassieDeliveries } from "./messages/cassie";
 import { getEdwardDeliveries } from "./messages/edward";
 import { getJordanDeliveries } from "./messages/jordan";
+import { getMarcusDeliveries } from "./messages/marcus";
 import { getMayaDeliveries } from "./messages/maya";
 import { getAmbientDeliveries } from "./messages/ambient";
 import { getAnonDeliveries } from "./messages/anon";
@@ -95,6 +96,11 @@ export const PIPER_DELIVERY_IDS = [
   "edward_plugin_request",
   "edward_plugin_report",
   "edward_plugin_ack",
+  "marcus_endgame_opening",
+  "marcus_reaction_edward",
+  "marcus_reaction_sarah",
+  "marcus_reaction_erik",
+  "marcus_reaction_nobody",
   // Ambient deliveries
   "general_kitchen_debate",
   "general_standup_cancelled",
@@ -124,6 +130,7 @@ export function getPiperDeliveries(username: string): PiperDelivery[] {
     ...getSarahDeliveries(username),
     ...getCassieDeliveries(username),
     ...getEdwardDeliveries(username),
+    ...getMarcusDeliveries(username),
     ...getAnonDeliveries(username),
     ...getAmbientDeliveries(username),
   ];

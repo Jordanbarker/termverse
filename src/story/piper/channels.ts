@@ -86,6 +86,11 @@ export const PIPER_CHANNELS: PiperChannel[] = [
     name: "Edward Torres",
     type: "dm",
   },
+  {
+    id: "dm_marcus",
+    name: "Marcus Reyes",
+    type: "dm",
+  },
 ];
 
 export type PiperChannelId = (typeof PIPER_CHANNELS)[number]['id'];

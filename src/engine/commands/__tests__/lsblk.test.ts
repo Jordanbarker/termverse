@@ -32,7 +32,7 @@ function ctx(opts: { mounts?: Mounts; storyFlags?: Record<string, string | boole
     homeDir: fs.homeDir,
     username: "player",
     activeComputer: "home",
-    storyFlags: opts.storyFlags ?? {},
+    storyFlags: { accepted_usb_drive: true, ...opts.storyFlags },
     mounts: opts.mounts ?? {},
   };
 }
@@ -50,6 +50,10 @@ const SDB1: BlockDevice = {
 };
 
 describe("lsblk", () => {
+  beforeEach(() => {
+    delete BLOCK_DEVICES.home;
+  });
+
   afterEach(() => {
     delete BLOCK_DEVICES.home;
   });
@@ -108,7 +112,10 @@ describe("lsblk: anonymous USB drive (real BLOCK_DEVICES)", () => {
   });
 
   it("hides /dev/sdb until accepted_usb_drive is set", () => {
-    const out = execute("lsblk", [], {}, ctx()).output;
+    // accepted_usb_drive gates both the lsblk command itself and the
+    // visibility of /dev/sdb. Without it, the command is blocked entirely
+    // — which is also why "sdb" doesn't appear.
+    const out = execute("lsblk", [], {}, ctx({ storyFlags: { accepted_usb_drive: false } })).output;
     expect(out).not.toContain("sdb");
   });
 

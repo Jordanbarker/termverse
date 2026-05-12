@@ -7,7 +7,7 @@ describe("isCommandAvailable", () => {
       for (const cmd of HOME_COMMANDS) {
         // Gated commands — handled by their own dedicated tests below.
         if (cmd === "pdftotext" || cmd === "tree") continue;
-        if (cmd === "mount" || cmd === "umount") continue;
+        if (cmd === "lsblk" || cmd === "mount" || cmd === "umount") continue;
         expect(isCommandAvailable(cmd, "home")).toBe(true);
         expect(isCommandAvailable(cmd, "home", {})).toBe(true);
       }

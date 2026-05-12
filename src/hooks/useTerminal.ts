@@ -21,7 +21,7 @@ import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "../engine/commands/types";
 import { Mounts } from "../engine/filesystem/mounts";
-import { applyRedirection } from "../engine/commands/redirection";
+import { applyRedirection, extractStdoutRedirect } from "../engine/commands/redirection";
 
 // ---------------------------------------------------------------------------
 // Module-scope helpers (no React dependencies)
@@ -533,23 +533,11 @@ export function useTerminal() {
             const pipeline = [...seg.pipeline];
 
             // Extract redirection from last pipeline command (per-segment)
-            let redirectFile: string | null = null;
-            let redirectAppend = false;
             const lastSegment = pipeline[pipeline.length - 1];
-            if (lastSegment.raw.includes(">>") || lastSegment.raw.includes(">")) {
-              const raw = lastSegment.raw;
-              const appendIdx = raw.indexOf(">>");
-              const overwriteIdx = raw.indexOf(">");
-              if (appendIdx !== -1) {
-                redirectAppend = true;
-                const parts = raw.split(">>");
-                pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-                redirectFile = parts[1].trim();
-              } else if (overwriteIdx !== -1) {
-                const parts = raw.split(">");
-                pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-                redirectFile = parts[1].trim();
-              }
+            const { command: stripped, redirectFile, redirectAppend } =
+              extractStdoutRedirect(lastSegment.raw);
+            if (redirectFile) {
+              pipeline[pipeline.length - 1] = parseInput(stripped);
             }
 
             // Async detection per segment

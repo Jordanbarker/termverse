@@ -804,6 +804,34 @@ export const CHAPTERS: ChapterDefinition[] = [
         visibleWhen: { source: "storyFlag", key: "ran_ssh_add_erik" },
         group: "loose_thread_quest",
       },
+
+      // Quest: Marcus's Accusation (Chapter 3 endgame). Opens once the
+      // required plugin quest closes. The four `accused_*` carrier flags
+      // persist into Chapter 4 so the board-meeting scene can branch on
+      // the player's pick.
+      {
+        id: "marcus_endgame_quest",
+        description: "Before the Board Meeting",
+        check: { source: "allVisibleChildren" },
+        hidden: true,
+        visibleWhen: { source: "storyFlag", key: "reported_plugin_to_edward" },
+      },
+      {
+        id: "accuse_chip_abuser",
+        description: "Tell Marcus who you think is abusing Chip's access",
+        check: { source: "storyFlag", key: "accusation_made" },
+        hidden: true,
+        visibleWhen: { source: "storyFlag", key: "reported_plugin_to_edward" },
+        group: "marcus_endgame_quest",
+      },
+      {
+        id: "chapter_3_finale",
+        description: "Acknowledge Marcus before he heads into the board meeting",
+        check: { source: "storyFlag", key: "chapter_3_complete" },
+        hidden: true,
+        visibleWhen: { source: "storyFlag", key: "accusation_made" },
+        group: "marcus_endgame_quest",
+      },
     ],
   },
 ];

@@ -100,59 +100,59 @@ but was told to wait until after Series A closes.
     }, "rwx------"),
     leadership: dir("leadership", {
       board: dir("board", {
-        "202509-board-deck.pptx": binaryFile("202509-board-deck.pptx",
+        "2025-09-board-deck.pptx": binaryFile("2025-09-board-deck.pptx",
 `PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
 [Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
 \x89PNG\x0D\x0A\x1A\x0A\x00\x00\x00\rIHDR slide-1.xml.rels
 ppt/slides/slide1.xml ppt/theme/theme1.xml ppt/media/image1.png
 PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Q3 2025 Board Review`, ""),
-        "202509-board-deck.pdf": binaryFile("202509-board-deck.pdf",
+        "2025-09-board-deck.pdf": binaryFile("2025-09-board-deck.pdf",
 `%PDF-1.5 %\xE2\xE3\xCF\xD3
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Count 14>>endobj
 stream BT /F1 18 Tf 72 720 Td (NexaCorp Q3 2025 Board Review) Tj ET endstream
 \xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 chart_revenue.jpg
 trailer<</Root 1 0 R>> startxref 4821 %%EOF`, ""),
-        "202512-board-deck.pptx": binaryFile("202512-board-deck.pptx",
+        "2025-12-board-deck.pptx": binaryFile("2025-12-board-deck.pptx",
 `PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
 [Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
 ppt/slides/slide1.xml ppt/slides/slide2.xml ppt/theme/theme1.xml
 \x89PNG\x0D\x0A\x1A\x0A revenue_chart.png chip_metrics.png
 PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Q4 2025 Board Review`, ""),
-        "202512-board-deck.pdf": binaryFile("202512-board-deck.pdf",
+        "2025-12-board-deck.pdf": binaryFile("2025-12-board-deck.pdf",
 `%PDF-1.5 %\xE2\xE3\xCF\xD3
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Count 18>>endobj
 stream BT /F1 18 Tf 72 720 Td (NexaCorp Q4 2025 Board Review) Tj ET endstream
 \xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 series_a_pipeline.jpg
 trailer<</Root 1 0 R>> startxref 6204 %%EOF`, ""),
-        "202601-board-deck.pptx": binaryFile("202601-board-deck.pptx",
+        "2026-01-board-deck.pptx": binaryFile("2026-01-board-deck.pptx",
 `PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
 [Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
 ppt/slides/slide1.xml ppt/theme/theme1.xml ppt/media/image1.png
 \x89PNG\x0D\x0A\x1A\x0A jan_special_session.png
 PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Jan 2026 Special Session`, ""),
-        "202601-board-deck.pdf": binaryFile("202601-board-deck.pdf",
+        "2026-01-board-deck.pdf": binaryFile("2026-01-board-deck.pdf",
 `%PDF-1.5 %\xE2\xE3\xCF\xD3
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Count 9>>endobj
 stream BT /F1 18 Tf 72 720 Td (NexaCorp Jan 2026 Special Session) Tj ET endstream
 \xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01
 trailer<</Root 1 0 R>> startxref 3102 %%EOF`, ""),
-        "202602-board-deck.pptx": binaryFile("202602-board-deck.pptx",
+        "2026-02-board-deck.pptx": binaryFile("2026-02-board-deck.pptx",
 `PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00ppt/presentation.xml
 [Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
 ppt/slides/slide1.xml ppt/slides/slide2.xml ppt/theme/theme1.xml
 \x89PNG\x0D\x0A\x1A\x0A chip_dau.png headcount_q1.png
 PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Feb 2026 Board Meeting`, ""),
-        "202602-board-deck.pdf": binaryFile("202602-board-deck.pdf",
+        "2026-02-board-deck.pdf": binaryFile("2026-02-board-deck.pdf",
 `%PDF-1.5 %\xE2\xE3\xCF\xD3
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Count 16>>endobj
 stream BT /F1 18 Tf 72 720 Td (NexaCorp Feb 2026 Board Meeting) Tj ET endstream
 \xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 chip_access_scope.jpg
 trailer<</Root 1 0 R>> startxref 5413 %%EOF`, ""),
-        "202602-board-deck.md": file("202602-board-deck.md", `# Board Meeting Minutes — February 2026
+        "2026-02-board-deck.md": file("2026-02-board-deck.md", `# Board Meeting Minutes — February 2026
 
 ## Attendees
 Jessica Langford (CEO), Marcus Reyes (COO), Tom Chen (CMO), Edward Torres (CTO)
@@ -201,12 +201,159 @@ Jessica Langford (CEO), Marcus Reyes (COO), Tom Chen (CMO), Edward Torres (CTO)
 - ACTION: Edward to prepare technical documentation for due diligence.
 `),
       }, "rwx------"),
-      "headcount_plan.csv": file("headcount_plan.csv", `department,current,planned_h2,status,notes
+      investors: dir("investors", {
+        "series-a-term-sheet.pdf": binaryFile("series-a-term-sheet.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 22>>endobj
+stream BT /F1 18 Tf 72 720 Td (NexaCorp Series A — Term Sheet (Draft, Feb 2026)) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 valuation_summary.jpg
+trailer<</Root 1 0 R>> startxref 7144 %%EOF`, ""),
+        "2025-06-update.pdf": binaryFile("2025-06-update.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 6>>endobj
+stream BT /F1 16 Tf 72 720 Td (NexaCorp Investor Update — June 2025) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 arr_growth.jpg
+trailer<</Root 1 0 R>> startxref 2841 %%EOF`, ""),
+        "2025-11-update.pdf": binaryFile("2025-11-update.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 7>>endobj
+stream BT /F1 16 Tf 72 720 Td (NexaCorp Investor Update — November 2025) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 chip_dau_trend.jpg
+trailer<</Root 1 0 R>> startxref 3120 %%EOF`, ""),
+        "2026-01-update.pdf": binaryFile("2026-01-update.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 8>>endobj
+stream BT /F1 16 Tf 72 720 Td (NexaCorp Investor Update — January 2026) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 enterprise_pipeline.jpg
+trailer<</Root 1 0 R>> startxref 3402 %%EOF`, ""),
+        "2026-02-update.pdf": binaryFile("2026-02-update.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 9>>endobj
+stream BT /F1 16 Tf 72 720 Td (NexaCorp Investor Update — February 2026) Tj ET endstream
+BT /F1 11 Tf 72 680 Td (Chip DAU 12,000 (+40% QoQ). Enterprise pipeline: 3 late-stage.) Tj ET
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 chip_metrics.jpg
+trailer<</Root 1 0 R>> startxref 3618 %%EOF`, ""),
+        "2026-03-update.pdf": binaryFile("2026-03-update.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 4>>endobj
+stream BT /F1 16 Tf 72 720 Td (NexaCorp Investor Update — March 2026 [DRAFT]) Tj ET endstream
+trailer<</Root 1 0 R>> startxref 1882 %%EOF`, ""),
+      }, "rwx------"),
+      finance: dir("finance", {
+        "headcount_plan.csv": file("headcount_plan.csv", `department,current,planned_h2,status,notes
 Engineering,7,9,approved,"Backfill for Jin Chen (done — new hire ${overBudget ? "at $180K, $45K over budget" : "starting"}). 1 additional Q3 pending Series A. Parekh PIP initiated — 30-day review Mar 15."
 Marketing,1,2,pending,"Tom wants dedicated content person for Chip enterprise launch."
 Operations,2,3,approved,"Dana requesting ops analyst for ticket backlog. Tabled pending metrics review."
 Sales,1,2,pending,"Contingent on enterprise pipeline conversion."
 People & Culture,1,1,approved,"Maya handling solo. Revisit if headcount exceeds 25."
+`),
+        "kpi-dashboard.xlsx": binaryFile("kpi-dashboard.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/sharedStrings.xml xl/styles.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp KPI Dashboard`, ""),
+        "runway-model.xlsx": binaryFile("runway-model.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/worksheets/sheet2.xml xl/sharedStrings.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 Runway Model — Q1 2026`, ""),
+        "cap-table.xlsx": binaryFile("cap-table.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/sharedStrings.xml xl/styles.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 Cap Table — Series A Pro Forma`, ""),
+        "arr-tracker.xlsx": binaryFile("arr-tracker.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/sharedStrings.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp ARR Tracker — FY2026`, ""),
+        "burn-multiple.xlsx": binaryFile("burn-multiple.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/sharedStrings.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 Burn Multiple — Trailing 12mo`, ""),
+        "compensation-bands.xlsx": binaryFile("compensation-bands.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/worksheets/sheet2.xml xl/sharedStrings.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp Compensation Bands 2026 — CONFIDENTIAL`, ""),
+        "2025-budget.xlsx": binaryFile("2025-budget.xlsx",
+`PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00xl/workbook.xml
+[Content_Types].xml\x00\xA2\x04\x02\x28\xA0\x00\x02\x00\x00
+xl/worksheets/sheet1.xml xl/worksheets/sheet2.xml xl/sharedStrings.xml
+PK\x01\x02-\x00\x14\x00\x06\x00\x08\x00 NexaCorp 2025 Operating Budget`, ""),
+      }, "rwx------"),
+      strategy: dir("strategy", {
+        "product-roadmap-2025.pdf": binaryFile("product-roadmap-2025.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 12>>endobj
+stream BT /F1 18 Tf 72 720 Td (Chip Product Roadmap — 2025) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 roadmap_gantt.jpg
+trailer<</Root 1 0 R>> startxref 4422 %%EOF`, ""),
+        "chip-platform-vision.pdf": binaryFile("chip-platform-vision.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 24>>endobj
+stream BT /F1 20 Tf 72 720 Td (Chip: From Chatbot to Platform) Tj ET
+BT /F1 12 Tf 72 690 Td (Internal Vision Deck — CONFIDENTIAL) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 platform_arch.jpg agent_loop.png
+trailer<</Root 1 0 R>> startxref 8211 %%EOF`, ""),
+        "competitive-analysis.pdf": binaryFile("competitive-analysis.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 18>>endobj
+stream BT /F1 18 Tf 72 720 Td (Competitive Landscape — Q1 2026) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 quadrant.jpg feature_matrix.png
+trailer<</Root 1 0 R>> startxref 6019 %%EOF`, ""),
+        "go-to-market-plan.pdf": binaryFile("go-to-market-plan.pdf",
+`%PDF-1.5 %\xE2\xE3\xCF\xD3
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Count 15>>endobj
+stream BT /F1 18 Tf 72 720 Td (Enterprise GTM Plan — H1 2026) Tj ET endstream
+\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01 funnel.jpg icp_segments.png
+trailer<</Root 1 0 R>> startxref 5388 %%EOF`, ""),
+      }, "rwx------"),
+      "org_chart.md": file("org_chart.md", `# NexaCorp — Org Chart
+Last updated: 2026-02-15
+
+## Executive Team
+- **Jessica Langford** — CEO (Co-Founder)
+- **Marcus Reyes** — COO
+- **Tom Chen** — CMO
+- **Edward Torres** — CTO (Co-Founder)
+
+## Direct Reports
+
+### CEO — Jessica Langford
+- Marcus Reyes (COO)
+- Tom Chen (CMO)
+- Edward Torres (CTO)
+- Maya Okoye (Head of People & Culture)
+
+### COO — Marcus Reyes
+- Dana Whitfield (Operations Manager)
+
+### CMO — Tom Chen
+- (Hiring: Marketing Content Lead — pending Series A)
+
+### CTO — Edward Torres
+- Sarah Knight (Senior Backend Engineer)
+- Erik Lindstrom (Senior Frontend Engineer)
+- Oscar Diaz (Infrastructure Engineer)
+- Auri Park (Data Engineer)
+- Soham Parekh (Full-Stack Engineer — PIP, 30-day review Mar 15)
+- Cassie Moreau (Product Designer)
+- [open] AI Engineer — Jin Chen backfill (starting Feb 2026)
+
+## Departed
+- Jin Chen (Data Engineer) — resigned Jan 2026
 `),
     }, "rwx------"),
     engineering: dir("engineering", {

@@ -370,6 +370,131 @@ describe("shell features", () => {
     const result = await executeAsync("bash", ["shell.sh"], {}, c);
     expect(result.output.trim()).toBe("test");
   });
+
+  it("inline assignment then expansion (X=hi; echo $X)", async () => {
+    const result = await executeAsync(
+      "bash",
+      ["X=hi; echo $X"],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output.trim()).toBe("hi");
+  });
+
+  it("if true; then ... fi runs the then branch", async () => {
+    const result = await executeAsync(
+      "bash",
+      ["if true; then echo yes; fi"],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output.trim()).toBe("yes");
+  });
+
+  it("if false; then ... else ... fi runs the else branch", async () => {
+    const result = await executeAsync(
+      "bash",
+      ["if false; then echo yes; else echo no; fi"],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output.trim()).toBe("no");
+  });
+
+  it("propagates script exit code so `false || cmd` recovers", async () => {
+    const result = await executeAsync(
+      "bash",
+      ["false || echo recovered"],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output.trim()).toBe("recovered");
+  });
+});
+
+describe("bash -c quote-aware redirection", () => {
+  it("preserves > inside double-quoted bash -c argument", async () => {
+    const result = await executeAsync(
+      "bash",
+      ['echo hi > /home/player/x.txt'],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output).toBe("");
+    expect(result.newFs).toBeDefined();
+    const read = result.newFs!.readFile("/home/player/x.txt");
+    expect(read.content?.trim()).toBe("hi");
+  });
+
+  it("recognises 2>/dev/null inside bash -c", async () => {
+    const result = await executeAsync(
+      "bash",
+      ['command -v echo > /dev/null 2>&1 && echo found'],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output.trim()).toBe("found");
+  });
+});
+
+describe("bash positional args", () => {
+  function withScript(content: string): VirtualFS {
+    const base = createTestFS();
+    const root = base.root;
+    const playerDir = (root.children.home as DirectoryNode).children.player as DirectoryNode;
+    const newPlayerDir = {
+      ...playerDir,
+      children: {
+        ...playerDir.children,
+        "args.sh": {
+          type: "file" as const,
+          name: "args.sh",
+          content,
+          permissions: "rwxr-xr-x",
+          hidden: false,
+        },
+      },
+    };
+    const newHome = {
+      ...(root.children.home as DirectoryNode),
+      children: { ...(root.children.home as DirectoryNode).children, player: newPlayerDir },
+    };
+    const newRoot = { ...root, children: { ...root.children, home: newHome } };
+    return new VirtualFS(newRoot, "/home/player", "/home/player");
+  }
+
+  it("forwards positional args via `bash script.sh a b`", async () => {
+    const fs = withScript("echo $1-$2");
+    const result = await executeAsync("bash", ["args.sh", "one", "two"], {}, ctx(fs));
+    expect(result.output.trim()).toBe("one-two");
+  });
+
+  it("forwards positional args via `./script.sh a b`", async () => {
+    const fs = withScript("echo $1");
+    // For path commands, executePathCommand reads positional args from
+    // ctx.rawArgs (parseInput strips the command token in the real entry
+    // path); manually mirror that here.
+    const result = await executeAsync(
+      "/home/player/args.sh",
+      ["foo"],
+      {},
+      ctx(fs, { rawArgs: ["foo"] }),
+    );
+    expect(result.output.trim()).toBe("foo");
+  });
+});
+
+describe("true / false builtins", () => {
+  it("true returns exit code 0", async () => {
+    const result = await executeAsync("bash", ["true"], { c: true }, ctx());
+    // executeScript now propagates exit code
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("false returns exit code 1", async () => {
+    const result = await executeAsync("bash", ["false"], { c: true }, ctx());
+    expect(result.exitCode).toBe(1);
+  });
 });
 
 describe("command chaining in scripts", () => {

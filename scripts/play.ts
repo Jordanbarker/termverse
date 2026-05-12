@@ -33,6 +33,7 @@ import { createDefaultContext, SessionContext } from "../src/engine/snowflake/se
 import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
 import { resolvePath } from "../src/lib/pathUtils";
+import { extractStdoutRedirect } from "../src/engine/commands/redirection";
 import { PromptSessionInfo, PromptOption } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
@@ -104,23 +105,11 @@ export class GameRunner {
     const pipeline = parsePipeline(input);
 
     // Check for redirection in the last segment
-    let redirectFile: string | null = null;
-    let redirectAppend = false;
     const lastSegment = pipeline[pipeline.length - 1];
-    if (lastSegment.raw.includes(">>") || lastSegment.raw.includes(">")) {
-      const raw = lastSegment.raw;
-      const appendIdx = raw.indexOf(">>");
-      const overwriteIdx = raw.indexOf(">");
-      if (appendIdx !== -1) {
-        redirectAppend = true;
-        const parts = raw.split(">>");
-        pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-        redirectFile = parts[1].trim();
-      } else if (overwriteIdx !== -1) {
-        const parts = raw.split(">");
-        pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-        redirectFile = parts[1].trim();
-      }
+    const { command: stripped, redirectFile, redirectAppend } =
+      extractStdoutRedirect(lastSegment.raw);
+    if (redirectFile) {
+      pipeline[pipeline.length - 1] = parseInput(stripped);
     }
 
     const parsed = pipeline[0];
@@ -194,23 +183,11 @@ export class GameRunner {
     const pipeline = parsePipeline(input);
 
     // Check for redirection
-    let redirectFile: string | null = null;
-    let redirectAppend = false;
     const lastSegment = pipeline[pipeline.length - 1];
-    if (lastSegment.raw.includes(">>") || lastSegment.raw.includes(">")) {
-      const raw = lastSegment.raw;
-      const appendIdx = raw.indexOf(">>");
-      const overwriteIdx = raw.indexOf(">");
-      if (appendIdx !== -1) {
-        redirectAppend = true;
-        const parts = raw.split(">>");
-        pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-        redirectFile = parts[1].trim();
-      } else if (overwriteIdx !== -1) {
-        const parts = raw.split(">");
-        pipeline[pipeline.length - 1] = parseInput(parts[0].trim());
-        redirectFile = parts[1].trim();
-      }
+    const { command: stripped, redirectFile, redirectAppend } =
+      extractStdoutRedirect(lastSegment.raw);
+    if (redirectFile) {
+      pipeline[pipeline.length - 1] = parseInput(stripped);
     }
 
     const parsed = pipeline[0];
