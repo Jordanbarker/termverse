@@ -3,8 +3,14 @@ import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, FSNode } from "../../filesystem/types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { collectDescendantPaths } from "../../filesystem/walk";
 import { HELP_TEXTS } from "./helpTexts";
+import {
+  chmodIsRestrictive,
+  isLeadershipPath,
+  isLogTamperPath,
+  SecurityViolation,
+} from "../../../story/security";
 
 const PERM_MAP: Record<string, string> = {
   "0": "---", "1": "--x", "2": "-w-", "3": "-wx",
@@ -72,23 +78,6 @@ function defaultPermsForNode(node: FSNode): string {
   return node.permissions ?? (isDirectory(node) ? "rwxr-xr-x" : "rw-r--r--");
 }
 
-function collectPaths(fs: VirtualFS, root: string): string[] {
-  const out: string[] = [];
-  const rootNode = fs.getNode(root);
-  if (!rootNode) return out;
-  walkNode(rootNode, root, out);
-  return out;
-}
-
-function walkNode(node: FSNode, path: string, out: string[]): void {
-  out.push(path);
-  if (!isDirectory(node)) return;
-  for (const child of Object.values(node.children)) {
-    const childPath = path === "/" ? `/${child.name}` : `${path}/${child.name}`;
-    walkNode(child, childPath, out);
-  }
-}
-
 const chmod: CommandHandler = (args, flags, ctx) => {
   if (args.length < 2) {
     return { output: "chmod: missing operand\nUsage: chmod [-R] MODE FILE...", exitCode: 1 };
@@ -108,6 +97,8 @@ const chmod: CommandHandler = (args, flags, ctx) => {
 
   let currentFs = ctx.fs;
   const errors: string[] = [];
+  let securityViolation: SecurityViolation | undefined;
+  const checkTripwire = ctx.activeComputer === "nexacorp";
 
   for (const target of targets) {
     const absPath = resolvePath(target, ctx.cwd, ctx.homeDir);
@@ -117,12 +108,21 @@ const chmod: CommandHandler = (args, flags, ctx) => {
       continue;
     }
 
-    const paths = recursive ? collectPaths(currentFs, absPath) : [absPath];
+    const paths = recursive ? collectDescendantPaths(currentFs, absPath) : [absPath];
     for (const p of paths) {
       const node = currentFs.getNode(p);
       if (!node) continue;
       const currentPerms = defaultPermsForNode(node);
       const newPerms = octalPerms ?? applySymbolic(currentPerms, symbolicClauses!);
+
+      if (checkTripwire && !securityViolation && chmodIsRestrictive(currentPerms, newPerms)) {
+        if (isLogTamperPath(p)) {
+          securityViolation = { kind: "log_tampering", path: p };
+        } else if (isLeadershipPath(p)) {
+          securityViolation = { kind: "leadership_destruction", path: p };
+        }
+      }
+
       const result = currentFs.setPermissions(p, newPerms);
       if (result.error) {
         errors.push(result.error);
@@ -133,9 +133,9 @@ const chmod: CommandHandler = (args, flags, ctx) => {
   }
 
   if (errors.length > 0) {
-    return { output: errors.join("\n"), exitCode: 1, newFs: currentFs };
+    return { output: errors.join("\n"), exitCode: 1, newFs: currentFs, securityViolation };
   }
-  return { output: "", newFs: currentFs };
+  return { output: "", newFs: currentFs, securityViolation };
 };
 
 register("chmod", chmod, "Change file permissions", HELP_TEXTS.chmod);

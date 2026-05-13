@@ -8,6 +8,7 @@ import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
 import { ComputerId, StoryFlags } from "../../state/types";
+import { SecurityViolation } from "../../story/security";
 import { colorize, ansi } from "../../lib/ansi";
 import { listSaveSlots, formatSlotName } from "../../state/saveManager";
 import { commandReadsFiles } from "./registry";
@@ -48,6 +49,7 @@ export interface AppliedEffects {
   incrementalLines?: IncrementalLine[];
   closeTabsForComputer?: ComputerId;
   newMounts?: Mounts;
+  terminationReason?: SecurityViolation["kind"];
 }
 
 export interface ApplyContext {
@@ -103,8 +105,13 @@ export function computeEffects(
     effects.newCwd = result.newCwd;
   }
 
-  // Computer transitions
-  if (result.transitionTo) {
+  // Security tripwire: override any other transition and force a termination route home.
+  if (result.securityViolation) {
+    effects.transitionTo = "home";
+    effects.terminationReason = result.securityViolation.kind;
+    effects.suppressPrompt = true;
+    // Continue with event processing — termination handler owns the email/flag side effects.
+  } else if (result.transitionTo) {
     effects.transitionTo = result.transitionTo;
     effects.suppressPrompt = true;
     // Only early-return for first-time transitions (skip event processing)

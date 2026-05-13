@@ -549,7 +549,7 @@ async function executePipeline(
 
   // Apply redirection
   if (redirectFile && lastResult) {
-    const redir = applyRedirection(redirectFile, redirectAppend ?? false, lastResult, cwd, ctx.homeDir, fs);
+    const redir = applyRedirection(redirectFile, redirectAppend ?? false, lastResult, cwd, ctx.homeDir, fs, ctx.activeComputer);
     lastResult = redir.result;
     fs = redir.fs;
   }

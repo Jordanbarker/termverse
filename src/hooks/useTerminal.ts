@@ -259,7 +259,7 @@ export function useTerminal() {
             busyTabIdRef.current = null;
             if (effects.gameAction?.type === "shutdown") {
               runShutdownTransition(term);
-            } else if (effects.transitionTo && dispatchTransition(term, effects.transitionTo, computerId)) {
+            } else if (effects.transitionTo && dispatchTransition(term, effects.transitionTo, computerId, effects.terminationReason)) {
               // dispatchTransition handles its own notifications/prompt
             } else {
               writeNotifications(term, effects);
@@ -289,7 +289,7 @@ export function useTerminal() {
 
       // Computer transitions — source-aware dispatch (see dispatchTransition for the matrix).
       if (effects.transitionTo) {
-        if (dispatchTransition(term, effects.transitionTo, computerId)) {
+        if (dispatchTransition(term, effects.transitionTo, computerId, effects.terminationReason)) {
           return true;
         }
       }
@@ -553,6 +553,7 @@ export function useTerminal() {
             let stdin: string | undefined; // reset per chain segment
             let lastResult: import("../engine/commands/types").CommandResult = { output: "" };
             const allTriggerEvents: import("../engine/mail/delivery").GameEvent[] = [];
+            let pipelineViolation: import("../story/security").SecurityViolation | undefined;
 
             for (let pi = 0; pi < pipeline.length; pi++) {
               const p = pipeline[pi];
@@ -578,6 +579,10 @@ export function useTerminal() {
 
               if (lastResult.triggerEvents) {
                 allTriggerEvents.push(...lastResult.triggerEvents);
+              }
+
+              if (lastResult.securityViolation && !pipelineViolation) {
+                pipelineViolation = lastResult.securityViolation;
               }
 
               // Intermediate pipeline commands: generate file_read events
@@ -607,8 +612,12 @@ export function useTerminal() {
               lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
             }
 
+            if (pipelineViolation && !lastResult.securityViolation) {
+              lastResult = { ...lastResult, securityViolation: pipelineViolation };
+            }
+
             if (redirectFile && lastResult) {
-              const redir = applyRedirection(redirectFile, redirectAppend, lastResult, cwdRef.current, homeDir, runningFs);
+              const redir = applyRedirection(redirectFile, redirectAppend, lastResult, cwdRef.current, homeDir, runningFs, computerId);
               lastResult = redir.result;
               runningFs = redir.fs;
             }

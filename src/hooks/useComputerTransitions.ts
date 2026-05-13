@@ -16,6 +16,7 @@ import { colorize, ansi } from "../lib/ansi";
 import { nexacorpLogo, getSshConnectionSequence, getBootSequence, getHomeBootSequence, getCoderConnectionSequence, getCoderBanner, getHomeWelcome, UNLOCK_BOX, getUpdateNotification, getEndgameCreditsBlock } from "../lib/ascii";
 import { BOOT_LINE_INTERVAL_MS } from "../lib/timing";
 import { ComputerId, COMPUTERS } from "../state/types";
+import { SecurityViolation } from "../story/security";
 
 interface TransitionDeps {
   cwdRef: React.MutableRefObject<string>;
@@ -604,6 +605,92 @@ export function useComputerTransitions(deps: TransitionDeps) {
   }, [cwdRef, activeComputerRef, writePrompt]);
 
   /**
+   * Forced disconnect from NexaCorp after a security tripwire fires. Mirrors
+   * the FS-rebuild path of runExitToHome but: prints a hostile-disconnect line,
+   * sets the termination flags before delivery, and triggers the termination
+   * email via a synthesized `terminated` event.
+   */
+  const runTerminationTransition = useCallback(
+    (term: Terminal, reason: SecurityViolation["kind"]) => {
+      const store = useGameStore.getState();
+      store.setGamePhase("transitioning");
+
+      term.writeln("");
+      term.writeln(colorize("Connection to nexacorp closed by remote host.", ansi.red));
+
+      setTimeout(() => {
+        const s = useGameStore.getState();
+
+        const tabsToClose = s.tabs.filter(
+          (t) =>
+            (t.computerId === "nexacorp" ||
+              t.computerId === "devcontainer" ||
+              t.computerId === "chipinfra") &&
+            t.id !== s.activeTabId
+        );
+        for (const t of tabsToClose) s.removeTab(t.id);
+
+        s.setStoryFlag("terminated_for_misconduct", true);
+        s.setStoryFlag("termination_reason", reason);
+
+        const username = s.username;
+        const prevHomeFs = s.computerState.home?.fs;
+        const readIds = prevHomeFs
+          ? getReadEmailIds(prevHomeFs, getEmailDefinitions(username, "home").map((d) => d.email))
+          : new Set<string>();
+
+        const root = createHomeFilesystem(username);
+        let newFs = new VirtualFS(root, `/home/${username}`, `/home/${username}`);
+
+        const sAfterFlags = useGameStore.getState();
+        const allDelivered = sAfterFlags.deliveredEmailIds;
+        if (allDelivered.length > 0) {
+          newFs = seedDeliveredEmails(newFs, allDelivered, "home", username, readIds, sAfterFlags.storyFlags);
+        }
+
+        if (prevHomeFs) {
+          const knownHostsPath = `/home/${username}/.ssh/known_hosts`;
+          const prev = prevHomeFs.readFile(knownHostsPath);
+          if (prev.content) {
+            const result = newFs.writeFile(knownHostsPath, prev.content);
+            if (result.fs) newFs = result.fs;
+          }
+        }
+
+        sAfterFlags.initComputer("home", newFs);
+        sAfterFlags.removeComputer("nexacorp");
+        sAfterFlags.removeComputer("devcontainer");
+        sAfterFlags.removeComputer("chipinfra");
+
+        const homeCwd = newFs.cwd;
+        sAfterFlags.setTabComputer(sAfterFlags.activeTabId, "home", homeCwd);
+        activeComputerRef.current = "home";
+        cwdRef.current = homeCwd;
+
+        const finalState = useGameStore.getState();
+        const homeFs = finalState.computerState.home?.fs ?? newFs;
+        const deliveryResult = checkEmailDeliveries(
+          homeFs,
+          { type: "terminated", detail: reason },
+          [...finalState.deliveredEmailIds],
+          "home",
+          finalState.storyFlags
+        );
+        if (deliveryResult.newDeliveries.length > 0) {
+          finalState.setComputerFs("home", deliveryResult.fs);
+          finalState.addDeliveredEmails(deliveryResult.newDeliveries);
+          term.writeln("");
+          term.write(colorize(`You have new mail in /var/mail/${username}`, ansi.yellow, ansi.bold));
+        }
+
+        useGameStore.getState().setGamePhase("playing");
+        writePrompt(term);
+      }, 1200);
+    },
+    [cwdRef, activeComputerRef, writePrompt]
+  );
+
+  /**
    * Source-aware transition dispatcher. Centralizes the matrix of
    * (transitionTo × sourceComputer) → which transition function to run.
    * Both the command-result dispatcher in useTerminal and the session-result
@@ -612,7 +699,17 @@ export function useComputerTransitions(deps: TransitionDeps) {
    * Returns true if a transition was dispatched.
    */
   const dispatchTransition = useCallback(
-    (term: Terminal, transitionTo: ComputerId, sourceComputer: ComputerId): boolean => {
+    (
+      term: Terminal,
+      transitionTo: ComputerId,
+      sourceComputer: ComputerId,
+      terminationReason?: SecurityViolation["kind"],
+    ): boolean => {
+      // Security tripwire: forced disconnect from nexacorp.
+      if (transitionTo === "home" && sourceComputer === "nexacorp" && terminationReason) {
+        runTerminationTransition(term, terminationReason);
+        return true;
+      }
       // First-time pivots from nexacorp → coder workspace
       if (transitionTo === "devcontainer") {
         runCoderTransition(term, "devcontainer");
@@ -649,8 +746,8 @@ export function useComputerTransitions(deps: TransitionDeps) {
       }
       return false;
     },
-    [runCoderTransition, runExitToParent, runSshTransition, runExitToHome]
+    [runCoderTransition, runExitToParent, runSshTransition, runExitToHome, runTerminationTransition]
   );
 
-  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToParent, runExitToHome, runShutdownTransition, dispatchTransition };
+  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToParent, runExitToHome, runShutdownTransition, runTerminationTransition, dispatchTransition };
 }

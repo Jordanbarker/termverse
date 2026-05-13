@@ -6,6 +6,7 @@ import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
 import type { ComputerId, StoryFlags } from "../../state/types";
 import { GameEvent } from "../mail/delivery";
+import { SecurityViolation } from "../../story/security";
 import { SnowflakeState } from "../snowflake/state";
 import { SessionContext } from "../snowflake/session/context";
 
@@ -94,6 +95,8 @@ export interface CommandResult {
   incrementalLines?: IncrementalLine[];
   closeTabsForComputer?: ComputerId;
   newMounts?: Mounts;
+  securityViolation?: SecurityViolation;
+  terminationReason?: SecurityViolation["kind"];
 }
 
 export interface IncrementalLine {

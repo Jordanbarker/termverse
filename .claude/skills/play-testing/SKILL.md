@@ -43,6 +43,9 @@ export class GameRunner {
   snowflakeState: SnowflakeState;
   completedObjectives: string[];
   pendingPrompt: PromptSessionInfo | null;
+  envVars: Record<ComputerId, Record<string, string>>;
+  aliases: Record<ComputerId, Record<string, string>>;
+  mounts: Record<ComputerId, Mounts>;
 
   constructor(computer: ComputerId = "home")
   run(input: string): CommandOutput              // Synchronous command execution
@@ -50,7 +53,7 @@ export class GameRunner {
   selectOption(choice: number): CommandOutput     // Resolve pending prompt (1-indexed)
   writeFile(path: string, content: string): void  // Direct file write (replaces nano)
   runPython(code: string): string                 // Execute Python via child_process
-  switchComputer(to: ComputerId): void            // Instant computer transition
+  switchComputer(to: ComputerId): void            // Instant computer transition (all 5 computers)
   status(): string                                // Game state summary
 }
 ```
@@ -67,7 +70,11 @@ Resolves a pending inline prompt (from `mail` reply options). Fires `triggerEven
 
 ### `switchComputer(to)`
 
-Rebuilds the filesystem for the target computer (`"home"` or `"nexacorp"`), resets `cwd` to home directory. Story flags carry over (used by `createNexacorpFilesystem`).
+Rebuilds the filesystem for the target computer (`"home"`, `"nexacorp"`, `"devcontainer"`, `"chipinfra"`, or `"erik-pc"`), resets `cwd` to that computer's home directory (uses `getComputerUsername` so `erik-pc` lands in `/home/erik`), and reinitializes `envVars` and `aliases` for the computer via `initEnvForComputer`/`initAliasesForComputer`. Story flags carry over.
+
+### Env / aliases / mounts persistence
+
+The runner mirrors the Zustand store's per-computer state. `export FOO=bar` is preserved across subsequent `run()` calls on the same computer; switching computers loads that computer's separately tracked env. Same for `alias` and for the per-computer `mounts` map (USB on home, etc.).
 
 ## CommandOutput Type
 
@@ -94,7 +101,7 @@ Run the REPL: `npx tsx scripts/play.ts`
 | `:flags` | List all story flags and values |
 | `:emails` | List delivered email IDs |
 | `:objectives` | List completed objectives |
-| `:switch home\|nexacorp` | Switch computer |
+| `:switch home\|nexacorp\|devcontainer` | Switch computer (REPL exposes the 3 common ones; programmatic `switchComputer` supports all 5 including `chipinfra` and `erik-pc`) |
 | `:select N` | Resolve pending prompt (choose option N) |
 | `:write PATH TEXT` | Write file directly (replaces nano) |
 | `:python CODE` | Run Python code via child_process |
@@ -145,3 +152,12 @@ runner.switchComputer("nexacorp");
 - **Test story flag triggers**: Run commands, inspect `runner.storyFlags`
 - **Test full home→NexaCorp flow**: Read emails → accept offer → read followup → check `sshSessionStarted` → `:switch nexacorp`
 - **Test dbt/SQL**: `:switch nexacorp` → `await runner.runAsync("dbt run")` → `runner.run("snow sql")`
+
+### Multi-arc regression playtest
+
+`scripts/playtest_arcs.ts` exercises each major story arc end-to-end with a fresh runner per scenario: home main path, Olive's challenges, backup quest, rejection branch (×3), Edward onboarding, Oscar logs, Auri dbt, Dana ops, end-of-day shutdown, USB tip, Day 2 pipeline fix, plugin build on chipinfra, Loose Thread pivot (chipinfra → erik-pc), Marcus endgame (all four accusations), and security tripwires. Run with `npx tsx scripts/playtest_arcs.ts`.
+
+Two known limitations to plan around when extending the script:
+
+- **Piper replies aren't interactively driven by the headless runner.** Where a piper-reply unlock flag would normally fire from `useSessionRouter.ts` (e.g., `search_tools_unlocked` from Oscar's DM accept), set the flag manually via a `simulatePiperUnlocks(runner, "search_tools_unlocked", ...)` helper and note the simulation. This is fine for arc coverage; for piper-reply correctness, lean on the per-message vitest suites instead.
+- **`.git` doesn't live in FS builders.** It's created at runtime by `git clone` / `git init`. When testing Day 2 pipeline flows from a fresh runner, run `git clone` first; don't pre-set `dbt_project_cloned: true` (that bakes the dbt tree but no `.git`, leaving `git pull` / `checkout -b` failing). The real game persists `.git` via Zustand across days.

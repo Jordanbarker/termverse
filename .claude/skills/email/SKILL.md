@@ -64,7 +64,8 @@ type EmailTrigger =
   | { type: "after_email_read"; emailId: string }
   | { type: "after_command"; command: string; requiredFlags?: string[] }
   | { type: "after_objective"; objectiveId: string }
-  | { type: "after_story_flag"; flag: string; requiredFlags?: string[] };
+  | { type: "after_story_flag"; flag: string; requiredFlags?: string[] }
+  | { type: "after_event_detail"; eventType: GameEvent["type"]; detail: string };
 
 type GameEvent =
   | { type: "command_executed"; detail: string }
@@ -72,8 +73,11 @@ type GameEvent =
   | { type: "objective_completed"; detail: string }
   | { type: "directory_visit"; detail: string }
   | { type: "directory_created"; detail: string }
-  | { type: "piper_delivered"; detail: string };
+  | { type: "piper_delivered"; detail: string }
+  | { type: "terminated"; detail: "log_tampering" | "leadership_destruction" | "exfiltration" };
 ```
+
+`after_event_detail` matches any `GameEvent` whose `type` and `detail` both equal the trigger's fields. Use it when the same event type (`terminated`, `objective_completed`, etc.) needs to fan out to multiple emails keyed off `detail`. The three home termination emails (`termination_log_tampering`, `termination_leadership_destruction`, `termination_exfiltration`) all match on the synthesized `{ type: "terminated", detail }` event fired by `runTerminationTransition` in `useComputerTransitions.ts` after a security tripwire.
 
 ### Parsed Types (`mail/mailUtils.ts`)
 

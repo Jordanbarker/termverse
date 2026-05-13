@@ -171,6 +171,12 @@ export const STORY_FLAG_NAMES = [
   // the email id), completing the chapter.
   "returned_home_day2",
   "read_board_debrief_day2",
+
+  // Security tripwire / forced termination. Set by runTerminationTransition
+  // after the player trips a file-integrity / DLP rule on nexacorp. Locks
+  // `ssh nexacorp` and drives the three home termination emails.
+  "terminated_for_misconduct",
+  "termination_reason",
 ] as const;
 
 export type StoryFlagName = (typeof STORY_FLAG_NAMES)[number];

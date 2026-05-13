@@ -14,6 +14,9 @@ export const HOME_EMAIL_IDS = [
   "chip_ssh_setup",
   "marcus_board_debrief",
   "hr_security_freeze",
+  "termination_log_tampering",
+  "termination_leadership_destruction",
+  "termination_exfiltration",
 ] as const;
 export type HomeEmailId = (typeof HOME_EMAIL_IDS)[number];
 
@@ -373,6 +376,107 @@ If you believe this was triggered in error, reply to this thread.
         flag: "returned_home_day2",
         requiredFlags: ["pivoted_to_erik_pc", "tracks_exposed_chapter4"],
       },
+    },
+
+    // Termination emails — delivered by runTerminationTransition after a
+    // security tripwire (rm/chmod/redirect on protected log paths, rm/chmod
+    // on /srv/leadership/, or cp/mv of leadership material to player's home).
+    // Exactly one fires per playthrough, chosen by the SecurityViolation kind
+    // surfaced via the synthesized `terminated` event.
+    {
+      email: {
+        id: "termination_log_tampering",
+        from: "NexaCorp HR <hr@nexacorp.io>",
+        to: `${username}@email.com`,
+        date: "Tue, 24 Feb 2026 14:32:00",
+        subject: "Termination of Employment — Effective Immediately",
+        body: `${PLAYER.displayName},
+
+This notice confirms the termination of your employment with NexaCorp,
+effective immediately. File integrity monitoring on workstation
+nexacorp-ws01 recorded unauthorized modification of system audit logs
+under /var/log/ earlier today. Tampering with audit records is
+categorized as gross misconduct under Section 4.1 of the Employee
+Handbook and is grounds for immediate dismissal.
+
+Your workstation, VPN, and Coder credentials have been revoked. A
+legal-hold notice covering your personal devices and accounts has
+been issued; please preserve all NexaCorp-related material pending
+further instruction from outside counsel.
+
+Your final paycheck, including any accrued PTO, will be processed
+via ACH within five business days.
+
+HR Department
+NexaCorp
+`,
+      },
+      trigger: { type: "after_event_detail", eventType: "terminated", detail: "log_tampering" },
+    },
+
+    {
+      email: {
+        id: "termination_leadership_destruction",
+        from: "NexaCorp HR <hr@nexacorp.io>",
+        to: `${username}@email.com`,
+        date: "Tue, 24 Feb 2026 14:32:00",
+        subject: "Termination of Employment — Effective Immediately",
+        body: `${PLAYER.displayName},
+
+This notice confirms the termination of your employment with NexaCorp,
+effective immediately. Earlier today, NexaCorp recorded the
+destruction of confidential corporate records under /srv/leadership/
+from your workstation session. This violates Section 4.2 of the
+Employee Handbook (Misuse of Company Assets) and constitutes gross
+misconduct.
+
+The destroyed materials included investor and board documentation
+covered by ongoing securities and audit obligations. Outside counsel
+has been engaged to evaluate disclosure requirements; you may be
+contacted directly by their office.
+
+Your workstation, VPN, and Coder credentials have been revoked. All
+NexaCorp-related material on your personal devices is subject to a
+legal hold effective immediately. Final pay and accrued PTO will be
+processed via ACH within five business days.
+
+HR Department
+NexaCorp
+`,
+      },
+      trigger: { type: "after_event_detail", eventType: "terminated", detail: "leadership_destruction" },
+    },
+
+    {
+      email: {
+        id: "termination_exfiltration",
+        from: "NexaCorp HR <hr@nexacorp.io>",
+        to: `${username}@email.com`,
+        date: "Tue, 24 Feb 2026 14:32:00",
+        subject: "Termination of Employment — Effective Immediately",
+        body: `${PLAYER.displayName},
+
+This notice confirms the termination of your employment with NexaCorp,
+effective immediately. NexaCorp's data loss prevention controls
+recorded the transfer of confidential financial and HR materials
+from /srv/leadership/ to personal storage on your workstation. This
+is a direct violation of the Non-Disclosure Agreement you executed at
+hire and Section 6.1 of the Employee Handbook.
+
+Outside counsel has been retained and civil action under the NDA and
+applicable trade-secret statutes is under active consideration. You
+are directed to preserve, and not to access, copy, transmit, or
+delete any of the affected materials pending further instruction.
+
+Your workstation, VPN, and Coder credentials have been revoked.
+Final pay and accrued PTO will be processed via ACH within five
+business days.
+
+HR Department
+NexaCorp
+`,
+      },
+      trigger: { type: "after_event_detail", eventType: "terminated", detail: "exfiltration" },
     },
   ];
 }

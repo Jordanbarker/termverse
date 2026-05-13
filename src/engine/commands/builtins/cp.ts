@@ -5,6 +5,7 @@ import { resolvePath } from "../../../lib/pathUtils";
 import { isFile, isDirectory, DirectoryNode } from "../../filesystem/types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";
+import { opTouchesProtectedPath } from "../../../story/security";
 
 function copyDir(
   fs: VirtualFS,
@@ -75,6 +76,11 @@ const cp: CommandHandler = (args, flags, ctx) => {
     if (destNode && isDirectory(destNode)) {
       destPath = destPath + "/" + srcNode.name;
     }
+    const securityViolation = opTouchesProtectedPath(ctx.fs, srcPath, "cp", {
+      computerId: ctx.activeComputer,
+      homeDir: ctx.homeDir,
+      destPath,
+    }) ?? undefined;
     const createdPaths: string[] = [];
     const modifiedPaths: string[] = [];
     const createdDirPaths: string[] = [];
@@ -88,6 +94,7 @@ const cp: CommandHandler = (args, flags, ctx) => {
         ...createdPaths.map((p) => ({ type: "file_created" as const, detail: p })),
         ...modifiedPaths.map((p) => ({ type: "file_modified" as const, detail: p })),
       ],
+      securityViolation,
     };
   }
 
@@ -96,6 +103,12 @@ const cp: CommandHandler = (args, flags, ctx) => {
   if (destNode && isDirectory(destNode)) {
     destPath = destPath + "/" + srcNode.name;
   }
+
+  const securityViolation = opTouchesProtectedPath(ctx.fs, srcPath, "cp", {
+    computerId: ctx.activeComputer,
+    homeDir: ctx.homeDir,
+    destPath,
+  }) ?? undefined;
 
   const existedBefore = !!ctx.fs.getNode(destPath);
   const writeResult = ctx.fs.writeFile(destPath, srcNode.content);
@@ -109,6 +122,7 @@ const cp: CommandHandler = (args, flags, ctx) => {
     triggerEvents: [
       { type: existedBefore ? "file_modified" : "file_created", detail: destPath },
     ],
+    securityViolation,
   };
 };
 

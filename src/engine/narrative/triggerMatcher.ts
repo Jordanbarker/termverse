@@ -7,7 +7,8 @@ export type CommonTrigger =
   | { type: "after_email_read"; emailId: string }
   | { type: "after_command"; command: string; requiredFlags?: string[] }
   | { type: "after_objective"; objectiveId: string }
-  | { type: "after_story_flag"; flag: string; requireDelivered?: string; requiredFlags?: string[] };
+  | { type: "after_story_flag"; flag: string; requireDelivered?: string; requiredFlags?: string[] }
+  | { type: "after_event_detail"; eventType: GameEvent["type"]; detail: string };
 
 export function matchesCommonTrigger(
   trigger: CommonTrigger,
@@ -42,5 +43,7 @@ export function matchesCommonTrigger(
         return deliveredIds.includes(trigger.requireDelivered) || newDeliveries.includes(trigger.requireDelivered);
       }
       return true;
+    case "after_event_detail":
+      return event.type === trigger.eventType && event.detail === trigger.detail;
   }
 }

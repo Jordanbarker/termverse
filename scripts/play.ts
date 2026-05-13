@@ -27,13 +27,18 @@ import { VirtualFS } from "../src/engine/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
 import { createNexacorpFilesystem } from "../src/story/filesystem/nexacorp";
 import { createDevcontainerFilesystem } from "../src/story/filesystem/devcontainer";
+import { createChipinfraFilesystem } from "../src/story/filesystem/chipinfra";
+import { createErikpcFilesystem } from "../src/story/filesystem/erikpc";
+import { getComputerUsername } from "../src/story/player";
+import { initEnvForComputer, initAliasesForComputer } from "../src/story/env";
+import { Mounts } from "../src/engine/filesystem/mounts";
 import { SnowflakeState } from "../src/engine/snowflake/state";
 import { createInitialSnowflakeState } from "../src/engine/snowflake/seed/initial_data";
 import { createDefaultContext, SessionContext } from "../src/engine/snowflake/session/context";
 import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
 import { resolvePath } from "../src/lib/pathUtils";
-import { extractStdoutRedirect } from "../src/engine/commands/redirection";
+import { extractStdoutRedirect, applyRedirection } from "../src/engine/commands/redirection";
 import { PromptSessionInfo, PromptOption } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
@@ -67,6 +72,9 @@ export class GameRunner {
   snowflakeContext: SessionContext;
   completedObjectives: string[];
   pendingPrompt: PromptSessionInfo | null;
+  envVars: Record<ComputerId, Record<string, string>>;
+  aliases: Record<ComputerId, Record<string, string>>;
+  mounts: Record<ComputerId, Mounts>;
 
   constructor(computer: ComputerId = "home") {
     this.username = PLAYER.username;
@@ -79,6 +87,9 @@ export class GameRunner {
     this.snowflakeContext = createDefaultContext(this.username);
     this.completedObjectives = [];
     this.pendingPrompt = null;
+    this.envVars = { home: {}, nexacorp: {}, devcontainer: {}, chipinfra: {}, "erik-pc": {} };
+    this.aliases = { home: {}, nexacorp: {}, devcontainer: {}, chipinfra: {}, "erik-pc": {} };
+    this.mounts = { home: {}, nexacorp: {}, devcontainer: {}, chipinfra: {}, "erik-pc": {} };
 
     const root = computer === "home"
       ? createHomeFilesystem(this.username)
@@ -86,6 +97,8 @@ export class GameRunner {
     const homeDir = `/home/${this.username}`;
     this.fs = new VirtualFS(root, homeDir, homeDir);
     this.cwd = homeDir;
+    this.envVars[computer] = initEnvForComputer(computer, this.username, this.fs);
+    this.aliases[computer] = initAliasesForComputer(computer, this.username, this.fs);
 
     // Deliver immediate emails (baked into FS already via filesystem factories)
     // Track their IDs so they don't re-deliver
@@ -140,6 +153,13 @@ export class GameRunner {
         snowflakeContext: this.snowflakeContext,
         setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
         deliveredPiperIds: this.deliveredPiperIds,
+        envVars: this.envVars[this.activeComputer],
+        setEnvVars: (env: Record<string, string>) => { this.envVars[this.activeComputer] = env; },
+        aliases: this.aliases[this.activeComputer],
+        setAliases: (a: Record<string, string>) => { this.aliases[this.activeComputer] = a; },
+        mounts: this.mounts[this.activeComputer],
+        setMounts: (m: Mounts) => { this.mounts[this.activeComputer] = m; },
+        setCwd: (newCwd: string) => { this.cwd = newCwd; },
       };
 
       if (isAsyncCommand(p.command)) {
@@ -159,19 +179,12 @@ export class GameRunner {
 
     // Handle redirection
     if (redirectFile && lastResult) {
-      const absPath = resolvePath(redirectFile, this.cwd, this.fs.homeDir);
-      let content = lastResult.output;
-      if (redirectAppend) {
-        const existing = this.fs.readFile(absPath);
-        if (existing.content !== undefined) {
-          content = existing.content + "\n" + content;
-        }
-      }
-      const writeResult = this.fs.writeFile(absPath, content);
-      if (writeResult.fs) {
-        this.fs = writeResult.fs;
-      }
-      lastResult = { ...lastResult, output: "" };
+      const r = applyRedirection(
+        redirectFile, !!redirectAppend, lastResult,
+        this.cwd, this.fs.homeDir, this.fs, this.activeComputer,
+      );
+      lastResult = r.result;
+      this.fs = r.fs;
     }
 
     return this.applyEffects(lastResult, pipeline[pipeline.length - 1]);
@@ -217,6 +230,13 @@ export class GameRunner {
         snowflakeContext: this.snowflakeContext,
         setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
         deliveredPiperIds: this.deliveredPiperIds,
+        envVars: this.envVars[this.activeComputer],
+        setEnvVars: (env: Record<string, string>) => { this.envVars[this.activeComputer] = env; },
+        aliases: this.aliases[this.activeComputer],
+        setAliases: (a: Record<string, string>) => { this.aliases[this.activeComputer] = a; },
+        mounts: this.mounts[this.activeComputer],
+        setMounts: (m: Mounts) => { this.mounts[this.activeComputer] = m; },
+        setCwd: (newCwd: string) => { this.cwd = newCwd; },
       };
 
       if (isAsyncCommand(p.command)) {
@@ -234,19 +254,12 @@ export class GameRunner {
 
     // Handle redirection
     if (redirectFile && lastResult) {
-      const absPath = resolvePath(redirectFile, this.cwd, this.fs.homeDir);
-      let content = lastResult.output;
-      if (redirectAppend) {
-        const existing = this.fs.readFile(absPath);
-        if (existing.content !== undefined) {
-          content = existing.content + "\n" + content;
-        }
-      }
-      const writeResult = this.fs.writeFile(absPath, content);
-      if (writeResult.fs) {
-        this.fs = writeResult.fs;
-      }
-      lastResult = { ...lastResult, output: "" };
+      const r = applyRedirection(
+        redirectFile, !!redirectAppend, lastResult,
+        this.cwd, this.fs.homeDir, this.fs, this.activeComputer,
+      );
+      lastResult = r.result;
+      this.fs = r.fs;
     }
 
     return this.applyEffects(lastResult, pipeline[pipeline.length - 1]);
@@ -355,15 +368,24 @@ export class GameRunner {
       case "devcontainer":
         root = createDevcontainerFilesystem(this.username, this.storyFlags);
         break;
+      case "chipinfra":
+        root = createChipinfraFilesystem(this.username, this.storyFlags);
+        break;
+      case "erik-pc":
+        root = createErikpcFilesystem(this.username);
+        break;
       default:
         root = createNexacorpFilesystem(this.username, this.storyFlags);
         break;
     }
-    const homeDir = `/home/${this.username}`;
+    const shellUser = getComputerUsername(to, this.username);
+    const homeDir = `/home/${shellUser}`;
     this.fs = new VirtualFS(root, homeDir, homeDir);
     this.cwd = homeDir;
     this.snowflakeState = createInitialSnowflakeState({ includeDay2: !!this.storyFlags.day1_shutdown });
     this.snowflakeContext = createDefaultContext(this.username);
+    this.envVars[to] = initEnvForComputer(to, this.username, this.fs);
+    this.aliases[to] = initAliasesForComputer(to, this.username, this.fs);
   }
 
   /** Return a summary of the current game state. */

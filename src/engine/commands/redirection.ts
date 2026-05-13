@@ -1,6 +1,8 @@
 import { CommandResult } from "./types";
 import { VirtualFS } from "../filesystem/VirtualFS";
 import { resolvePath } from "../../lib/pathUtils";
+import { ComputerId } from "../../state/types";
+import { isLogTamperPath } from "../../story/security";
 
 export interface ExtractedRedirect {
   /** Pipeline segment with any 2>… and the chosen >/>> token removed. */
@@ -84,6 +86,7 @@ export function applyRedirection(
   currentCwd: string,
   homeDir: string,
   currentFs: VirtualFS,
+  computerId: ComputerId,
 ): { result: CommandResult; fs: VirtualFS } {
   const absPath = resolvePath(redirectFile, currentCwd, homeDir);
 
@@ -109,8 +112,14 @@ export function applyRedirection(
     : { type: "file_created" as const, detail: absPath };
   const mergedEvents = [...(lastResult.triggerEvents ?? []), redirectEvent];
 
+  const securityViolation =
+    lastResult.securityViolation ??
+    (computerId === "nexacorp" && isLogTamperPath(absPath)
+      ? { kind: "log_tampering" as const, path: absPath }
+      : undefined);
+
   return {
-    result: { ...lastResult, output: "", triggerEvents: mergedEvents },
+    result: { ...lastResult, output: "", triggerEvents: mergedEvents, securityViolation },
     fs: newFs,
   };
 }

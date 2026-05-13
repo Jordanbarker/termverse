@@ -6,6 +6,7 @@ import { resolvePath } from "../../../lib/pathUtils";
 import { FSNode, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "../../filesystem/VirtualFS";
+import { opTouchesProtectedPath, SecurityViolation } from "../../../story/security";
 
 function collectRemoveEvents(node: FSNode, path: string): GameEvent[] {
   const out: GameEvent[] = [];
@@ -30,6 +31,7 @@ const rm: CommandHandler = (args, flags, ctx) => {
   const force = flags["f"];
   let currentFs: VirtualFS = ctx.fs;
   const triggerEvents: GameEvent[] = [];
+  let securityViolation: SecurityViolation | undefined;
 
   for (const arg of args) {
     const absPath = resolvePath(arg, ctx.cwd, ctx.homeDir);
@@ -44,6 +46,14 @@ const rm: CommandHandler = (args, flags, ctx) => {
       return { output: `rm: cannot remove '${arg}': Is a directory`, exitCode: 1 };
     }
 
+    if (!securityViolation) {
+      const v = opTouchesProtectedPath(currentFs, absPath, "rm", {
+        computerId: ctx.activeComputer,
+        homeDir: ctx.homeDir,
+      });
+      if (v) securityViolation = v;
+    }
+
     const events = collectRemoveEvents(node, absPath);
     const result = currentFs.removeNode(absPath);
     if (result.error) {
@@ -53,7 +63,7 @@ const rm: CommandHandler = (args, flags, ctx) => {
     triggerEvents.push(...events);
   }
 
-  return { output: "", newFs: currentFs, triggerEvents };
+  return { output: "", newFs: currentFs, triggerEvents, securityViolation };
 };
 
 register("rm", rm, "Remove files or directories", HELP_TEXTS.rm);

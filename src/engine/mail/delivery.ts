@@ -14,7 +14,8 @@ export type GameEvent =
   | { type: "file_created"; detail: string }
   | { type: "file_modified"; detail: string }
   | { type: "file_removed"; detail: string }
-  | { type: "piper_delivered"; detail: string };
+  | { type: "piper_delivered"; detail: string }
+  | { type: "terminated"; detail: "log_tampering" | "leadership_destruction" | "exfiltration" };
 
 export function checkEmailDeliveries(
   fs: VirtualFS,

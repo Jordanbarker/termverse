@@ -80,6 +80,15 @@ const ssh: CommandHandler = (args, _flags, ctx) => {
     return { output: `${requestedUser}@${resolved.host}: Permission denied (publickey).` };
   }
 
+  // Terminated employees: NexaCorp SSO is deactivated. Refuse the connection
+  // with a realistic auth failure — same shape as a wrong-user rejection.
+  if (
+    matchingHostRoute.targetComputer === "nexacorp" &&
+    ctx.storyFlags?.terminated_for_misconduct
+  ) {
+    return { output: `${requestedUser}@${resolved.host}: Permission denied (publickey,password).` };
+  }
+
   // Agent-forwarding routes require a valid SSH_AUTH_SOCK pointing at a socket
   // whose adjacent .user-<name> marker matches the expected agent owner.
   if (matchingHostRoute.requiresAgent) {

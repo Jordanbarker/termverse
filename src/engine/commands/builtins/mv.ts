@@ -5,6 +5,7 @@ import { setKnownFlags } from "../flagValidation";
 import { basename, resolvePath } from "../../../lib/pathUtils";
 import { DirectoryNode, FSNode, isFile, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
+import { opTouchesProtectedPath } from "../../../story/security";
 
 function buildMoveEvents(srcNode: FSNode, srcPath: string, destPath: string): GameEvent[] {
   const events: GameEvent[] = [];
@@ -90,6 +91,12 @@ const mv: CommandHandler = (args, _flags, ctx) => {
     }
   }
 
+  const securityViolation = opTouchesProtectedPath(ctx.fs, srcPath, "mv", {
+    computerId: ctx.activeComputer,
+    homeDir: ctx.homeDir,
+    destPath,
+  }) ?? undefined;
+
   // --- File branch ---
   if (isFile(srcNode)) {
     const existedBefore = !!finalDestNode;
@@ -108,6 +115,7 @@ const mv: CommandHandler = (args, _flags, ctx) => {
         { type: existedBefore ? "file_modified" : "file_created", detail: destPath },
         { type: "file_removed", detail: srcPath },
       ],
+      securityViolation,
     };
   }
 
@@ -126,6 +134,7 @@ const mv: CommandHandler = (args, _flags, ctx) => {
     output: "",
     newFs: removeResult.fs,
     triggerEvents: buildMoveEvents(srcNode, srcPath, destPath),
+    securityViolation,
   };
 };
 

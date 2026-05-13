@@ -91,7 +91,7 @@ interface SessionRouterDeps {
   activeComputerRef: React.MutableRefObject<ComputerId>;
   writePrompt: (term: Terminal) => void;
   getPrompt: () => string;
-  dispatchTransition: (term: Terminal, transitionTo: ComputerId, sourceComputer: ComputerId) => boolean;
+  dispatchTransition: (term: Terminal, transitionTo: ComputerId, sourceComputer: ComputerId, terminationReason?: import("../story/security").SecurityViolation["kind"]) => boolean;
   pendingNotificationsRef: React.MutableRefObject<{ email: number; piper: number } | null>;
 }
 
