@@ -174,7 +174,7 @@ These groupings reflect the comment headers in `src/story/storyFlags.ts`. When a
 - **Backup quest (Quest 2)**: `backup_quest_started`, `created_backups_dir`, `copied_scripts_backup`, `created_backup_log`, `verified_backup`
 - **Olive's Power Tools (Quest 4, post day 1)**: `olive_power_tools_read`, `used_grep_at_home`, `used_wc_at_home`, `used_history_redirect`, `used_sort_uniq_home`, `used_find_home`
 - **NexaCorp onboarding & gating**: `read_onboarding`, `read_team_info`, `read_handoff_notes`, `coder_unlocked`, `coder_workspace_stopped`, `chip_unlocked`, `chip_error_seen`, `printenv_unlocked`, `sourced_nexacorp_zshrc`, `piper_unlocked`, `chmod_unlocked`, `search_tools_unlocked`, `inspection_tools_unlocked`, `processing_tools_unlocked`, `devcontainer_visited`
-- **Investigation breadcrumbs**: `oscar_searched_logs`, `oscar_checked_backups`, `oscar_diffed_logs`, `oscar_access_completed`, `auri_listed_handoff`, `auri_read_todo`, `auri_used_head`, `auri_used_tail`, `auri_used_wc`, `found_backup_files`, `found_auth_backup`, `found_chip_directives`, `found_cleanup_script`, `discovered_log_tampering`, `found_inflated_metrics`, `used_chip_topics`
+- **Investigation breadcrumbs**: `oscar_searched_logs`, `oscar_checked_backups`, `oscar_diffed_logs`, `oscar_access_completed`, `oscar_read_access_log`, `chip_reviewed_access_log`, `auri_listed_handoff`, `auri_read_todo`, `auri_used_head`, `auri_used_tail`, `auri_used_wc`, `found_backup_files`, `found_auth_backup`, `found_chip_directives`, `found_cleanup_script`, `discovered_log_tampering`, `found_inflated_metrics`, `used_chip_topics`
 - **Side quests (Day 1)**: `read_end_of_day`, `read_ops_incidents`, `read_board_minutes`, `read_headcount_plan`, `auri_dbt_reported`, `dbt_project_cloned`, `ran_dbt`
 - **Day 2 pipeline fix (devcontainer)**: `pulled_day2_updates`, `dbt_test_failed_day2`, `investigated_null_data`, `created_fix_branch`, `fixed_campaign_model`, `pushed_fix_branch`, `reported_fix_to_auri`
 - **Day 2 anonymous USB tip + Loose Thread**: `anon_tip_quest_started`, `anon_tip_dm_resolved`, `accepted_usb_drive`, `declined_usb_tip`, `ran_lsblk_for_usb`, `mounted_usb_drive`, `read_usb_note`, `loose_thread_quest_started` (drives the home-side `dm_anon` Piper DM that introduces `mount`/`umount` and opens "Pulling at a Loose Thread" once `chipinfra_visited`)
@@ -259,6 +259,12 @@ trigger: { type: "after_story_flag", flag: "olive_challenges_declined" }   // de
 ```
 
 `processDeliveries()` runs story-flag triggers before piper deliveries on the same event batch, so the flag is already set by the time the piper-delivery check runs. No engine changes are needed — the `triggerEvents` field on `PiperReplyOption` is already plumbed end-to-end through `PiperSession.ts`.
+
+### Negative-flag gates on piper triggers (`excludedFlags`)
+
+`after_file_read` and `after_story_flag` (on both `PiperTrigger` and the shared `CommonTrigger` in `engine/narrative/triggerMatcher.ts`) accept an optional `excludedFlags: StoryFlagName[]`. If any listed flag is truthy in `storyFlags`, the trigger does not fire. Use this when a delivery has a positive trigger condition but must be suppressed once a downstream state is reached. Canonical example: Oscar's access-log followups are gated `excludedFlags: ["oscar_access_completed"]` so a re-read of `/var/log/access.log` post-reply cannot resurface the reply options.
+
+Pairs cleanly with the existing `requiredFlags` (positive AND) and `requireDelivered` (specific prior delivery) gates.
 
 ### Cascade triggers
 
@@ -505,6 +511,8 @@ On nexacorp, certain destructive operations attach a `securityViolation` field t
 
 Constants live in `src/lib/timing.ts` (`SECURITY_ALERT_LINE_INTERVAL_MS`, `SECURITY_DISCONNECT_PAUSE_MS`, `TERMINATION_PRE_BLACKOUT_MS`, `TERMINATION_BLACKOUT_MS`). Input is intentionally NOT gated during the cinematic — `busyRef` clears as soon as the async pipeline finishes; flags are set at t=0 to keep state coherent if the player types during the window.
 
+**Post-termination HUD**: once `terminated_for_misconduct` is set, `ObjectiveTracker` (`src/components/HUD/ObjectiveTracker.tsx`) renders a red "TERMINATED — newgame to start over" card in place of the chapter's objective list, and `StatusBar` (`src/components/HUD/StatusBar.tsx`) shows "Terminated" instead of the chapter title. Player can still read home email/files; the HUD just stops pretending the run is in progress.
+
 Tripwire patterns (all scoped to `activeComputer === "nexacorp"` in `src/story/security.ts`):
 
 | Pattern | Kind | Trips on | destPath populated? |
@@ -525,6 +533,15 @@ Recursion-aware: checks run against post-expansion paths, so `rm -rf /srv` and `
 
 ### Log Tampering
 `diff /var/log/system.log /var/log/system.log.bak` reveals that `chip-daemon` entries have been scrubbed from the active log by a scheduled cleanup script (running under `chip_service_account`). This is the key "aha!" moment (sets `discovered_log_tampering`).
+
+### Oscar's access-log review (terminal vs. Chip shortcut)
+
+Oscar asks the player to sort/uniq `/var/log/access.log` after the system-log conversation (`processing_tools_unlocked`). Two paths:
+
+- **Terminal investigation**: Reading the file fires `oscar_access_followup` (or `_tampered`), which offers both "SSH keys and leadership docs" and "Mostly normal" replies. Reading also sets `oscar_read_access_log`.
+- **Chip shortcut**: The `review_access_log` menu item in `src/story/chip/menuItems.ts` (gated on `processing_tools_unlocked`, not `oscar_access_completed`, and not `chip_reviewed_access_log`) emits `objective_completed: chip_reviewed_access_log`. That sets the `chip_reviewed_access_log` flag, which fires `oscar_access_chip_summary` (or `_tampered_`) — a parallel Oscar followup with **only** the "Mostly normal" reply. Tampered-path Oscar foreshadows the conflict-of-interest of asking Chip to audit itself.
+
+The chip-variant deliveries carry `excludedFlags: ["oscar_read_access_log", "oscar_access_completed"]` so they self-suppress when the player has already read the file directly or already replied. The file-read followups carry `excludedFlags: ["oscar_access_completed"]` so a chip-then-reply-then-file sequence does not produce a second reply prompt. The chip-variant deliveries are source-ordered **before** the file-read followups in `oscar.ts` so that if both fire (chip → file, no reply between), `getPendingReply`'s reverse iteration returns the file-read followup with both options — preserving the "investigate to earn the truth" rule.
 
 ### Hidden Directives
 `find /opt/chip -name ".*"` discovers `.internal/` directory containing:

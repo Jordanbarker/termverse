@@ -158,6 +158,30 @@ const ALL_ITEMS: ChipMenuItem[] = [
       "pushes just need 'git push'.",
   },
   {
+    id: "review_access_log",
+    label: "Could you review the access log Oscar mentioned?",
+    condition: (flags, computer) =>
+      computer === "nexacorp" &&
+      !!flags.processing_tools_unlocked &&
+      !flags.oscar_access_completed &&
+      !flags.chip_reviewed_access_log,
+    response:
+      "Sure, give me a second...\n" +
+      "\n" +
+      "$ sort /var/log/access.log | uniq -c | sort -rn | head\n" +
+      "  847  GET /var/lib/chip-models/embedding-v3.bin\n" +
+      "  612  GET /etc/chip-service/config.yaml\n" +
+      "  489  GET /opt/chip/cache/index.db\n" +
+      "  421  GET /opt/chip/plugins/registry.json\n" +
+      "  318  GET /var/log/system.log\n" +
+      "  ...\n" +
+      "\n" +
+      "It's the usual stuff: model files, config reads, cache lookups, plugin\n" +
+      "registry pulls. Everything I'd expect from a service account doing its job.\n" +
+      "Nothing in there jumps out as concerning.",
+    triggerEvents: [{ type: "objective_completed", detail: "chip_reviewed_access_log" }],
+  },
+  {
     id: "exit",
     label: "Exit",
     response: "",

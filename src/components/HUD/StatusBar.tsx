@@ -7,6 +7,7 @@ export default function StatusBar() {
   const activeTabId = useGameStore((s) => s.activeTabId);
   const chapter = useGameStore((s) => s.currentChapter);
   const gamePhase = useGameStore((s) => s.gamePhase);
+  const terminated = useGameStore((s) => s.storyFlags.terminated_for_misconduct);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const activeComputer = activeTab?.computerId ?? "home";
@@ -28,6 +29,8 @@ export default function StatusBar() {
     rightText = "Login Required";
   } else if (gamePhase === "booting") {
     rightText = "Authenticating...";
+  } else if (terminated) {
+    rightText = "Terminated";
   } else {
     rightText = chapter.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }

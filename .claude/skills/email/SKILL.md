@@ -198,6 +198,8 @@ src/engine/prompt/
 4. Player types a number + Enter; the session saves a reply to `sent/`, fires `triggerEvents`, and returns to normal prompt
 5. Ctrl+C cancels without sending
 
+The reply's `Date:` header is stamped from the live in-game clock (`gameNowFor()`) at the moment the player picks an option, so it matches `date` and other game-time outputs — not derived from the original email's date.
+
 ### Adding Reply Options to an Email
 
 Add `replyOptions` to any `EmailDelivery` in `emails.ts`:

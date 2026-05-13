@@ -3,11 +3,11 @@ import { StoryFlags } from "../../state/types";
 
 export type CommonTrigger =
   | { type: "immediate" }
-  | { type: "after_file_read"; filePath: string; requireDelivered?: string }
+  | { type: "after_file_read"; filePath: string; requireDelivered?: string; excludedFlags?: string[] }
   | { type: "after_email_read"; emailId: string }
   | { type: "after_command"; command: string; requiredFlags?: string[] }
   | { type: "after_objective"; objectiveId: string }
-  | { type: "after_story_flag"; flag: string; requireDelivered?: string; requiredFlags?: string[] }
+  | { type: "after_story_flag"; flag: string; requireDelivered?: string; requiredFlags?: string[]; excludedFlags?: string[] }
   | { type: "after_event_detail"; eventType: GameEvent["type"]; detail: string };
 
 export function matchesCommonTrigger(
@@ -22,6 +22,7 @@ export function matchesCommonTrigger(
       return false;
     case "after_file_read":
       if (event.type !== "file_read" || event.detail !== trigger.filePath) return false;
+      if (trigger.excludedFlags && flags && trigger.excludedFlags.some((f) => flags[f])) return false;
       if (trigger.requireDelivered) {
         return deliveredIds.includes(trigger.requireDelivered) || newDeliveries.includes(trigger.requireDelivered);
       }
@@ -39,6 +40,7 @@ export function matchesCommonTrigger(
     case "after_story_flag":
       if (!(flags && flags[trigger.flag])) return false;
       if (trigger.requiredFlags && !trigger.requiredFlags.every((f) => flags[f])) return false;
+      if (trigger.excludedFlags && trigger.excludedFlags.some((f) => flags[f])) return false;
       if (trigger.requireDelivered) {
         return deliveredIds.includes(trigger.requireDelivered) || newDeliveries.includes(trigger.requireDelivered);
       }

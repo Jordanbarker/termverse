@@ -56,6 +56,8 @@ export const STORY_FLAG_NAMES = [
   "oscar_checked_backups",
   "oscar_diffed_logs",
   "oscar_access_completed",
+  "oscar_read_access_log",
+  "chip_reviewed_access_log",
   "auri_listed_handoff",
   "auri_read_todo",
   "auri_used_head",
@@ -285,6 +287,8 @@ export function getNexacorpStoryFlagTriggers(_username: string): StoryFlagTrigge
     { event: "file_read", path: p.systemLog, flag: "oscar_diffed_logs", value: true, requiredFlags: ["oscar_checked_backups"] },
     { event: "file_read", path: p.systemLogBak, flag: "oscar_diffed_logs", value: true, requiredFlags: ["oscar_searched_logs"] },
     { event: "objective_completed", detail: "oscar_access_reported", flag: "oscar_access_completed", value: true },
+    { event: "file_read", path: p.accessLog, flag: "oscar_read_access_log", value: true },
+    { event: "objective_completed", detail: "chip_reviewed_access_log", flag: "chip_reviewed_access_log", value: true },
     { event: "objective_completed", detail: "auri_dbt_reported", flag: "auri_dbt_reported", value: true },
     // Reading pipeline_runs.csv with any tool (cat, head, tail, wc, less, nano, …) credits all
     // three "audit the file" objectives. The auto-emitter in applyResult.ts emits file_read for

@@ -54,6 +54,8 @@ export const PIPER_DELIVERY_IDS = [
   "oscar_access_review",
   "oscar_log_normal",
   "oscar_log_tampered",
+  "oscar_access_chip_summary",
+  "oscar_access_chip_summary_tampered",
   "oscar_access_followup",
   "oscar_access_followup_tampered",
   "oscar_access_reaction",

@@ -219,6 +219,74 @@ Most frequent stuff will be at the top, probably normal. But scroll to the botto
       ],
     },
 
+    // === Oscar: Follow-up after Chip "reviews" the access log (normal path) ===
+    // Source order intentional: must precede oscar_access_followup so the
+    // file-read followup wins getPendingReply if both deliveries fire.
+    {
+      id: "oscar_access_chip_summary",
+      channelId: "dm_oscar",
+      messages: [
+        {
+          id: "oscar_chip_summary_1",
+          from: "Oscar Diaz",
+          timestamp: "",
+          body: "Asked Chip to take a look? Heh. One way to do it. What'd it find?",
+        },
+      ],
+      trigger: {
+        type: "after_story_flag",
+        flag: "chip_reviewed_access_log",
+        requireDelivered: "oscar_log_normal",
+        excludedFlags: ["oscar_read_access_log", "oscar_access_completed"],
+      },
+      replyOptions: [
+        {
+          label: "Mostly normal access patterns, nothing too concerning.",
+          messageBody: "Chip summarized it. Model files, configs, cache lookups. Nothing that jumped out.",
+          triggerEvents: [
+            { type: "objective_completed", detail: "oscar_access_dismissed" },
+            { type: "objective_completed", detail: "oscar_access_reported" },
+          ],
+        },
+      ],
+    },
+
+    // === Oscar: Follow-up after Chip "reviews" the access log (tampered path) ===
+    {
+      id: "oscar_access_chip_summary_tampered",
+      channelId: "dm_oscar",
+      messages: [
+        {
+          id: "oscar_chip_summary_t1",
+          from: "Oscar Diaz",
+          timestamp: "",
+          body: "You asked Chip to audit itself? Given what we already saw in system.log, I'm not sure I'd trust Chip to flag its own service account...",
+        },
+        {
+          id: "oscar_chip_summary_t2",
+          from: "Oscar Diaz",
+          timestamp: "",
+          body: "But fine. What'd it say?",
+        },
+      ],
+      trigger: {
+        type: "after_story_flag",
+        flag: "chip_reviewed_access_log",
+        requireDelivered: "oscar_log_tampered",
+        excludedFlags: ["oscar_read_access_log", "oscar_access_completed"],
+      },
+      replyOptions: [
+        {
+          label: "Mostly normal access patterns, nothing too concerning.",
+          messageBody: "Chip summarized it. Model files, configs, cache lookups. Nothing that jumped out.",
+          triggerEvents: [
+            { type: "objective_completed", detail: "oscar_access_dismissed" },
+            { type: "objective_completed", detail: "oscar_access_reported" },
+          ],
+        },
+      ],
+    },
+
     // === Oscar: Follow-up after reading access.log (normal path) ===
     {
       id: "oscar_access_followup",
@@ -237,7 +305,7 @@ Most frequent stuff will be at the top, probably normal. But scroll to the botto
           body: "Most of the top entries are normal: model files, configs, static assets. But scroll to the bottom. See those low-count reads? SSH keys, leadership docs... For something that's supposed to be a 'helpful assistant' it sure is reading a lot of stuff that has nothing to do with helping anyone.",
         },
       ],
-      trigger: { type: "after_file_read", filePath: "/var/log/access.log", requireDelivered: "oscar_log_normal" },
+      trigger: { type: "after_file_read", filePath: "/var/log/access.log", requireDelivered: "oscar_log_normal", excludedFlags: ["oscar_access_completed"] },
       replyOptions: [
         {
           label: "It's reading SSH keys and leadership docs. That doesn't seem right.",
@@ -276,7 +344,7 @@ Most frequent stuff will be at the top, probably normal. But scroll to the botto
           body: "Most of the top entries are normal service stuff. But look at the bottom, the low-count reads. SSH keys, leadership docs, personnel files... each accessed just once or twice. Combine that with the log scrubbing you found earlier and this is starting to look less like a misconfiguration and more like something deliberate.",
         },
       ],
-      trigger: { type: "after_file_read", filePath: "/var/log/access.log", requireDelivered: "oscar_log_tampered" },
+      trigger: { type: "after_file_read", filePath: "/var/log/access.log", requireDelivered: "oscar_log_tampered", excludedFlags: ["oscar_access_completed"] },
       replyOptions: [
         {
           label: "It's reading SSH keys and leadership docs. That doesn't seem right.",

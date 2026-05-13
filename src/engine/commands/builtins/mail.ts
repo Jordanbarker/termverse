@@ -27,17 +27,6 @@ function formatRfc2822(d: Date): string {
   return `${RFC_DAYS[d.getDay()]}, ${pad2(d.getDate())} ${RFC_MONTHS[d.getMonth()]} ${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
-/** Derive a reply date ~8–15 minutes after the original email's date. */
-function deriveReplyDate(originalDate: string): string {
-  const parsed = new Date(originalDate);
-  if (isNaN(parsed.getTime())) {
-    // Fallback: use a fixed narrative date
-    return "Tue, 24 Feb 2026 09:00:00";
-  }
-  const offsetMs = (8 + Math.floor(Math.random() * 8)) * 60 * 1000;
-  return formatRfc2822(new Date(parsed.getTime() + offsetMs));
-}
-
 function formatInbox(entries: MailEntry[], mailDir: string, headerLabel: string): string {
   const unreadCount = entries.filter((e) => e.dir === "new").length;
   const total = entries.length;
@@ -120,7 +109,7 @@ function buildPromptSession(
       id: `reply_${gameNowMs}_${idx}`,
       from: `${username}@${fromDomain}`,
       to: entry.parsed.from,
-      date: deriveReplyDate(entry.parsed.date),
+      date: formatRfc2822(new Date(gameNowMs)),
       subject: `Re: ${entry.parsed.subject}`,
       body: opt.replyBody,
     },

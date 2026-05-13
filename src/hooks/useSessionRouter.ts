@@ -464,6 +464,10 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           currentFs.homeDir,
           session.info,
           sessionStart,
+          () => {
+            const s = useGameStore.getState();
+            return gameNowFor(s.deliveredPiperIds, s.username, computerId);
+          },
           (topics) => {
             const value = topics.join(",");
             useGameStore.getState().setStoryFlag("used_chip_topics", value);

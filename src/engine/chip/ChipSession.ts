@@ -40,7 +40,7 @@ export class ChipSession implements ISession {
 
   private transcript: ChipExchange[] = [];
   private sessionStart: Date;
-  private sessionStartWall: number;
+  private getGameNow: () => Date;
 
   private isAnimating = false;
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
@@ -53,6 +53,7 @@ export class ChipSession implements ISession {
     homeDir: string,
     info: ChipSessionInfo,
     sessionStart: Date,
+    getGameNow: () => Date,
     onUsedTopicsChange?: (topics: string[]) => void
   ) {
     this.terminal = terminal;
@@ -60,7 +61,7 @@ export class ChipSession implements ISession {
     this.homeDir = homeDir;
     this.info = info;
     this.sessionStart = sessionStart;
-    this.sessionStartWall = Date.now();
+    this.getGameNow = getGameNow;
     this.menuItems = getMenuItems(info.storyFlags, info.currentComputer);
     this.onUsedTopicsChange = onUsedTopicsChange;
 
@@ -68,10 +69,6 @@ export class ChipSession implements ISession {
     if (typeof saved === "string" && saved) {
       saved.split(",").forEach((id) => this.usedItemIds.add(id));
     }
-  }
-
-  private nowForTranscript(): Date {
-    return new Date(this.sessionStart.getTime() + (Date.now() - this.sessionStartWall));
   }
 
   enter(): void {
@@ -209,8 +206,8 @@ export class ChipSession implements ISession {
     this.usedItemIds.add(item.id);
     this.onUsedTopicsChange?.([...this.usedItemIds]);
 
-    this.transcript.push({ timestamp: this.nowForTranscript(), role: "user", text: item.label });
-    this.transcript.push({ timestamp: this.nowForTranscript(), role: "chip", text: item.response });
+    this.transcript.push({ timestamp: this.getGameNow(), role: "user", text: item.label });
+    this.transcript.push({ timestamp: this.getGameNow(), role: "chip", text: item.response });
 
     // Collect trigger events
     if (item.triggerEvents) {

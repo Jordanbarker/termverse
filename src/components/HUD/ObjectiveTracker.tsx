@@ -188,6 +188,23 @@ export default function ObjectiveTracker() {
     }
   }, [objectives, completedObjectives]);
 
+  if (storyFlags.terminated_for_misconduct) {
+    return (
+      <div
+        className="absolute top-2 right-2 z-10 pointer-events-auto
+          bg-[#1a1f29]/85 border border-red-700/60 rounded-md
+          backdrop-blur-sm font-mono text-xs select-none
+          max-w-[400px] px-3 py-2"
+      >
+        <div className="text-red-500 font-bold mb-1">TERMINATED</div>
+        <div className="text-[#8b949e] mb-1">Your NexaCorp access has been revoked.</div>
+        <div className="text-[#6c7380]">
+          Run <span className="text-[#c9d1d9]">newgame</span> to start over.
+        </div>
+      </div>
+    );
+  }
+
   const visible = objectives.filter((o) => o.visible);
   const done = visible.filter((o) => o.completed).length;
 
