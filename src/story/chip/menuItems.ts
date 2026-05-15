@@ -122,12 +122,10 @@ const ALL_ITEMS: ChipMenuItem[] = [
     id: "chip_access",
     label: "What can you access?",
     response:
-      "When you ask, I can query the Snowflake data warehouse, check system logs, " +
-      "manage tickets, read team email, and help with documentation. There are also " +
+      "I can answer questions, query the Snowflake data warehouse, check system logs, " +
+      "manage tickets, read email, and help with documentation. There are also " +
       "plugins that invoke me from systemd timers (log rotation, monitoring, ticket " +
-      "triage) so you'll see chip_service_account activity in the logs from those. " +
-      "If you need data from any of those systems, just ask and I can run the query " +
-      "for you.",
+      "triage) so you'll see chip_service_account activity in the logs from those. "
   },
   {
     id: "null_sql_help",
@@ -159,7 +157,7 @@ const ALL_ITEMS: ChipMenuItem[] = [
   },
   {
     id: "review_access_log",
-    label: "Could you review the access log Oscar mentioned?",
+    label: "can you review the access log?",
     notifyOnUnlock: true,
     condition: (flags, computer) =>
       computer === "nexacorp" &&
@@ -167,8 +165,6 @@ const ALL_ITEMS: ChipMenuItem[] = [
       !flags.oscar_access_completed &&
       !flags.chip_reviewed_access_log,
     response:
-      "Sure, give me a second...\n" +
-      "\n" +
       "$ sort /var/log/access.log | uniq -c | sort -rn | head\n" +
       "  847  GET /var/lib/chip-models/embedding-v3.bin\n" +
       "  612  GET /etc/chip-service/config.yaml\n" +

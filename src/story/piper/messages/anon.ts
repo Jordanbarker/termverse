@@ -11,16 +11,10 @@ export function getAnonDeliveries(_username: string): PiperDelivery[] {
           id: "anon_usb_1",
           from: "Sabu",
           timestamp: "",
-          body: "Left a drive for you.",
+          body: "Left a drive for you. Plug it in when you're alone.",
         },
         {
           id: "anon_usb_2",
-          from: "Sabu",
-          timestamp: "",
-          body: "Plug it in when you're alone.",
-        },
-        {
-          id: "anon_usb_3",
           from: "Sabu",
           timestamp: "",
           body: "Don't tell anyone we talked.",

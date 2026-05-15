@@ -113,6 +113,8 @@ src/
 - **Command availability**: Home PC has `HOME_COMMANDS` available from the start; `HOME_GATED` commands (ssh, sudo, apt, pdftotext, tree) require story flags to unlock. NexaCorp has most commands available by default (including dbt, snow, python); `NEXACORP_GATED` commands are introduced gradually via colleague messages — search tools (grep/find/diff), inspection tools (head/tail/wc), processing tools (sort/uniq), coder, chip, and piper are each gated by story flags. Both Coder workspaces (`devcontainer` and `chipinfra`) share the `DEVCONTAINER_COMMANDS` whitelist (dbt/snow/python/chip always available). `availability.ts` gates command access by computer + flags; gate data lives in `story/commandGates.ts`. See the **narrative skill** for full gating details
 - **Story/engine separation**: Story content (email definitions, Piper message definitions, filesystem builders, chapters, story flags, Chip menu items, seed data) lives in `src/story/`. Engine modules (`engine/narrative/`, `engine/mail/`, `engine/piper/`, `engine/commands/availability.ts`) re-export or import from `story/` for runtime logic
 
-## Characters
+## Story Docs
 
-See `docs/characters.md`.
+`docs/storyboard/chapter-1.md`, `docs/storyboard/chapter-2.md`, `docs/storyboard/chapter-3.md` - detailed storyboards for each chapter, including narrative beats, character dialogue, and key player actions. Updated as story content is added or revised.
+`docs/characters.md` - read before writing character dialogue or designing character-specific content. Defines each character's personality, motivations, and relationships to other characters.
+`docs/timeline.md` - master timeline of all story events. Updated as new story beats are added.

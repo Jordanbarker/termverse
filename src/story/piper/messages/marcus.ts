@@ -150,7 +150,7 @@ export function getMarcusDeliveries(_username: string): PiperDelivery[] {
       trigger: { type: "after_story_flag", flag: "accused_erik" },
     },
 
-    // === Marcus's reaction: accused Nobody (the system / plugin directives) ===
+    // === Marcus's reaction: accused Nobody ===
     {
       id: "marcus_reaction_nobody",
       channelId: "dm_marcus",

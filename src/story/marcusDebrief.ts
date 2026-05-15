@@ -1,13 +1,6 @@
 import type { StoryFlags } from "../state/types";
 
-const FOOTER = `
-
-Get some sleep. Tomorrow is a different problem.
-
-- Marcus
-`;
-
-const EDWARD_BODY = `It got ugly. Predictable, but ugly.
+const EDWARD_BODY = `It got ugly.
 
 Jessica opened with the access-scope question. Edward didn't
 have an answer ready. 
@@ -32,10 +25,8 @@ const SARAH_BODY = `Tough one to write up.
 I asked Oscar to spend an hour on Sarah before the meeting. Log
 patterns, query history, anything that would back up the read.
 He came back with nothing. Her credentials show no out-of-role
-access.
-
-I owe her an apology. So do you, probably, the next time you see
-her.
+access. I owe her an apology. So do you, probably, the next time
+you see her.
 
 Here's the part you should know: Edward heard I'd been looking
 at Sarah and he ran with it in the room. Tried to frame her as
@@ -66,7 +57,7 @@ but he's on a short leash now. His Q1 timeline got shortened by
 two weeks and Sarah is taking Chip's access scope.
 
 Series A diligence keeps moving. Jessica wanted me to thank you
-directly. So: thank you. You probably saved us the round.`;
+directly. You probably saved us the round.`;
 
 const NOBODY_BODY = `You called it. Process failure landed.
 
@@ -84,6 +75,14 @@ word for the last twenty minutes of the meeting.
 
 Series A diligence pauses 30 days while we get a clean access
 story. Jessica thinks we'll close anyway. I think she's right.`;
+
+
+const FOOTER = `
+
+Get some sleep. Tomorrow is a different problem.
+
+- Marcus
+`;
 
 export function getMarcusDebrief(flags: StoryFlags): string {
   const body = flags.accused_edward ? EDWARD_BODY
