@@ -6,17 +6,13 @@ Play it from your browser: https://jordanbarker.github.io/terminal-turmoil/
 
 ## What it looks like
 
-The game features command history, suggestions, and autocomplete. 
+Command history, suggestions, autocomplete, aliases 
 
 ![Investigating the file system](.assets/file-demo.gif)
 
-Coordinate with your friends and coworkers over Piper:
+### Modern Data Stack
 
-![Piper messaging](.assets/piper-example.png)
-
-### Modern Dev Stack
-
-SSH into a coder dev container, git clone, and run dbt commands.
+SSH into a coder dev container, git clone, run dbt commands, and query snowflake data.
 
 ![Git clone, dbt build](.assets/git-dbt.gif)
 
@@ -25,8 +21,6 @@ SSH into a coder dev container, git clone, and run dbt commands.
 ```bash
 npm run dev
 ```
-
-## If your career goes sideways
 
 Saves live in `localStorage`. To start over from scratch, in your browser devtools:
 
