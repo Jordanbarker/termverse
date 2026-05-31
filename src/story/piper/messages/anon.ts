@@ -17,7 +17,7 @@ export function getAnonDeliveries(_username: string): PiperDelivery[] {
           id: "anon_usb_2",
           from: "Sabu",
           timestamp: "",
-          body: "Don't tell anyone we talked.",
+          body: "Don't tell anyone we talked. And wipe your history when you're done. Shell, ssh, all of it.",
         },
       ],
       trigger: { type: "after_story_flag", flag: "day1_shutdown" },

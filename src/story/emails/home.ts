@@ -33,6 +33,44 @@ function relatedFilesLine(ctx: TerminationContext): string {
   return "";
 }
 
+interface TerminationVariant {
+  id:
+    | "termination_log_tampering"
+    | "termination_leadership_destruction"
+    | "termination_exfiltration";
+  detail: "log_tampering" | "leadership_destruction" | "exfiltration";
+  incidentLead: string;
+  detailBlock: string;
+  violationParagraph: string;
+  closingParagraph: string;
+}
+
+function buildTerminationEmail(username: string, v: TerminationVariant): EmailDelivery {
+  return {
+    email: {
+      id: v.id,
+      from: "NexaCorp HR <hr@nexacorp.io>",
+      to: `${username}@email.com`,
+      date: "Tue, 24 Feb 2026 14:32:00",
+      subject: "Termination of Employment — Effective Immediately",
+      body: `${PLAYER.displayName},
+
+This notice confirms the termination of your employment with NexaCorp,
+effective immediately. ${v.incidentLead}
+${v.detailBlock}
+${v.violationParagraph}
+
+Your workstation, VPN, and Coder credentials have been revoked.
+${v.closingParagraph}
+
+HR Department
+NexaCorp
+`,
+    },
+    trigger: { type: "after_event_detail", eventType: "terminated", detail: v.detail },
+  };
+}
+
 export const HOME_EMAIL_IDS = [
   "job_board_alert",
   "backup_failure",
@@ -414,118 +452,79 @@ If you believe this was triggered in error, reply to this thread.
     // on /srv/leadership/, or cp/mv of leadership material to player's home).
     // Exactly one fires per playthrough, chosen by the SecurityViolation kind
     // surfaced via the synthesized `terminated` event.
-    {
-      email: {
-        id: "termination_log_tampering",
-        from: "NexaCorp HR <hr@nexacorp.io>",
-        to: `${username}@email.com`,
-        date: "Tue, 24 Feb 2026 14:32:00",
-        subject: "Termination of Employment — Effective Immediately",
-        body: `${PLAYER.displayName},
-
-This notice confirms the termination of your employment with NexaCorp,
-effective immediately. File integrity monitoring on workstation
+    buildTerminationEmail(username, {
+      id: "termination_log_tampering",
+      detail: "log_tampering",
+      incidentLead: `File integrity monitoring on workstation
 nexacorp-ws01 recorded unauthorized modification of system audit logs
-earlier today:
-${term.command ? `
+earlier today:`,
+      detailBlock: term.command
+        ? `
   ${term.command}
   flagged: ${term.path}
-` : `
+`
+        : `
   (under /var/log/)
-`}
-Tampering with audit records is categorized as gross misconduct under
+`,
+      violationParagraph: `Tampering with audit records is categorized as gross misconduct under
 Section 4.1 of the Employee Handbook and is grounds for immediate
-dismissal.
-
-Your workstation, VPN, and Coder credentials have been revoked. A
-legal-hold notice covering your personal devices and accounts has
+dismissal.`,
+      closingParagraph: `A legal-hold notice covering your personal devices and accounts has
 been issued; please preserve all NexaCorp-related material pending
 further instruction from outside counsel.
 
 Your final paycheck, including any accrued PTO, will be processed
-via ACH within five business days.
+via ACH within five business days.`,
+    }),
 
-HR Department
-NexaCorp
-`,
-      },
-      trigger: { type: "after_event_detail", eventType: "terminated", detail: "log_tampering" },
-    },
-
-    {
-      email: {
-        id: "termination_leadership_destruction",
-        from: "NexaCorp HR <hr@nexacorp.io>",
-        to: `${username}@email.com`,
-        date: "Tue, 24 Feb 2026 14:32:00",
-        subject: "Termination of Employment — Effective Immediately",
-        body: `${PLAYER.displayName},
-
-This notice confirms the termination of your employment with NexaCorp,
-effective immediately. Earlier today, NexaCorp recorded destruction
-of confidential corporate records from your workstation session:
-${term.command ? `
+    buildTerminationEmail(username, {
+      id: "termination_leadership_destruction",
+      detail: "leadership_destruction",
+      incidentLead: `Earlier today, NexaCorp recorded destruction
+of confidential corporate records from your workstation session:`,
+      detailBlock: term.command
+        ? `
   ${term.command}
   flagged: ${term.path}
-${relatedFilesLine(term)}` : `
+${relatedFilesLine(term)}`
+        : `
   (under /srv/leadership/)
-`}
-This violates Section 4.2 of the Employee Handbook (Misuse of Company
+`,
+      violationParagraph: `This violates Section 4.2 of the Employee Handbook (Misuse of Company
 Assets) and constitutes gross misconduct. The destroyed materials
 included investor and board documentation covered by ongoing
 securities and audit obligations. Outside counsel has been engaged
 to evaluate disclosure requirements; you may be contacted directly
-by their office.
+by their office.`,
+      closingParagraph: `All NexaCorp-related material on your personal devices is subject
+to a legal hold effective immediately. Final pay and accrued PTO
+will be processed via ACH within five business days.`,
+    }),
 
-Your workstation, VPN, and Coder credentials have been revoked. All
-NexaCorp-related material on your personal devices is subject to a
-legal hold effective immediately. Final pay and accrued PTO will be
-processed via ACH within five business days.
-
-HR Department
-NexaCorp
-`,
-      },
-      trigger: { type: "after_event_detail", eventType: "terminated", detail: "leadership_destruction" },
-    },
-
-    {
-      email: {
-        id: "termination_exfiltration",
-        from: "NexaCorp HR <hr@nexacorp.io>",
-        to: `${username}@email.com`,
-        date: "Tue, 24 Feb 2026 14:32:00",
-        subject: "Termination of Employment — Effective Immediately",
-        body: `${PLAYER.displayName},
-
-This notice confirms the termination of your employment with NexaCorp,
-effective immediately. NexaCorp's data loss prevention controls
+    buildTerminationEmail(username, {
+      id: "termination_exfiltration",
+      detail: "exfiltration",
+      incidentLead: `NexaCorp's data loss prevention controls
 recorded the transfer of confidential material from your workstation
-to personal storage:
-${term.command ? `
+to personal storage:`,
+      detailBlock: term.command
+        ? `
   ${term.command}
   source:      ${term.path}
   destination: ${term.destPath || "(player workstation)"}
-` : `
+`
+        : `
   (from /srv/leadership/ to player workstation)
-`}
-This is a direct violation of the Non-Disclosure Agreement you
+`,
+      violationParagraph: `This is a direct violation of the Non-Disclosure Agreement you
 executed at hire and Section 6.1 of the Employee Handbook.
 
 Outside counsel has been retained and civil action under the NDA and
 applicable trade-secret statutes is under active consideration. You
 are directed to preserve, and not to access, copy, transmit, or
-delete any of the affected materials pending further instruction.
-
-Your workstation, VPN, and Coder credentials have been revoked.
-Final pay and accrued PTO will be processed via ACH within five
-business days.
-
-HR Department
-NexaCorp
-`,
-      },
-      trigger: { type: "after_event_detail", eventType: "terminated", detail: "exfiltration" },
-    },
+delete any of the affected materials pending further instruction.`,
+      closingParagraph: `Final pay and accrued PTO will be processed via ACH within five
+business days.`,
+    }),
   ];
 }
