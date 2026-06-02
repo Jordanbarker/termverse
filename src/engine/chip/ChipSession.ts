@@ -198,6 +198,11 @@ export class ChipSession implements ISession {
     return result.fs;
   }
 
+  /** Resolve a menu item's response, computing dynamic responses from the live FS. */
+  private resolveResponse(item: ChipMenuItem): string {
+    return typeof item.response === "function" ? item.response(this.fs) : item.response;
+  }
+
   private selectCurrent(): void {
     const visibleItems = this.getVisibleItems();
     const item = visibleItems[this.selectedIndex];
@@ -206,8 +211,9 @@ export class ChipSession implements ISession {
     this.usedItemIds.add(item.id);
     this.onUsedTopicsChange?.([...this.usedItemIds]);
 
+    const responseText = this.resolveResponse(item);
     this.transcript.push({ timestamp: this.getGameNow(), role: "user", text: item.label });
-    this.transcript.push({ timestamp: this.getGameNow(), role: "chip", text: item.response });
+    this.transcript.push({ timestamp: this.getGameNow(), role: "chip", text: responseText });
 
     // Collect trigger events
     if (item.triggerEvents) {
@@ -230,7 +236,7 @@ export class ChipSession implements ISession {
     this.pendingAnimationItem = item;
 
     const width = this.getWidth();
-    const lines = renderChipResponseLines(item.response, width);
+    const lines = renderChipResponseLines(responseText, width);
 
     this.animationTimer = setTimeout(() => {
       this.terminal.write("\r\n");
@@ -277,7 +283,7 @@ export class ChipSession implements ISession {
 
     const width = this.getWidth();
     const userMsg = renderUserMessage(this.pendingAnimationItem.label);
-    const lines = renderChipResponseLines(this.pendingAnimationItem.response, width);
+    const lines = renderChipResponseLines(this.resolveResponse(this.pendingAnimationItem), width);
     const fullResponse = lines.map((l) => l.line).join("\r\n");
 
     this.selectedIndex = 0;

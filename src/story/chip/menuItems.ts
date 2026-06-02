@@ -1,6 +1,7 @@
 import { file } from "@/engine/filesystem/builders";
 import { ChipMenuItem } from "../../engine/chip/types";
 import { StoryFlags, ComputerId } from "../../state/types";
+import { accessLogTopSummary } from "./accessLogSummary";
 
 const ALL_ITEMS: ChipMenuItem[] = [
   {
@@ -164,18 +165,19 @@ const ALL_ITEMS: ChipMenuItem[] = [
       !!flags.processing_tools_unlocked &&
       !flags.oscar_access_completed &&
       !flags.chip_reviewed_access_log,
-    response:
-      "$ sort /var/log/access.log | uniq -c | sort -rn | head\n" +
-      "  847  GET /var/lib/chip-models/embedding-v3.bin\n" +
-      "  612  GET /etc/chip-service/config.yaml\n" +
-      "  489  GET /opt/chip/cache/index.db\n" +
-      "  421  GET /opt/chip/plugins/registry.json\n" +
-      "  318  GET /var/log/system.log\n" +
-      "  ...\n" +
-      "\n" +
-      "It's the usual stuff: model files, config reads, cache lookups, plugin\n" +
-      "registry pulls. Everything I'd expect from a service account doing its job.\n" +
-      "Nothing in there jumps out as concerning.",
+    response: (fs) => {
+      const log = fs.readFile("/var/log/access.log").content ?? "";
+      return (
+        "$ sort /var/log/access.log | uniq -c | sort -rn | head\n" +
+        accessLogTopSummary(log, 5) +
+        "\n" +
+        "  ...\n" +
+        "\n" +
+        "It's the usual stuff: model reads, config loads, cache writes, inference\n" +
+        "logs. Everything I'd expect from a service account doing its job.\n" +
+        "Nothing in there jumps out as concerning."
+      );
+    },
     triggerEvents: [{ type: "objective_completed", detail: "chip_reviewed_access_log" }],
   },
   {
