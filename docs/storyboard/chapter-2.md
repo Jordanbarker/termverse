@@ -17,7 +17,7 @@ Commands unlock through colleague emails and Piper conversations:
 
 **Dev container only** (inside `coder ssh ai` / `coder ssh chip`, not gated): `dbt`, `snow`, `git`
 
-**Multi-terminal tabs** unlock alongside search tools (`tabs_unlocked` set by `search_tools_accepted`)
+**Multi-terminal tabs** unlock alongside search tools (`tabs_unlocked` set by `search_tools_accepted`). Oscar's `oscar_tab_tip` DM introduces them: prefix defaults to **Ctrl+Space** (then C/X/N/P/1-5), rebindable via `~/.tmux.conf` on the home PC.
 
 ### Home PC Commands (after returning home)
 

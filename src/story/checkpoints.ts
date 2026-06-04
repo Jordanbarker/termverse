@@ -166,7 +166,6 @@ const DAY1_END: Checkpoint = {
     "eng_code_review_debate",
     // Oscar quest
     "oscar_log_check",
-    "oscar_tab_tip",
     "oscar_access_review",
     "oscar_log_normal",
     "oscar_access_followup",

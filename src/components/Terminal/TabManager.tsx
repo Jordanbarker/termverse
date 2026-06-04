@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -9,6 +9,11 @@ import { useGameStore } from "../../state/gameStore";
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "../../lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
+import { parseTmuxPrefix, parseTmuxTheme } from "../../engine/terminal/tmuxConfig";
+import { ANSI_COLORS } from "../../engine/terminal/ansiPalette";
+import { CopyModeController } from "../../engine/terminal/copyMode";
+import { sessionUsesAltScreen } from "../../engine/session/types";
+import { copyToClipboard } from "../../lib/clipboard";
 import { ComputerId } from "../../state/types";
 
 const XTERM_THEME = {
@@ -17,22 +22,8 @@ const XTERM_THEME = {
   cursor: "#e6b450",
   cursorAccent: "#0a0e14",
   selectionBackground: "#253340",
-  black: "#01060e",
-  red: "#ea6c73",
-  green: "#91b362",
-  yellow: "#f9af4f",
-  blue: "#53bdfa",
-  magenta: "#fae994",
-  cyan: "#90e1c6",
-  white: "#c7c7c7",
-  brightBlack: "#686868",
-  brightRed: "#f07178",
-  brightGreen: "#c2d94c",
-  brightYellow: "#ffb454",
-  brightBlue: "#59c2ff",
-  brightMagenta: "#ffee99",
-  brightCyan: "#95e6cb",
-  brightWhite: "#ffffff",
+  // 16 named ANSI colors shared with the tmux color parser (ansiPalette.ts)
+  ...ANSI_COLORS,
 };
 
 const XTERM_OPTIONS = {
@@ -44,6 +35,7 @@ const XTERM_OPTIONS = {
   cursorStyle: "block" as const,
   allowProposedApi: true,
 };
+
 
 /** Handle macOS-style scroll shortcuts. Returns false to block xterm, true to pass through. */
 function handleScrollShortcut(e: KeyboardEvent, term: XTerm): boolean | null {
@@ -79,6 +71,7 @@ interface TabInstance {
   fitAddon: FitAddon;
   containerEl: HTMLDivElement;
   onDataDisposable: import("@xterm/xterm").IDisposable;
+  copyMode: CopyModeController;
 }
 
 export default function TabManager() {
@@ -86,8 +79,18 @@ export default function TabManager() {
   const activeTabId = useGameStore((s) => s.activeTabId);
   const gamePhase = useGameStore((s) => s.gamePhase);
   const storyFlags = useGameStore((s) => s.storyFlags);
+  // Tab prefix is read from the home PC's ~/.tmux.conf (your local terminal's
+  // tmux config governs the tabs, regardless of which box a tab is connected to).
+  // Select the raw conf string (a primitive) so the selector stays referentially
+  // stable; parse it with a memo.
+  const homeTmuxConf = useGameStore((s) => {
+    const fs = s.computerState.home?.fs;
+    return fs ? fs.readFile(`${fs.homeDir}/.tmux.conf`).content : undefined;
+  });
+  const tabPrefix = useMemo(() => parseTmuxPrefix(homeTmuxConf), [homeTmuxConf]);
+  const tabTheme = useMemo(() => parseTmuxTheme(homeTmuxConf), [homeTmuxConf]);
 
-  const { handleInput, getPrompt, startSession, canCloseCurrentSession, cleanupTab, resizeActiveSession } = useTerminal();
+  const { handleInput, getPrompt, startSession, canCloseCurrentSession, getActiveSessionType, cleanupTab, resizeActiveSession } = useTerminal();
 
   // Store callbacks in refs to avoid stale closures in xterm onData
   const handleInputRef = useRef(handleInput);
@@ -95,6 +98,7 @@ export default function TabManager() {
   const getPromptRef = useRef(getPrompt);
   const gamePhaseRef = useRef(gamePhase);
   const canCloseRef = useRef(canCloseCurrentSession);
+  const getActiveSessionTypeRef = useRef(getActiveSessionType);
   const cleanupTabRef = useRef(cleanupTab);
   const resizeActiveSessionRef = useRef(resizeActiveSession);
   handleInputRef.current = handleInput;
@@ -102,6 +106,7 @@ export default function TabManager() {
   getPromptRef.current = getPrompt;
   gamePhaseRef.current = gamePhase;
   canCloseRef.current = canCloseCurrentSession;
+  getActiveSessionTypeRef.current = getActiveSessionType;
   cleanupTabRef.current = cleanupTab;
   resizeActiveSessionRef.current = resizeActiveSession;
 
@@ -111,10 +116,18 @@ export default function TabManager() {
   const shownUnlockRef = useRef(false);
   const prevGamePhaseRef = useRef(gamePhase);
 
-  // Ctrl+B prefix mode state
+  // Tab prefix mode state (prefix key configured via ~/.tmux.conf)
   const ctrlBPrefixRef = useRef(false);
-  const ctrlBTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [prefixActive, setPrefixActive] = useState(false);
+
+  // Copy mode (tmux/vi `<prefix> [`) — indicator state for the overlay
+  const [copyModeActive, setCopyModeActive] = useState(false);
+
+  // Keep the live prefix char/label available inside the xterm onData closures.
+  const prefixCharRef = useRef(tabPrefix.char);
+  const prefixLabelRef = useRef(tabPrefix.label);
+  prefixCharRef.current = tabPrefix.char;
+  prefixLabelRef.current = tabPrefix.label;
 
   // Force-close tracking: second Ctrl+B,X within 2s forces close
   const forceCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,7 +177,7 @@ export default function TabManager() {
             forceClosePendingRef.current = true;
             const instance = tabInstancesRef.current.get(store.activeTabId);
             if (instance) {
-              instance.term.write("\r\n\x1b[33mUnsaved changes. Press Ctrl+B, X again to force close.\x1b[0m");
+              instance.term.write(`\r\n\x1b[33mUnsaved changes. Press ${prefixLabelRef.current}, X again to force close.\x1b[0m`);
             }
             forceCloseTimerRef.current = setTimeout(() => {
               forceClosePendingRef.current = false;
@@ -202,8 +215,42 @@ export default function TabManager() {
     term.open(containerEl);
     fitAddon.fit();
 
+    // tmux/vi copy mode (entered via `<prefix> [`). The engine controller owns
+    // the cursor/selection; clipboard + toast live here as the yank side effect.
+    const copyMode = new CopyModeController(term, {
+      onChange: (active) => {
+        setCopyModeActive(active);
+        // Leaving copy mode over a full-screen session: have the session re-render so it
+        // re-asserts its own screen + cursor visibility (nano shows its cursor; less/piper
+        // keep it hidden). exit() writes SHOW_CURSOR/scrollToBottom before firing this, so
+        // the redraw cleanly overrides them.
+        if (!active && sessionUsesAltScreen(getActiveSessionTypeRef.current())) {
+          resizeActiveSessionRef.current();
+        }
+      },
+      onYank: (text) => {
+        void copyToClipboard(text).then((ok) => {
+          useGameStore.getState().addToast(
+            ok
+              ? `Copied ${text.length} character${text.length === 1 ? "" : "s"} to clipboard`
+              : "Copy failed",
+          );
+        });
+      },
+    });
+
     // Intercept raw DOM key events for scroll shortcuts and Ctrl+B digit shortcuts (1-5)
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      // While in copy mode, swallow every key (before scroll shortcuts) so nothing
+      // reaches the shell; preventDefault keeps junk out of xterm's hidden textarea.
+      if (copyMode.isActive()) {
+        if (e.type === 'keydown') {
+          e.preventDefault();
+          copyMode.handleKeydown(e);
+        }
+        return false;
+      }
+
       const scrollResult = handleScrollShortcut(e, term);
       if (scrollResult !== null) return scrollResult;
 
@@ -213,10 +260,6 @@ export default function TabManager() {
           // Handle the action directly here.
           ctrlBPrefixRef.current = false;
           setPrefixActive(false);
-          if (ctrlBTimerRef.current) {
-            clearTimeout(ctrlBTimerRef.current);
-            ctrlBTimerRef.current = null;
-          }
           handleCtrlBAction(e.key);
         }
         // When Ctrl is NOT held, onData will still fire via textarea input.
@@ -234,39 +277,41 @@ export default function TabManager() {
         // In prefix mode — consume the next key as a tab action
         ctrlBPrefixRef.current = false;
         setPrefixActive(false);
-        if (ctrlBTimerRef.current) {
-          clearTimeout(ctrlBTimerRef.current);
-          ctrlBTimerRef.current = null;
-        }
 
-        if (data === "\x02") {
-          // Ctrl+B, Ctrl+B — send literal Ctrl+B to session
-          handleInputRef.current(term, "\x02");
-        } else {
+        if (data === prefixCharRef.current) {
+          // prefix, prefix — send the literal prefix char to the session
+          handleInputRef.current(term, prefixCharRef.current);
+        } else if (data === '[') {
+          // <prefix> [ — enter copy mode (always, matching real tmux). Works at the shell,
+          // over any inline session (email reply prompt, Chip, the snow/python REPLs, ssh
+          // auth), and over a full-screen alternate-screen session (nano/less/piper) where
+          // it's confined to the visible screen. Exiting copy mode redraws the active
+          // alt-screen session (see the onChange handler) to restore its cursor state.
+          copyMode.enter();
+        } else if (useGameStore.getState().storyFlags.tabs_unlocked) {
+          // Tab actions; an unbound prefix key is a no-op (matches real tmux).
           handleCtrlBAction(data[0]);
+        } else {
+          // Locked and not a copy-mode entry — don't eat the key, pass it through.
+          handleInputRef.current(term, data);
         }
         return;
       }
 
-      // Check for Ctrl+B (\x02)
-      if (data === "\x02" && useGameStore.getState().storyFlags.tabs_unlocked) {
+      // Check for the configured prefix key. Armed from the start so copy mode is
+      // reachable in Chapter 1; tab actions stay gated inside handleCtrlBAction.
+      if (data === prefixCharRef.current) {
         ctrlBPrefixRef.current = true;
         setPrefixActive(true);
-        // Timeout: if no key pressed within 500ms, cancel prefix and send Ctrl+B
-        ctrlBTimerRef.current = setTimeout(() => {
-          if (ctrlBPrefixRef.current) {
-            ctrlBPrefixRef.current = false;
-            setPrefixActive(false);
-            handleInputRef.current(term, "\x02");
-          }
-        }, 500);
+        // Wait indefinitely for the next key (matches real tmux — no prefix timeout).
+        // Press the prefix again to send the literal char; any other/unbound key exits.
         return;
       }
 
       handleInputRef.current(term, data);
     });
 
-    return { term, fitAddon, containerEl, onDataDisposable };
+    return { term, fitAddon, containerEl, onDataDisposable, copyMode };
   }, [handleCtrlBAction]);
 
   // Mount/unmount terminal instances when tabs change
@@ -363,6 +408,10 @@ export default function TabManager() {
         instance.fitAddon.fit();
         instance.term.focus();
         resizeActiveSessionRef.current();
+      } else if (instance.copyMode.isActive()) {
+        // Leaving a tab mid-copy-mode (e.g. clicked away): clean up without
+        // refocusing, so this now-hidden terminal can't steal focus.
+        instance.copyMode.exit({ refocus: false });
       }
     }
   }, [activeTabId]);
@@ -427,20 +476,35 @@ export default function TabManager() {
   return (
     <div className="w-full h-full flex flex-col">
       {showTabBar && (
-        <div className="flex items-center">
-          <TabBar
-            onNewTab={handleNewTab}
-            onCloseTab={handleCloseTab}
-            onSelectTab={handleSelectTab}
-          />
-          {prefixActive && (
-            <span className="px-2 text-xs font-mono text-[#e6b450] animate-pulse">
-              ^B
-            </span>
-          )}
-        </div>
+        <TabBar
+          onNewTab={handleNewTab}
+          onCloseTab={handleCloseTab}
+          onSelectTab={handleSelectTab}
+          prefixActive={prefixActive}
+          theme={tabTheme}
+        />
       )}
-      <div ref={wrapperRef} className="flex-1 relative min-h-0" />
+      <div className="flex-1 relative min-h-0">
+        {/* xterm containers are appended here imperatively. `isolate` gives this a
+            stacking context so xterm's internal z-indexes (up to 11) can't paint
+            over the overlays below it. */}
+        <div ref={wrapperRef} className="absolute inset-0 isolate" />
+        {copyModeActive && (
+          <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
+            <span className="font-bold text-[#e6b450]">COPY MODE</span>
+            <span className="text-[#6c7380]"> · hjkl/arrows move · 0/$ line · g/G top/bot · v select · y yank · esc exit</span>
+          </div>
+        )}
+        {/* Pre-unlock there's no tab bar, so float the prefix indicator here instead. */}
+        {prefixActive && !showTabBar && (
+          <span
+            className="absolute bottom-2 right-2 z-20 pointer-events-none rounded bg-[#1a1f29]/90 px-2 py-1 font-mono text-xs animate-pulse backdrop-blur-sm"
+            style={{ color: tabTheme.currentBg }}
+          >
+            ^{tabPrefix.label.replace(/^Ctrl\+/, "")}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -106,6 +106,12 @@ export class PiperSession implements ISession {
     return true;
   }
 
+  /** Re-read terminal dimensions and re-render (tab switch / resize / copy-mode exit). */
+  resize(): void {
+    this.terminal.write("\x1b[?25l"); // keep the cursor hidden across the redraw
+    this.redraw();
+  }
+
   /** Re-evaluate visible channels/replies from current info and redraw. */
   refresh(): void {
     if (this.isAnimating) return;

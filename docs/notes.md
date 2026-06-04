@@ -26,6 +26,7 @@ $ grep -i "error" app.log               # case-insensitive
 $ grep -r "TODO" ./src                  # search recursively through all files in src/
 $ grep -n "error" app.log               # show line numbers
 $ grep -v "debug" app.log               # show lines that do NOT match
+$ grep -rn
 
 $ find . -name "*.log"                      # find all .log files from here
 $ find /var/log -name "*.log" -mtime -7     # logs modified in last 7 days
@@ -41,6 +42,10 @@ Count dataset records: wc -l dataset.csv            wc -l line counting
 Preview data structures: head -n 10 dataset.csv     head -n limiting output
 Check last export timestamp: tail -n 3 export_log.txt  │ tail for end-of-file
 
+echo -e
+
+rm folder
+
 df command 
 
 git clone git@github.com:company/ai-models-repo.git
@@ -48,6 +53,8 @@ git checkout -b fix/data-pipeline-null-values # Create a new branch
 git commit -m "Fix null handling in the preprocessing script"
 git push origin fix/data-pipeline-null-values
 git clone, checkout -b, commit -m, push origin
+Git stash - changes made to branch so sync fails
+Git rebase - add changes on top of new commits
  
 Dev tips:
     Phase 1: explicit instructions ("Type ls to see what's in this directory"). 

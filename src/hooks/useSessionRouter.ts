@@ -16,7 +16,7 @@ import { ChipSession } from "../engine/chip/ChipSession";
 import { PiperSession } from "../engine/piper/PiperSession";
 import { LessSession } from "../engine/pager/LessSession";
 import { deliverPiperAndCascade } from "../engine/piper/delivery";
-import { ISession } from "../engine/session/types";
+import { ISession, sessionUsesAltScreen } from "../engine/session/types";
 import { SessionToStart } from "../engine/commands/applyResult";
 import { ComputerId } from "../state/types";
 import { isCommandAvailable } from "../engine/commands/availability";
@@ -100,9 +100,9 @@ export function useSessionRouter(deps: SessionRouterDeps) {
 
   const sessionMapRef = useRef<Map<string, SessionEntry>>(new Map());
 
-  const hasActiveSession = useCallback(() => {
+  const getActiveSessionType = useCallback((): string | null => {
     const activeTabId = useGameStore.getState().activeTabId;
-    return sessionMapRef.current.has(activeTabId);
+    return sessionMapRef.current.get(activeTabId)?.type ?? null;
   }, []);
 
   /** Refresh piper session state from the store (other tabs may have progressed). */
@@ -336,7 +336,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       // FS was already synced to store via setComputerFs above
       // Piper and editor use the alternate screen buffer — no leading \r\n needed
       // (but if notifications were just written, we need a newline before the prompt)
-      const usedAltScreen = type === "piper" || type === "editor" || type === "less";
+      const usedAltScreen = sessionUsesAltScreen(type);
       if (usedAltScreen) {
         term.write((wroteNotifications ? "\r\n" : "") + getPrompt());
       } else {
@@ -521,5 +521,5 @@ export function useSessionRouter(deps: SessionRouterDeps) {
     entry?.session.resize?.();
   }, []);
 
-  return { hasActiveSession, routeInput, startSession, canCloseCurrentSession, refreshPiperSession, cleanupTab, resizeActiveSession };
+  return { getActiveSessionType, routeInput, startSession, canCloseCurrentSession, refreshPiperSession, cleanupTab, resizeActiveSession };
 }

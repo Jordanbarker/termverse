@@ -127,7 +127,8 @@ function createInitialState(username = PLAYER.username) {
     deliveredPiperIds: [] as string[],
     gamePhase: "playing" as GamePhase,
     snowflakeState: createInitialSnowflakeState(),
-    storyFlags: {} as StoryFlags,
+    // Terminal tabs + copy mode are available from the start of a new game.
+    storyFlags: { tabs_unlocked: true } as StoryFlags,
     hasSeenIntro: false,
     toasts: [] as Toast[],
     computerState: { home: { fs, commandHistory: ["nano terminal_notes.txt"], envVars: initEnvForComputer("home", username, fs), aliases: initAliasesForComputer("home", username, fs), mounts: {} } } as Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>,

@@ -13,6 +13,14 @@ export interface SessionResult {
   transitionTo?: ComputerId;
 }
 
+/** Session types that take over the full screen via xterm's alternate buffer. */
+export const ALT_SCREEN_SESSION_TYPES = new Set(["editor", "less", "piper"]);
+
+/** True if the session renders on the alternate screen buffer (vs inline in the normal buffer). */
+export function sessionUsesAltScreen(type: string | null | undefined): boolean {
+  return type != null && ALT_SCREEN_SESSION_TYPES.has(type);
+}
+
 export interface ISession {
   enter(): void | SessionResult | Promise<void>;
   handleInput(data: string): SessionResult | null;

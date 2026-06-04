@@ -20,6 +20,7 @@ import { useSessionRouter } from "./useSessionRouter";
 import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "../engine/commands/types";
+import { parseTmuxPrefix } from "../engine/terminal/tmuxConfig";
 import { Mounts } from "../engine/filesystem/mounts";
 import { applyRedirection, extractStdoutRedirect } from "../engine/commands/redirection";
 
@@ -70,6 +71,11 @@ function buildCommandContext(
     setSnowflakeState: store.setSnowflakeState,
     deliveredPiperIds: store.deliveredPiperIds,
     mounts,
+    tabPrefixLabel: (() => {
+      const homeFs = store.computerState.home?.fs;
+      const conf = homeFs ? homeFs.readFile(`${homeFs.homeDir}/.tmux.conf`).content : undefined;
+      return parseTmuxPrefix(conf).label;
+    })(),
   };
 }
 
@@ -676,6 +682,7 @@ export function useTerminal() {
     getPrompt,
     startSession: sessionRouter.startSession,
     canCloseCurrentSession: sessionRouter.canCloseCurrentSession,
+    getActiveSessionType: sessionRouter.getActiveSessionType,
     cleanupTab: sessionRouter.cleanupTab,
     resizeActiveSession: sessionRouter.resizeActiveSession,
   };

@@ -85,21 +85,6 @@ and go from there. Also worth checking if there are any .bak files in /var/log/.
       trigger: { type: "after_objective", objectiveId: "search_tools_tips_requested" },
     },
 
-    // Oscar tab tip (after accepting log task)
-    {
-      id: "oscar_tab_tip",
-      channelId: "dm_oscar",
-      messages: [
-        {
-          id: "oscar_tab_1",
-          from: "Oscar Diaz",
-          timestamp: "",
-          body: "Oh one more thing: your terminal supports tabs. Ctrl+B, C opens a new one. Super handy for tailing logs in one tab while you grep in another.",
-        },
-      ],
-      trigger: { type: "after_objective", objectiveId: "search_tools_accepted" },
-    },
-
     // === DM Oscar: What did you find? (after reading system.log) ===
     {
       id: "oscar_access_review",

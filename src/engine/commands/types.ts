@@ -40,6 +40,8 @@ export interface CommandContext {
   setAliases?: (aliases: Record<string, string>) => void;
   deliveredPiperIds?: string[];
   mounts?: Mounts;
+  /** Current terminal-tab prefix label (e.g. "Ctrl+Space"), from ~/.tmux.conf. */
+  tabPrefixLabel?: string;
 }
 
 export interface EditorSessionInfo {

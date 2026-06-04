@@ -509,7 +509,7 @@ On nexacorp, certain destructive operations attach a `securityViolation` field t
 
 | t (ms) | Action |
 |---|---|
-| 0 | `setGamePhase("transitioning")`; set `terminated_for_misconduct` + `termination_reason` flags; close sibling nexacorp/devcontainer/chipinfra tabs so the player can't `Ctrl+B,N` away and keep working |
+| 0 | `setGamePhase("transitioning")`; set `terminated_for_misconduct` + `termination_reason` flags; close sibling nexacorp/devcontainer/chipinfra tabs so the player can't `<prefix>,N` away and keep working (prefix key is configurable via `~/.tmux.conf`, default Ctrl+Space) |
 | 700 / 1400 / 2100 | Stream three per-kind `[corp-sec]` audit lines (red+dim) via `getTerminationAlertLines(violation, pid)` in `src/story/security.ts`. PID is a random 4-digit int. Exfiltration lines name source AND destPath. |
 | 2900 | `Connection to nexacorp closed by remote host.` (red) + `Killed by signal 1.` (dim) — held for 3s so the player can read it |
 | 5900 | Hide cursor + `term.clear()` → 2000ms blackout |

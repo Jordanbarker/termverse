@@ -3,7 +3,7 @@ import { register, getAvailableCommands } from "../registry";
 import { colorize, ansi } from "../../../lib/ansi";
 
 const META_COMMANDS = new Set(["save", "load", "newgame", "cheat"]);
-const HIDDEN_COMMANDS = new Set(["help"]);
+const HIDDEN_COMMANDS = new Set(["help", "true", "false"]);
 
 const help: CommandHandler = (_args, _flags, ctx) => {
   const commands = getAvailableCommands(ctx.activeComputer, ctx.storyFlags);
@@ -34,6 +34,7 @@ const help: CommandHandler = (_args, _flags, ctx) => {
   ];
 
   const PAD = 21;
+  const prefixLabel = ctx.tabPrefixLabel ?? "Ctrl+Space";
   lines.push(
     "",
     colorize("Keyboard shortcuts:", ansi.bold, ansi.yellow),
@@ -52,16 +53,19 @@ const help: CommandHandler = (_args, _flags, ctx) => {
     `    ${colorize("(Fn+Shift+Up/Down)", ansi.dim)}`,
     `    ${colorize("Cmd+Home/End".padEnd(PAD), ansi.green)}Scroll to top/bottom`,
     `    ${colorize("(Fn+Cmd+Left/Right)", ansi.dim)}`,
+    `    ${colorize(`${prefixLabel}, [`.padEnd(PAD), ansi.green)}Copy mode`,
   );
 
   if (ctx.storyFlags?.tabs_unlocked) {
+    const prefix = prefixLabel;
     lines.push(
       "",
       colorize("  Terminal tabs:", ansi.dim),
-      `    ${colorize("Ctrl+B, C".padEnd(PAD), ansi.green)}New tab`,
-      `    ${colorize("Ctrl+B, X".padEnd(PAD), ansi.green)}Close tab`,
-      `    ${colorize("Ctrl+B, N/P".padEnd(PAD), ansi.green)}Next/prev tab`,
-      `    ${colorize("Ctrl+B, 1-5".padEnd(PAD), ansi.green)}Jump to tab`,
+      `    ${colorize(`${prefix}, C`.padEnd(PAD), ansi.green)}New tab`,
+      `    ${colorize(`${prefix}, X`.padEnd(PAD), ansi.green)}Close tab`,
+      `    ${colorize(`${prefix}, N/P`.padEnd(PAD), ansi.green)}Next/prev tab`,
+      `    ${colorize(`${prefix}, 1-5`.padEnd(PAD), ansi.green)}Jump to tab`,
+      `    ${colorize("Change the prefix in ~/.tmux.conf on your home PC.", ansi.dim)}`,
     );
   }
 

@@ -405,14 +405,31 @@ describe("help", () => {
   it("shows tab shortcuts when tabs_unlocked is set", () => {
     const result = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
     expect(result.output).toContain("Terminal tabs");
+    expect(result.output).toContain("Ctrl+Space, C");
+    expect(result.output).toContain("Ctrl+Space, X");
+    expect(result.output).toContain("~/.tmux.conf");
+  });
+
+  it("reflects a custom tab prefix from ~/.tmux.conf", () => {
+    const result = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true }, tabPrefixLabel: "Ctrl+B" });
     expect(result.output).toContain("Ctrl+B, C");
-    expect(result.output).toContain("Ctrl+B, X");
+  });
+
+  it("shows the copy mode shortcut regardless of tabs_unlocked", () => {
+    const locked = execute("help", [], {}, ctx());
+    expect(locked.output).toContain("Copy mode");
+    expect(locked.output).toContain("Ctrl+Space, [");
+
+    const unlocked = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
+    expect(unlocked.output).toContain("Copy mode");
   });
 
   it("hides tab shortcuts when tabs_unlocked is not set", () => {
     const result = execute("help", [], {}, ctx());
+    // Copy mode (and thus the bare prefix label) shows unconditionally, so assert
+    // the absence of the tab-specific block rather than the prefix label itself.
     expect(result.output).not.toContain("Terminal tabs");
-    expect(result.output).not.toContain("Ctrl+B");
+    expect(result.output).not.toContain("Ctrl+Space, C");
   });
 });
 

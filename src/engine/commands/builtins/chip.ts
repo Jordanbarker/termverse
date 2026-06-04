@@ -15,5 +15,5 @@ register(
       chipSession: { storyFlags: ctx.storyFlags ?? {}, currentComputer: ctx.activeComputer },
     };
   },
-  "Chat with Chip, NexaCorp's AI assistant"
+  "Chat with NexaCorp's AI assistant"
 );

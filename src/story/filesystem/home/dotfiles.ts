@@ -99,6 +99,19 @@ set tabstospaces
 set linenumbers
 set mouse
 `),
+    ".tmux.conf": file(".tmux.conf", `# ~/.tmux.conf
+# Prefix key for terminal tabs. Press the prefix, then:
+#   C = new tab   X = close tab   N/P = next/prev   1-5 = jump to tab
+# Options: C-Space (default)   C-b (tmux default)   C-a (screen-style)
+set -g prefix C-Space
+
+# Status bar - seamless dark look (blends into the terminal). Edit freely;
+# colors may be named (green, yellow, ...) or hex (#0a0e14).
+set -g status-style "bg=#0a0e14,fg=#686868"                # the bar (matches terminal bg)
+set -g window-status-current-style "bg=#0a0e14,fg=#e6b450" # active tab (gold text, no block)
+set -g window-status-style "bg=#0a0e14,fg=#686868"         # other tabs (dim)
+set -g status-left-style "bg=#0a0e14,fg=#686868"           # [session] block (blends)
+`),
     ".ssh": dir(".ssh", {
       "known_hosts": file("known_hosts", ""),
       "config": file("config", ""),
