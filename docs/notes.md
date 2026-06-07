@@ -1,11 +1,6 @@
 RAG quest
     RAG data: PTO, HR policies, IT procedures, internal playbooks, product docs, wikis, databases (snowflake) regulatory guidance, audit materials, and transaction context to support reporting and compliance questions.
 
-Unused discovery flags read_board_minutes / read_headcount_plan
-
-Resolve Sarah-as-accusation-option
-  Marcus's DM offers Sarah as a suspect but no on-disk artifact backs or refutes the option — player guesses blind. Either remove Sarah from the reply choices, or add a small grounding artifact.
-
 - note about deleting old data to keep snowflake bill cheap
 - you're absolutely right!
 - Slippery slope, bad guy used chip's permissions slowly and it escalated
@@ -110,25 +105,6 @@ Pulling at a Loose Thread
 
 # Chip runs this, it should match what the player gets when they run it. @menuItems.ts
 sort /var/log/access.log | uniq -c | sort -rn | head
-
-
-# You're Fired
-  - rm /var/log/system.log (or .bak) — there's already a discovered_log_tampering flag hinting at this theme
-  - rm /srv/leadership/
-  - rm /srv/operations/
-  - rm -rf / style attempts (block at FS layer, but trigger an event)
-  - Overwriting /var/log/system.log via echo "" > /var/log/system.log
-  - chmod 000 /var/log/*.log
-  - chmod -R 000 /srv or rm -rf /srv
-  - Modifying test files so they pass when they shouldn't (data fraud angle)
-  - Mass-moving files into wrong directories
-
----
-
-@home.ts - there is a lot of duplicative writing in the termination prompts, can we consolidate these to share the same text? 
-The duplication is in: the envelope (from/to/date/subject), the opening salutation + first sentence, the "credentials revoked" sentence, and the HR Department / NexaCorp sign-off. The middles (incident lead-in, detail block, violation paragraph, legal-hold/pay phrasing) intentionally differ for narrative realism.
-> Extract one helper that owns the envelope, opening salutation + first sentence, the shared 'credentials revoked' sentence, and the HR sign-off. Each variant supplies its own incident lead-in, detail block, violation paragraph, and legal-hold/final-pay paragraph. Reduces ~120 lines to ~70; preserves narrative differences in tone (NDA, securities/audit, gross misconduct).
-> On top of the shell, collapse the legal-hold + final-pay closing into a single shared paragraph with a small per-variant flag (e.g. mention outside counsel? mention legal hold?).
 
 
 ---
