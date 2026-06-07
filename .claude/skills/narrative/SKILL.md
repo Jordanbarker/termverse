@@ -366,7 +366,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 
 | Constant | Purpose |
 |----------|---------|
-| `HOME_COMMANDS` | Master set of commands that *exist* on Home PC (ls, cd, cat, pwd, clear, help, mail, nano, piper, save, load, newgame, history, python/python3, bash/sh/zsh, source/`.`, printenv, env, export, alias, unalias, cheat, command, type, lsblk, mount, umount). Many of these are still subject to `HOME_GATED` flag checks (e.g. `lsblk`, `mount`, `umount`). |
+| `HOME_COMMANDS` | Master set of commands that *exist* on Home PC (ls, cd, cat, pwd, clear, help, mail, nano, piper, save, load, newgame, history, python/python3, bash/sh/zsh, source/`.`, printenv, env, export, alias, unalias, cheat, command, type, man, lsblk, mount, umount). Many of these are still subject to `HOME_GATED` flag checks (e.g. `lsblk`, `mount`, `umount`). `man` is *not* gated — the manual is the discovery command and self-limits to currently-available commands. |
 | `HOME_GATED` | Home commands behind a flag |
 | `NEXACORP_GATED` | NexaCorp commands behind a flag |
 | `NEXACORP_ONLY` | Never available on Home (`coder`, `chip`) |
@@ -382,7 +382,7 @@ Source of truth: `src/story/commandGates.ts`. The following sets and maps are ex
 | `sudo`, `apt` | `apt_unlocked` | Olive's tree tip on Piper |
 | `pdftotext` | `pdftotext_unlocked` | visiting `~/Downloads` or reading a PDF there |
 | `tree` | `tree_installed` | running `apt install tree` |
-| `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `whoami`, `hostname`, `date`, `which`, `man`, `file` | `basic_tools_unlocked` | Olive's "Linux basics" Piper reply |
+| `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `whoami`, `hostname`, `date`, `which`, `file` | `basic_tools_unlocked` | Olive's "Linux basics" Piper reply (`man` is **not** in this batch — it's always available, see `HOME_COMMANDS` above) |
 | `grep`, `find`, `wc`, `sort`, `uniq`, `head`, `tail`, `diff`, `shutdown` | `returned_home_day1` | end of Day 1 (these were learned at NexaCorp; only available at home after the player has been there). `exit` from NexaCorp is **not** hard-gated: it always returns the player to the home shell (true-to-life `exit`; they can `ssh` back to finish). `runExitToHome` only sets `returned_home_day1` (and completes `head_home` + runs the evening deliveries) when `read_end_of_day` is set, so a mid-shift logoff leaves `shutdown` unavailable and Day 1 cannot be skipped. Mirrors Day 2, where `exit` before the accusation also just returns home with no day-advance. |
 | `lsblk`, `mount`, `umount` | `accepted_usb_drive` | accepting the anonymous USB tip Piper DM (`dm_anon`) on Day 2 morning |
 

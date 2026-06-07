@@ -123,15 +123,13 @@ export default function TabManager() {
   // Copy mode (tmux/vi `<prefix> [`) — indicator state for the overlay
   const [copyModeActive, setCopyModeActive] = useState(false);
 
-  // Keep the live prefix char/label available inside the xterm onData closures.
+  // Keep the live prefix char available inside the xterm onData closures.
   const prefixCharRef = useRef(tabPrefix.char);
-  const prefixLabelRef = useRef(tabPrefix.label);
   prefixCharRef.current = tabPrefix.char;
-  prefixLabelRef.current = tabPrefix.label;
 
-  // Force-close tracking: second Ctrl+B,X within 2s forces close
-  const forceCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const forceClosePendingRef = useRef(false);
+  // tmux confirm-before-kill: the close prompt shown in the status bar.
+  const [closeConfirm, setCloseConfirm] = useState<string | null>(null);
+  const closeConfirmRef = useRef(false); // synchronous flag read inside onData
 
   // Keep track of tab IDs we've seen to know which are new
   const knownTabIdsRef = useRef<Set<string>>(new Set());
@@ -159,35 +157,12 @@ export default function TabManager() {
       const activeTab = store.tabs.find((t) => t.id === store.activeTabId);
       if (activeTab) store.addTab(activeTab.computerId, activeTab.cwd);
     } else if (normalized === "x") {
-      // Close current tab (with canClose check)
+      // Close current tab — tmux-style confirm-before-kill (rendered in the bar).
       if (store.tabs.length > 1) {
-        const canClose = canCloseRef.current();
-        if (!canClose) {
-          if (forceClosePendingRef.current) {
-            // Second attempt — force close
-            forceClosePendingRef.current = false;
-            if (forceCloseTimerRef.current) {
-              clearTimeout(forceCloseTimerRef.current);
-              forceCloseTimerRef.current = null;
-            }
-            cleanupTabRef.current(store.activeTabId);
-            store.removeTab(store.activeTabId);
-          } else {
-            // First attempt — warn and arm force-close
-            forceClosePendingRef.current = true;
-            const instance = tabInstancesRef.current.get(store.activeTabId);
-            if (instance) {
-              instance.term.write(`\r\n\x1b[33mUnsaved changes. Press ${prefixLabelRef.current}, X again to force close.\x1b[0m`);
-            }
-            forceCloseTimerRef.current = setTimeout(() => {
-              forceClosePendingRef.current = false;
-              forceCloseTimerRef.current = null;
-            }, 2000);
-          }
-          return;
-        }
-        cleanupTabRef.current(store.activeTabId);
-        store.removeTab(store.activeTabId);
+        const idx = store.tabs.findIndex((t) => t.id === store.activeTabId);
+        const note = canCloseRef.current() ? "" : " Unsaved changes will be lost.";
+        setCloseConfirm(`kill-pane ${idx + 1}?${note} (y/n)`);
+        closeConfirmRef.current = true;
       }
     } else if (normalized === "n") {
       // Next tab
@@ -271,6 +246,22 @@ export default function TabManager() {
 
     const onDataDisposable = term.onData((data) => {
       if (gamePhaseRef.current !== "playing") return;
+
+      // tmux confirm-before-kill: the next key answers the close prompt.
+      if (closeConfirmRef.current) {
+        if (data === "\r" || data === "\n") return; // ignore Enter; wait for y/n
+        const confirmed = data[0]?.toLowerCase() === "y";
+        closeConfirmRef.current = false;
+        setCloseConfirm(null);
+        if (confirmed) {
+          const store = useGameStore.getState();
+          cleanupTabRef.current(store.activeTabId);
+          store.removeTab(store.activeTabId);
+        }
+        // Cancel needs no redraw: the prompt lived in the status bar, so the pane
+        // buffer (and any half-typed shell line) was never touched.
+        return;
+      }
 
       // Ctrl+B prefix handling
       if (ctrlBPrefixRef.current) {
@@ -481,6 +472,7 @@ export default function TabManager() {
           onCloseTab={handleCloseTab}
           onSelectTab={handleSelectTab}
           prefixActive={prefixActive}
+          closeConfirm={closeConfirm}
           theme={tabTheme}
         />
       )}

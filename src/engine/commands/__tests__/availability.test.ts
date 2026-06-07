@@ -45,7 +45,7 @@ describe("isCommandAvailable", () => {
     });
 
     it("blocks basic tools without basic_tools_unlocked flag", () => {
-      const basicTools = ["mkdir", "rm", "mv", "cp", "touch", "echo", "whoami", "hostname", "date", "which", "man", "file"];
+      const basicTools = ["mkdir", "rm", "mv", "cp", "touch", "echo", "whoami", "hostname", "date", "which", "file"];
       for (const cmd of basicTools) {
         expect(isCommandAvailable(cmd, "home")).toBe(false);
         expect(isCommandAvailable(cmd, "home", {})).toBe(false);
@@ -53,10 +53,15 @@ describe("isCommandAvailable", () => {
     });
 
     it("unlocks basic tools with basic_tools_unlocked flag", () => {
-      const basicTools = ["mkdir", "rm", "mv", "cp", "touch", "echo", "whoami", "hostname", "date", "which", "man", "file"];
+      const basicTools = ["mkdir", "rm", "mv", "cp", "touch", "echo", "whoami", "hostname", "date", "which", "file"];
       for (const cmd of basicTools) {
         expect(isCommandAvailable(cmd, "home", { basic_tools_unlocked: true })).toBe(true);
       }
+    });
+
+    it("allows man on home from the start (manual is the discovery command)", () => {
+      expect(isCommandAvailable("man", "home")).toBe(true);
+      expect(isCommandAvailable("man", "home", {})).toBe(true);
     });
 
     it("blocks commands not in the home set and not unlocked via NexaCorp", () => {

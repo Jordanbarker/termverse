@@ -31,6 +31,10 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   // Shell builtins for command lookup — always available alongside `which` (which itself is gated)
   "command",
   "type",
+  // The manual is the help/discovery command — always present on a real Linux box.
+  // man self-limits which pages it renders to currently-available commands
+  // (see man.ts), so it never leaks tools the player hasn't unlocked.
+  "man",
   // Block-device tooling. All three are gated behind `accepted_usb_drive`
   // (see HOME_GATED / NEXACORP_GATED below) — they unlock together the
   // first time the player accepts the anonymous USB tip. No reason to
@@ -111,7 +115,6 @@ export const HOME_GATED: Record<string, StoryFlagName> = {
   hostname: "basic_tools_unlocked",
   date: "basic_tools_unlocked",
   which: "basic_tools_unlocked",
-  man: "basic_tools_unlocked",
   file: "basic_tools_unlocked",
   grep: "returned_home_day1",
   find: "returned_home_day1",

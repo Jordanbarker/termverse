@@ -4,9 +4,9 @@
 
 Commands unlock progressively through Piper conversations and exploration:
 
-**Always available** (14): `ls`, `cd`, `cat`, `pwd`, `clear`, `help`, `mail`, `nano`, `piper`, `save`, `load`, `newgame`, `history`, `python`
+**Always available** (15): `ls`, `cd`, `cat`, `pwd`, `clear`, `help`, `mail`, `nano`, `piper`, `save`, `load`, `newgame`, `history`, `python`, `man` (the manual is the discovery command; it self-limits to currently-available commands, so `man mkdir` still says "No manual entry" until `basic_tools_unlocked`)
 
-**After `basic_tools_unlocked`** (reply to Olive's linux basics on Piper): `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `whoami`, `hostname`, `date`, `which`, `man`, `file`
+**After `basic_tools_unlocked`** (reply to Olive's linux basics on Piper): `mkdir`, `rm`, `mv`, `cp`, `touch`, `echo`, `whoami`, `hostname`, `date`, `which`, `file`
 
 **After `apt_unlocked`** (Olive's tree tip delivered on Piper): `sudo`, `apt`
 

@@ -11,6 +11,8 @@ interface TabBarProps {
   onSelectTab: (tabId: string) => void;
   /** True while the tmux prefix key is pending (lights up the session block). */
   prefixActive: boolean;
+  /** tmux confirm-before-kill prompt text; takes over the bar when non-null. */
+  closeConfirm?: string | null;
   /** Bar colors parsed from `~/.tmux.conf` (drives the inline styles). */
   theme: TabBarTheme;
 }
@@ -41,6 +43,7 @@ export default function TabBar({
   onCloseTab,
   onSelectTab,
   prefixActive,
+  closeConfirm,
   theme,
 }: TabBarProps) {
   const tabs = useGameStore((s) => s.tabs);
@@ -86,6 +89,13 @@ export default function TabBar({
       className="flex items-center border-b font-mono text-xs select-none"
       style={{ backgroundColor: theme.statusBg, borderBottomColor: theme.statusBg }}
     >
+      {closeConfirm ? (
+        // tmux confirm-before-kill takes over the status line until answered.
+        <span className="px-2 py-0.5 font-bold" style={{ color: theme.currentFg }}>
+          {closeConfirm}
+        </span>
+      ) : (
+      <>
       {/* tmux status-left: session block. Lights up gold while the prefix is pending. */}
       <span
         className={`px-2 py-0.5 font-bold transition-colors ${prefixActive ? "animate-pulse" : ""}`}
@@ -154,6 +164,8 @@ export default function TabBar({
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
