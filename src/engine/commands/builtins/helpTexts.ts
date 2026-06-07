@@ -366,6 +366,11 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "Mount a filesystem at DIR. With no arguments, list active mounts.",
     "DIR must be an existing empty directory.",
+    "",
+    "Examples:",
+    "  lsblk                      list block devices to find the partition",
+    "  mount /dev/sdb1 /mnt/usb   mount the USB partition at /mnt/usb",
+    "  mount                      list what is currently mounted",
   ].join("\n"),
 
   umount: [
