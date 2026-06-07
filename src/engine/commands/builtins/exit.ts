@@ -25,10 +25,15 @@ const exit: CommandHandler = (_args, _flags, ctx) => {
       triggerEvents: [{ type: "command_executed", detail: "exit_day2_logoff" }],
     };
   }
-  if (ctx.activeComputer === "nexacorp" && ctx.storyFlags?.read_end_of_day) {
+  // Any other case on NexaCorp: log off the SSH session and return to the home
+  // shell, exactly like a real `exit`. This is reversible: the player can `ssh`
+  // back in to finish the day. The day does NOT advance here: `shutdown` stays
+  // locked until `returned_home_day1` is set, which runExitToHome only does on a
+  // genuine end-of-day exit (read_end_of_day). See useComputerTransitions.ts.
+  if (ctx.activeComputer === "nexacorp") {
     return { output: "", transitionTo: "home" };
   }
-  return { output: "You still have work to do before you can leave." };
+  return { output: "" };
 };
 
 register("exit", exit, "Exit the current remote session");

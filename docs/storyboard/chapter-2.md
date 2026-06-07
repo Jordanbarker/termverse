@@ -348,6 +348,16 @@ Commands unlock through colleague emails and Piper conversations:
                                 └──────────────────────┘
 ```
 
+> **Leaving early is allowed.** `exit` from NexaCorp is not hard-gated: it always
+> logs the player off to the home shell, mirroring a real `exit` (close the SSH
+> session, return to the local prompt). The player can `ssh` back in to finish.
+> The day-advance is what stays protected: `runExitToHome` only sets
+> `returned_home_day1` (and completes `head_home` + runs the evening deliveries)
+> when `read_end_of_day` is already set. Since `shutdown` is gated behind
+> `returned_home_day1` (`commandGates.ts`), a mid-shift logoff leaves `shutdown`
+> unavailable, so Day 1 cannot be skipped. This mirrors Day 2, where `exit`
+> before the accusation likewise just returns home with no day-advance.
+
 ## Investigation Paths (Optional)
 
 These optional objectives allow the player to discover evidence of Chip's autonomous behavior:

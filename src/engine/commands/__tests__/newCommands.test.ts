@@ -1830,10 +1830,24 @@ describe("exit", () => {
     expect(result.output).toBe("");
   });
 
-  it("shows error when not in remote session", () => {
+  it("logs off NexaCorp to home before the day's work is done (reversible)", () => {
+    // No read_end_of_day: mid-shift logoff. exit returns home like a real shell;
+    // the day cannot advance because shutdown stays gated on returned_home_day1,
+    // which runExitToHome only sets on an end-of-day exit.
     const result = execute("exit", [], {}, ctx(undefined, { activeComputer: "nexacorp" }));
-    expect(result.output).toContain("still have work to do");
-    expect(result.transitionTo).toBeUndefined();
+    expect(result.transitionTo).toBe("home");
+    expect(result.output).toBe("");
+  });
+
+  it("logs off NexaCorp to home after the day's work is done", () => {
+    const result = execute(
+      "exit",
+      [],
+      {},
+      ctx(undefined, { activeComputer: "nexacorp", storyFlags: { read_end_of_day: true } })
+    );
+    expect(result.transitionTo).toBe("home");
+    expect(result.output).toBe("");
   });
 
   it("shows error on home computer", () => {

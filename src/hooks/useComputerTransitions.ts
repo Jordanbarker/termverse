@@ -463,7 +463,17 @@ export function useComputerTransitions(deps: TransitionDeps) {
           writePrompt(term);
         };
 
-        if (isDay2Wrap) {
+        // Only a genuine end-of-day exit progresses the story. `read_end_of_day`
+        // is set by reading Edward's end-of-day email (Day 1) and persists into
+        // Day 2. When it is unset the player is logging off mid-shift: drop them
+        // at the home shell without setting returned_home_day1 (so `shutdown`
+        // stays locked and they can `ssh` back to finish). No evening deliveries.
+        const isEndOfDay = Boolean(s.storyFlags.read_end_of_day);
+
+        if (!isEndOfDay) {
+          useGameStore.getState().setGamePhase("playing");
+          writePrompt(term);
+        } else if (isDay2Wrap) {
           // Evening pause — implies hours passing between leaving work and
           // arriving home. Then a quiet grounding line before deliveries.
           term.writeln("");
