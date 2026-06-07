@@ -33,8 +33,8 @@ help you get oriented.
 Your first priority is just getting familiar with the system.
 Here are a couple things to check out first:
 
-  /srv/engineering/onboarding.md   Setup checklist and useful commands
-  /srv/engineering/team-info.md    Who's who on the engineering team
+  /srv/engineering/onboarding.md
+  /srv/engineering/team-info.md
 
 We use Piper for team chat. Type 'piper' to check it out.
 
