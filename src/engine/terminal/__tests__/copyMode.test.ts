@@ -233,6 +233,40 @@ describe("CopyModeController", () => {
     expect(term.lastSelect()).toEqual([0, 3, 1]); // back to baseY + cursorY
   });
 
+  it("scrolls a half page up/down on Ctrl+U / Ctrl+D", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 10, cursorX: 0, cursorY: 9, baseY: 20, viewportY: 20, length: 60,
+    });
+    controller.enter(); // cursor row = baseY + cursorY = 29
+    controller.handleKeydown(key("u", true)); // half = 5 -> row 24
+    expect(term.lastSelect()).toEqual([0, 24, 1]);
+    expect(term.scrollLinesCalls).toContain(-5); // viewport follows the cursor
+    controller.handleKeydown(key("d", true)); // -> row 29
+    expect(term.lastSelect()).toEqual([0, 29, 1]);
+    expect(term.scrollLinesCalls).toContain(5);
+  });
+
+  it("clamps half-page scroll at the top of the buffer", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 10, cursorX: 0, cursorY: 2, baseY: 0, viewportY: 0, length: 60,
+    });
+    controller.enter(); // cursor row 2
+    controller.handleKeydown(key("u", true)); // half = 5, max(0, 2 - 5) = 0
+    expect(term.lastSelect()).toEqual([0, 0, 1]);
+  });
+
+  it("ignores u/d without Ctrl (they are unbound in copy mode)", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 10, cursorX: 0, cursorY: 5, baseY: 0, length: 60,
+    });
+    controller.enter();
+    const before = term.lastSelect();
+    controller.handleKeydown(key("d")); // no ctrl -> no-op
+    controller.handleKeydown(key("u")); // no ctrl -> no-op
+    expect(term.lastSelect()).toEqual(before);
+    expect(term.scrollLinesCalls).toEqual([]);
+  });
+
   it("clamps onto short lines and restores the preferred column on longer ones", () => {
     const { term, controller } = setup({
       cols: 80, rows: 5, cursorX: 10, cursorY: 0, baseY: 0, length: 3,

@@ -196,6 +196,23 @@ export class CopyModeController {
         this.cursor = { col: 0, row: buf.baseY + buf.cursorY };
         this.desiredCol = 0;
         break;
+      case "u":
+      case "U":
+      case "d":
+      case "D": {
+        // Ctrl+U / Ctrl+D: half-page scroll (tmux halfpage-up / halfpage-down).
+        // Plain u/d are unbound in copy mode — swallow them unchanged.
+        if (!e.ctrlKey) return true;
+        const half = Math.max(1, Math.floor(this.term.rows / 2));
+        const prevRow = this.cursor.row;
+        const dir = e.key.toLowerCase() === "u" ? -1 : 1;
+        this.cursor.row = Math.min(maxRow, Math.max(0, prevRow + dir * half));
+        this.cursor.col = this.clampCol(this.desiredCol, this.cursor.row);
+        // Scroll the viewport with the cursor so it keeps its on-screen row;
+        // ensureVisible() below corrects at the buffer edges.
+        this.term.scrollLines(this.cursor.row - prevRow);
+        break;
+      }
       case "v":
         // Toggle the visual selection anchor on/off at the current cursor.
         this.anchor = this.anchor ? null : { ...this.cursor };
