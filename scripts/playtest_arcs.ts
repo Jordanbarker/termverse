@@ -408,7 +408,7 @@ async function arc7_auriDbt() {
 // ── ARC 8: Chapter 2 — Side quests (Dana / Jordan / Maya) ─────────
 
 function arc8_sideQuests() {
-  arc("Chapter 2 — Side quests: Dana ops + leadership reads");
+  arc("Chapter 2 — Side quests: Dana ops incidents");
   const r = new GameRunner("nexacorp");
   simulatePiperUnlocks(r, "piper_unlocked", "search_tools_unlocked", "processing_tools_unlocked", "chmod_unlocked");
 
@@ -418,22 +418,6 @@ function arc8_sideQuests() {
   out = r.run("cat /srv/operations/ops_incidents.csv");
   expectExit(out, 0, "cat ops_incidents");
   expectFlag(r, "read_ops_incidents");
-
-  step("chmod + read board deck (/srv/leadership/board/2026-02-board-deck.md)");
-  r.run("chmod 755 /srv/leadership");
-  r.run("chmod 755 /srv/leadership/board");
-  out = r.run("cat /srv/leadership/board/2026-02-board-deck.md");
-  if (out.exitCode === 0) {
-    expectFlag(r, "read_board_minutes");
-  } else {
-    warn(`board deck path: ${out.output.slice(0, 100)}`);
-  }
-
-  step("chmod + read headcount plan (/srv/leadership/finance/headcount_plan.csv)");
-  r.run("chmod 755 /srv/leadership/finance");
-  out = r.run("cat /srv/leadership/finance/headcount_plan.csv");
-  if (out.exitCode === 0) expectFlag(r, "read_headcount_plan");
-  else warn(`headcount_plan: ${out.output.slice(0, 100)}`);
 }
 
 // ── ARC 9: Chapter 2 — End of Day 1 → shutdown ────────────────────

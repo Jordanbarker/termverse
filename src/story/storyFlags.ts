@@ -68,8 +68,6 @@ export const STORY_FLAG_NAMES = [
   "returned_home_day1",
   "chmod_unlocked",
   "read_ops_incidents",
-  "read_board_minutes",
-  "read_headcount_plan",
 
   "discovered_log_tampering",
   "found_inflated_metrics",
@@ -320,8 +318,6 @@ export function getNexacorpStoryFlagTriggers(_username: string): StoryFlagTrigge
     { event: "file_read", detail: "discovered_log_tampering", flag: "discovered_log_tampering", value: true },
     { event: "command_executed", detail: "queried_campaign_metrics", flag: "found_inflated_metrics", value: true },
     { event: "file_read", path: p.opsIncidents, flag: "read_ops_incidents", value: true },
-    { event: "file_read", path: p.boardMinutes, flag: "read_board_minutes", value: true },
-    { event: "file_read", path: p.headcountPlan, flag: "read_headcount_plan", value: true },
     // Day 2 quest: Piper reply fires on nexacorp since dm_auri defaults there
     { event: "objective_completed", detail: "reported_fix_to_auri", flag: "reported_fix_to_auri", value: true },
 

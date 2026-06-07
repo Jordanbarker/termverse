@@ -41,7 +41,5 @@ export const NEXACORP_PATHS = {
   handoffNotes: "/srv/engineering/chen-handoff/notes.txt",
   pipelineRuns: "/srv/engineering/chen-handoff/pipeline_runs.csv",
   opsIncidents: "/srv/operations/ops_incidents.csv",
-  boardMinutes: "/srv/leadership/board/2026-02-board-deck.md",
-  headcountPlan: "/srv/leadership/finance/headcount_plan.csv",
   chipSessionsDir: (u: string) => `/home/${u}/.chip/sessions`,
 } as const;
