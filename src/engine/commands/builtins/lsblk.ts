@@ -33,7 +33,7 @@ function buildRows(devices: BlockDevice[]): Row[] {
 }
 
 function formatMountpoints(device: BlockDevice, mounts: Record<string, Mount>): string {
-  const paths: string[] = [];
+  const paths: string[] = device.mountpoint ? [device.mountpoint] : [];
   for (const m of Object.values(mounts)) {
     if (m.device === device.devicePath) paths.push(m.mountpath);
   }

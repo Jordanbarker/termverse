@@ -27,6 +27,9 @@ const mount: CommandHandler = (args, _flags, ctx) => {
   if (!device) {
     return { output: `mount: ${deviceArg}: no such device`, exitCode: 1 };
   }
+  if (device.mountpoint) {
+    return { output: `mount: ${device.devicePath} already mounted on ${device.mountpoint}`, exitCode: 1 };
+  }
 
   const mountpath = normalizeMountKey(pathArg, ctx.cwd, ctx.homeDir);
   if (mountpath === "/") {

@@ -5,6 +5,7 @@ import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
 import { BLOCK_DEVICES, BlockDevice } from "../../../story/blockDevices";
 import { Mounts } from "../../filesystem/mounts";
+import type { ComputerId } from "../../../state/types";
 
 import "../builtins/lsblk";
 import "../builtins/mount";
@@ -24,14 +25,14 @@ function emptyFs(): VirtualFS {
   return new VirtualFS(root, "/", "/home/player");
 }
 
-function ctx(opts: { mounts?: Mounts; storyFlags?: Record<string, string | boolean>; fs?: VirtualFS } = {}): CommandContext {
+function ctx(opts: { mounts?: Mounts; storyFlags?: Record<string, string | boolean>; fs?: VirtualFS; activeComputer?: ComputerId } = {}): CommandContext {
   const fs = opts.fs ?? emptyFs();
   return {
     fs,
     cwd: fs.cwd,
     homeDir: fs.homeDir,
     username: "player",
-    activeComputer: "home",
+    activeComputer: opts.activeComputer ?? "home",
     storyFlags: { accepted_usb_drive: true, ...opts.storyFlags },
     mounts: opts.mounts ?? {},
   };
@@ -129,5 +130,46 @@ describe("lsblk: anonymous USB drive (real BLOCK_DEVICES)", () => {
     expect(out).toContain("sdb");
     expect(out).toContain("sdb1");
     expect(out).toContain("16G");
+  });
+});
+
+// Exercises the real baseline system disks added so every computer's lsblk
+// reflects a true-to-life machine (root partition mounted at /).
+describe("lsblk: baseline system disks (real BLOCK_DEVICES)", () => {
+  beforeEach(() => {
+    BLOCK_DEVICES.home = ORIGINAL_HOME_DEVICES;
+  });
+  afterEach(() => {
+    delete BLOCK_DEVICES.home;
+  });
+
+  it("shows the nexacorp root disk mounted at / with no dynamic mount", () => {
+    const out = execute("lsblk", [], {}, ctx({ activeComputer: "nexacorp" })).output;
+    const lines = out.split("\n");
+    expect(lines[0]).toMatch(/^NAME\s+MAJ:MIN\s+RM\s+SIZE\s+RO\s+TYPE\s+MOUNTPOINTS$/);
+    expect(out).toContain("sda");
+    expect(out).toContain("└─sda1");
+    expect(out).toContain("8:0");
+    expect(out).toContain("8:1");
+    // The static `/` mountpoint renders even though ctx.mounts is empty.
+    const sda1Line = lines.find((l) => l.includes("sda1"))!;
+    expect(sda1Line.endsWith("/")).toBe(true);
+  });
+
+  it("shows the root partition's ext4 fstype with -f", () => {
+    const out = execute("lsblk", [], { f: true }, ctx({ activeComputer: "nexacorp" })).output;
+    expect(out).toMatch(/sda1.*ext4.*\//);
+  });
+
+  it("uses authentic per-machine device names", () => {
+    expect(execute("lsblk", [], {}, ctx({ activeComputer: "devcontainer" })).output).toContain("vda");
+    expect(execute("lsblk", [], {}, ctx({ activeComputer: "erik-pc" })).output).toContain("nvme0n1p1");
+    expect(execute("lsblk", [], {}, ctx({ activeComputer: "home" })).output).toContain("nvme0n1");
+  });
+
+  it("mount refuses to re-mount a baseline system device", () => {
+    const result = execute("mount", ["/dev/sda1", "/mnt/x"], {}, ctx({ activeComputer: "nexacorp" }));
+    expect(result.output).toContain("already mounted on /");
+    expect(result.exitCode).toBe(1);
   });
 });
