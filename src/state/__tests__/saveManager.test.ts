@@ -84,7 +84,8 @@ function createState(): SaveableState {
     deliveredEmailIds: ["email-1"],
     deliveredPiperIds: [],
     storyFlags: {},
-    computerState: { nexacorp: { fs, commandHistory: ["ls", "cd docs", "cat readme.md"], envVars: { USER: "player", HOME: "/home/player" }, aliases: {}, mounts: {} }},
+    computerState: { nexacorp: { fs, envVars: { USER: "player", HOME: "/home/player" }, aliases: {}, mounts: {} }},
+    zshHistory: { nexacorp: "ls\ncd docs\ncat readme.md\n" },
     tabs: [{ computerId: "nexacorp", cwd: "/home/player" }],
     activeTabIndex: 0,
     notifiedChipTopicIds: [],
@@ -127,12 +128,17 @@ describe("createSaveData", () => {
     expect(data.completedObjectives).toEqual(["obj-1"]);
   });
 
-  it("truncates command history to 500 entries per computer", () => {
+  it("persists the durable .zsh_history mirror", () => {
     const state = createState();
-    state.computerState.nexacorp!.commandHistory = Array.from({ length: 600 }, (_, i) => `cmd-${i}`);
     const data = createSaveData(state, "Test");
-    expect(data.computerStates.nexacorp.commandHistory).toHaveLength(500);
-    expect(data.computerStates.nexacorp.commandHistory[0]).toBe("cmd-100");
+    expect(data.zshHistory).toEqual({ nexacorp: "ls\ncd docs\ncat readme.md\n" });
+  });
+
+  it("clones the zshHistory mirror (does not share references)", () => {
+    const state = createState();
+    const data = createSaveData(state, "Test");
+    state.zshHistory.nexacorp = "mutated";
+    expect(data.zshHistory.nexacorp).toBe("ls\ncd docs\ncat readme.md\n");
   });
 
   it("serializes computerStates", () => {
@@ -246,9 +252,10 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      zshHistory: {},
       computerState: {
-        nexacorp: { fs: createMinimalFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
-        devcontainer: { fs: createMinimalFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
+        nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
+        devcontainer: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
       },
       tabs: [
         { computerId: "nexacorp", cwd: "/home/player" },
@@ -283,9 +290,10 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      zshHistory: {},
       computerState: {
-        nexacorp: { fs: createMinimalFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
-        devcontainer: { fs: createBareFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
+        nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
+        devcontainer: { fs: createBareFS(), envVars: {}, aliases: {}, mounts: {} },
       },
       tabs: [
         { computerId: "nexacorp", cwd: "/home/player" },
@@ -318,7 +326,8 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
-      computerState: { nexacorp: { fs: createMinimalFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} }},
+      zshHistory: {},
+      computerState: { nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} }},
       tabs: [{ computerId: "nexacorp", cwd: "/home/player" }],
       activeTabIndex: 0,
       notifiedChipTopicIds: [],
@@ -342,10 +351,11 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      zshHistory: {},
       computerState: {
-        home: { fs: createMinimalFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
-        nexacorp: { fs: createMinimalFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
-        devcontainer: { fs: createBareFS(), commandHistory: [], envVars: {}, aliases: {}, mounts: {} },
+        home: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
+        nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
+        devcontainer: { fs: createBareFS(), envVars: {}, aliases: {}, mounts: {} },
       },
       tabs: [
         { computerId: "home", cwd: "/home/player" },

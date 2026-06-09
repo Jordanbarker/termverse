@@ -42,6 +42,7 @@ import { extractStdoutRedirect, applyRedirection } from "../src/engine/commands/
 import { PromptSessionInfo, PromptOption } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
+import { parseZshHistory } from "../src/engine/terminal/zshHistory";
 import { execSync } from "child_process";
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -112,6 +113,21 @@ export class GameRunner {
     // immediate triggers anyway — they use trigger.type === "immediate".
   }
 
+  /**
+   * Append a submitted line to the `.zsh_history` file (the single source of
+   * truth for shell history), mirroring useTerminal.ts (HIST_IGNORE_DUPS).
+   */
+  private appendZshHistory(input: string): void {
+    const path = `${this.fs.homeDir}/.zsh_history`;
+    const prev = this.fs.readFile(path).content ?? "";
+    const lastLine = prev.trimEnd().split("\n").pop() ?? "";
+    if (lastLine !== input) {
+      const suffix = prev.endsWith("\n") || prev === "" ? "" : "\n";
+      const w = this.fs.writeFile(path, prev + suffix + input + "\n");
+      if (w.fs) this.fs = w.fs;
+    }
+  }
+
   /** Execute a command string and return structured output. */
   run(input: string): CommandOutput {
     this.commandHistory[this.activeComputer].push(input);
@@ -148,7 +164,7 @@ export class GameRunner {
         stdin,
         rawArgs: p.rawArgs,
         isPiped: pi < pipeline.length - 1 || !!redirectFile,
-        commandHistory: this.commandHistory[this.activeComputer],
+        commandHistory: parseZshHistory(this.fs.readFile(`${this.fs.homeDir}/.zsh_history`).content ?? ""),
         snowflakeState: this.snowflakeState,
         snowflakeContext: this.snowflakeContext,
         setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
@@ -187,6 +203,7 @@ export class GameRunner {
       this.fs = r.fs;
     }
 
+    this.appendZshHistory(input);
     return this.applyEffects(lastResult, pipeline[pipeline.length - 1]);
   }
 
@@ -225,7 +242,7 @@ export class GameRunner {
         stdin,
         rawArgs: p.rawArgs,
         isPiped: pi < pipeline.length - 1 || !!redirectFile,
-        commandHistory: this.commandHistory[this.activeComputer],
+        commandHistory: parseZshHistory(this.fs.readFile(`${this.fs.homeDir}/.zsh_history`).content ?? ""),
         snowflakeState: this.snowflakeState,
         snowflakeContext: this.snowflakeContext,
         setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
@@ -262,6 +279,7 @@ export class GameRunner {
       this.fs = r.fs;
     }
 
+    this.appendZshHistory(input);
     return this.applyEffects(lastResult, pipeline[pipeline.length - 1]);
   }
 

@@ -20,7 +20,6 @@ import { syncToVirtualFS } from "../engine/snowflake/bridge/fs_bridge";
 import { seedDeliveredEmails } from "../engine/mail/delivery";
 import { getDefaultEnv, initEnvForComputer, initAliasesForComputer } from "../story/env";
 import { findNewlyAvailableChipTopics } from "../engine/chip/notifications";
-const MAX_HISTORY = 500;
 
 export interface Toast {
   id: string;
@@ -44,7 +43,11 @@ interface GameStore {
   storyFlags: StoryFlags;
   hasSeenIntro: boolean;
   toasts: Toast[];
-  computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>;
+  computerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>;
+  // Durable per-computer mirror of the `.zsh_history` file contents. Survives FS
+  // rebuilds and removeComputer so shell history continues across day/computer
+  // transitions; restored into the fresh fs by initComputer.
+  zshHistory: Partial<Record<ComputerId, string>>;
   tabs: TabState[];
   activeTabId: string;
   activeSnowSession: string | null;
@@ -53,7 +56,6 @@ interface GameStore {
 
   // Actions
   setUsername: (username: string) => void;
-  pushHistory: (computerId: ComputerId, command: string) => void;
   completeObjective: (id: string) => void;
   setGamePhase: (phase: GamePhase) => void;
   addDeliveredEmails: (ids: string[]) => void;
@@ -67,7 +69,7 @@ interface GameStore {
   resetGame: () => void;
   saveGame: (slotId: SaveSlotId, label?: string) => boolean;
   loadGame: (slotId: SaveSlotId) => boolean;
-  loadCheckpointData: (data: { chapter: string; activeComputer: ComputerId; storyFlags: StoryFlags; deliveredEmailIds: string[]; deliveredPiperIds: string[]; completedObjectives: string[]; computers: ComputerId[]; commandHistory?: Partial<Record<ComputerId, string[]>>; aliases?: Partial<Record<ComputerId, Record<string, string>>>; envVars?: Partial<Record<ComputerId, Record<string, string>>> }) => boolean;
+  loadCheckpointData: (data: { chapter: string; activeComputer: ComputerId; storyFlags: StoryFlags; deliveredEmailIds: string[]; deliveredPiperIds: string[]; completedObjectives: string[]; computers: ComputerId[]; aliases?: Partial<Record<ComputerId, Record<string, string>>>; envVars?: Partial<Record<ComputerId, Record<string, string>>> }) => boolean;
   setComputerFs: (computer: ComputerId, fs: VirtualFS) => void;
   setComputerMounts: (computer: ComputerId, mounts: Mounts) => void;
   initComputer: (computer: ComputerId, fs: VirtualFS) => void;
@@ -131,7 +133,8 @@ function createInitialState(username = PLAYER.username) {
     storyFlags: { tabs_unlocked: true } as StoryFlags,
     hasSeenIntro: false,
     toasts: [] as Toast[],
-    computerState: { home: { fs, commandHistory: ["nano terminal_notes.txt"], envVars: initEnvForComputer("home", username, fs), aliases: initAliasesForComputer("home", username, fs), mounts: {} } } as Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>,
+    computerState: { home: { fs, envVars: initEnvForComputer("home", username, fs), aliases: initAliasesForComputer("home", username, fs), mounts: {} } } as Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>,
+    zshHistory: {} as Partial<Record<ComputerId, string>>,
     tabs: [{ id: initialTabId, computerId: "home" as ComputerId, cwd: fs.cwd }] as TabState[],
     activeTabId: initialTabId,
     activeSnowSession: null as string | null,
@@ -161,21 +164,6 @@ export const useGameStore = create<GameStore>()(
           computerState: { ...state.computerState, [computerId]: { ...state.computerState[computerId], fs: finalFs, mounts: state.computerState[computerId]?.mounts ?? {} } },
         });
       },
-      pushHistory: (computerId, command) =>
-        set((state) => {
-          const cs = state.computerState[computerId];
-          if (!cs) return {};
-          // HIST_IGNORE_DUPS: skip if identical to last entry
-          if (cs.commandHistory.length > 0 && cs.commandHistory[cs.commandHistory.length - 1] === command) {
-            return {};
-          }
-          return {
-            computerState: {
-              ...state.computerState,
-              [computerId]: { ...cs, commandHistory: [...cs.commandHistory, command].slice(-MAX_HISTORY) },
-            },
-          };
-        }),
       completeObjective: (id) =>
         set((state) => ({
           completedObjectives: [...state.completedObjectives, id],
@@ -223,17 +211,37 @@ export const useGameStore = create<GameStore>()(
           toasts: state.toasts.filter((t) => t.id !== id),
         })),
       setComputerFs: (computer, fs) =>
-        set((state) => ({
-          computerState: { ...state.computerState, [computer]: { ...state.computerState[computer], fs, commandHistory: state.computerState[computer]?.commandHistory ?? [], envVars: state.computerState[computer]?.envVars ?? getDefaultEnv(computer, state.username), aliases: state.computerState[computer]?.aliases ?? {}, mounts: state.computerState[computer]?.mounts ?? {} } },
-        })),
+        set((state) => {
+          // Refresh the durable .zsh_history mirror from the written-back fs so it
+          // survives a later removeComputer / FS rebuild. `!= null` (not truthy)
+          // so a truncated/empty history is mirrored faithfully.
+          const historyContent = fs.readFile(`${fs.homeDir}/.zsh_history`).content;
+          return {
+            computerState: { ...state.computerState, [computer]: { ...state.computerState[computer], fs, envVars: state.computerState[computer]?.envVars ?? getDefaultEnv(computer, state.username), aliases: state.computerState[computer]?.aliases ?? {}, mounts: state.computerState[computer]?.mounts ?? {} } },
+            zshHistory: historyContent != null ? { ...state.zshHistory, [computer]: historyContent } : state.zshHistory,
+          };
+        }),
       setComputerMounts: (computer, mounts) =>
         set((state) => ({
           computerState: { ...state.computerState, [computer]: { ...state.computerState[computer]!, mounts } },
         })),
       initComputer: (computer, fs) =>
-        set((state) => ({
-          computerState: { ...state.computerState, [computer]: { fs, commandHistory: state.computerState[computer]?.commandHistory ?? [], envVars: initEnvForComputer(computer, state.username, fs), aliases: initAliasesForComputer(computer, state.username, fs), mounts: state.computerState[computer]?.mounts ?? {} } },
-        })),
+        set((state) => {
+          // Every FS (re)build funnels through here, so this is the single place
+          // that restores the durable .zsh_history mirror into the freshly-built
+          // fs — covering shutdown rebuilds and post-removeComputer revisits.
+          // When the mirror is absent (brand-new computer / fresh game) the
+          // builder's seed stands.
+          let finalFs = fs;
+          const savedHistory = state.zshHistory?.[computer];
+          if (savedHistory != null) {
+            const written = fs.writeFile(`${fs.homeDir}/.zsh_history`, savedHistory);
+            if (written.fs) finalFs = written.fs;
+          }
+          return {
+            computerState: { ...state.computerState, [computer]: { fs: finalFs, envVars: initEnvForComputer(computer, state.username, finalFs), aliases: initAliasesForComputer(computer, state.username, finalFs), mounts: state.computerState[computer]?.mounts ?? {} } },
+          };
+        }),
       addTab: (computerId, cwd) => {
         const state = get();
         if (state.tabs.length >= MAX_TABS) return state.activeTabId;
@@ -312,13 +320,12 @@ export const useGameStore = create<GameStore>()(
         const data = loadFromSlot(slotId);
         if (!data) return false;
 
-        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
+        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
         for (const [id, cs] of Object.entries(data.computerStates)) {
           try {
             const loadedFs = deserializeFS(cs.fs);
             loadedComputerState[id as ComputerId] = {
               fs: loadedFs,
-              commandHistory: cs.commandHistory,
               envVars: cs.envVars,
               aliases: cs.aliases,
               mounts: cs.mounts ?? {},
@@ -343,6 +350,7 @@ export const useGameStore = create<GameStore>()(
           deliveredPiperIds: data.deliveredPiperIds,
           storyFlags: data.storyFlags,
           computerState: loadedComputerState,
+          zshHistory: data.zshHistory ?? {},
           tabs,
           activeTabId: tabs[activeIdx].id,
           activeSnowSession: null,
@@ -356,7 +364,7 @@ export const useGameStore = create<GameStore>()(
         const homeDir = `/home/${username}`;
         const sfState = createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown });
 
-        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
+        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
         for (const computerId of data.computers) {
           let fs = buildFs(username, computerId, data.storyFlags, data.deliveredEmailIds);
           if (computerId === "nexacorp") {
@@ -366,7 +374,6 @@ export const useGameStore = create<GameStore>()(
           const checkpointAliases = data.aliases?.[computerId] ?? {};
           loadedComputerState[computerId] = {
             fs,
-            commandHistory: data.commandHistory?.[computerId] ?? [],
             envVars: { ...initEnvForComputer(computerId, username, fs), ...(data.envVars?.[computerId] ?? {}) },
             aliases: { ...baseAliases, ...checkpointAliases },
             mounts: {},
@@ -386,6 +393,9 @@ export const useGameStore = create<GameStore>()(
           storyFlags: { ...data.storyFlags },
           snowflakeState: sfState,
           computerState: loadedComputerState,
+          // Fresh cheat-load: clear the history mirror so each computer's seeded
+          // .zsh_history file stands.
+          zshHistory: {},
           tabs: [{ id: tabId, computerId: data.activeComputer, cwd: homeDir }],
           activeTabId: tabId,
           activeSnowSession: null,
@@ -398,10 +408,10 @@ export const useGameStore = create<GameStore>()(
       name: "terminal-turmoil-save",
       storage: createDebouncedStorage(1000),
       partialize: (state) => {
-        // Serialize all computer FS entries (including per-computer history)
-        const serializedComputerState: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }> = {};
+        // Serialize all computer FS entries (the .zsh_history file lives inside fs).
+        const serializedComputerState: Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }> = {};
         for (const [id, cs] of Object.entries(state.computerState)) {
-          if (cs) serializedComputerState[id] = { fs: serializeFS(cs.fs), commandHistory: cs.commandHistory.slice(-MAX_HISTORY), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
+          if (cs) serializedComputerState[id] = { fs: serializeFS(cs.fs), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
         }
         // Persist tab layout
         const activeTabIndex = state.tabs.findIndex((t) => t.id === state.activeTabId);
@@ -416,6 +426,7 @@ export const useGameStore = create<GameStore>()(
           hasSeenIntro: state.hasSeenIntro,
           serializedSnowflake: serializeSnowflake(state.snowflakeState),
           serializedComputerState,
+          zshHistory: state.zshHistory,
           persistedTabs: state.tabs.map((t) => ({ computerId: t.computerId, cwd: t.cwd })),
           persistedActiveTabIndex: activeTabIndex >= 0 ? activeTabIndex : 0,
           notifiedChipTopicIds: state.notifiedChipTopicIds,
@@ -442,15 +453,14 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Restore computerState from serialized data
-        const computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
-        const serializedCS = p.serializedComputerState as Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts?: Mounts }> | undefined;
+        const computerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
+        const serializedCS = p.serializedComputerState as Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts?: Mounts }> | undefined;
         if (serializedCS) {
           for (const [id, cs] of Object.entries(serializedCS)) {
             try {
               const restoredFs = deserializeFS(cs.fs);
               computerState[id as ComputerId] = {
                 fs: restoredFs,
-                commandHistory: cs.commandHistory,
                 envVars: cs.envVars,
                 aliases: cs.aliases,
                 mounts: cs.mounts ?? {},
@@ -478,6 +488,9 @@ export const useGameStore = create<GameStore>()(
         }
         const activeIdx = Math.min(persistedActiveTabIndex, tabs.length - 1);
 
+        // Durable .zsh_history mirror (survives removeComputer between sessions).
+        const zshHistory = (p.zshHistory as Partial<Record<ComputerId, string>>) ?? {};
+
         // Ensure every tab's computer has a corresponding computerState entry.
         // A persisted tab can outlive its computerState if the FS failed to
         // deserialize above, or if the save predates a new ComputerId. Without
@@ -485,10 +498,15 @@ export const useGameStore = create<GameStore>()(
         for (const t of tabs) {
           if (!computerState[t.computerId]) {
             const fs = buildFs(username, t.computerId, storyFlags, (p.deliveredEmailIds as string[]) ?? []);
-            const finalFs = t.computerId === "nexacorp" ? syncToVirtualFS(sfState, fs) : fs;
+            let finalFs = t.computerId === "nexacorp" ? syncToVirtualFS(sfState, fs) : fs;
+            // Restore the history mirror into the rebuilt fs (matches initComputer).
+            const savedHistory = zshHistory[t.computerId];
+            if (savedHistory != null) {
+              const written = finalFs.writeFile(`${finalFs.homeDir}/.zsh_history`, savedHistory);
+              if (written.fs) finalFs = written.fs;
+            }
             computerState[t.computerId] = {
               fs: finalFs,
-              commandHistory: [],
               envVars: initEnvForComputer(t.computerId, username, finalFs),
               aliases: initAliasesForComputer(t.computerId, username, finalFs),
               mounts: {},
@@ -508,6 +526,7 @@ export const useGameStore = create<GameStore>()(
           hasSeenIntro: (p.hasSeenIntro as boolean) ?? currentState.hasSeenIntro,
           snowflakeState: sfState,
           computerState,
+          zshHistory,
           tabs,
           activeTabId: tabs[activeIdx].id,
           notifiedChipTopicIds: (p.notifiedChipTopicIds as string[]) ?? [],

@@ -10,8 +10,6 @@ export interface Checkpoint {
   deliveredPiperIds: string[];
   completedObjectives: string[];
   computers: ComputerId[];
-  /** Pre-seeded command history per computer (QoL for checkpoint users) */
-  commandHistory?: Partial<Record<ComputerId, string[]>>;
   /** Extra aliases per computer (merged with .zshrc-parsed aliases) */
   aliases?: Partial<Record<ComputerId, Record<string, string>>>;
   /** Extra env vars per computer (merged on top of .zshrc-parsed env) */
@@ -95,9 +93,6 @@ const DAY1_START: Checkpoint = {
     "piper_reply:olive_challenge_man",
   ],
   computers: ["home", "nexacorp"],
-  commandHistory: {
-    home: ["ssh nexacorp"],
-  },
   aliases: {
     home: { work: "ssh nexacorp" },
   },
@@ -218,9 +213,6 @@ const DAY1_END: Checkpoint = {
     "closing_time",
   ],
   computers: ["home", "nexacorp", "devcontainer"],
-  commandHistory: {
-    home: [...(DAY1_START.commandHistory?.home ?? []), "exit"],
-  },
   aliases: {
     ...DAY1_START.aliases,
   },
@@ -253,9 +245,6 @@ const DAY2_START: Checkpoint = {
     "update_system",
     "ssh_to_work_day2",
   ],
-  commandHistory: {
-    home: [...(DAY1_END.commandHistory?.home ?? []), "shutdown", "sudo apt update && sudo apt upgrade -y", "ssh nexacorp"],
-  },
   aliases: {
     ...DAY1_END.aliases,
   },
@@ -302,23 +291,6 @@ const DAY2_PIPELINE_FIXED: Checkpoint = {
     "report_to_auri",
     "fix_pipeline_quest",
   ],
-  commandHistory: {
-    ...DAY2_START.commandHistory,
-    nexacorp: ["coder ssh ai"],
-    devcontainer: [
-      "cd ~/nexacorp-analytics",
-      "git pull",
-      "dbt build",
-      "snow sql -q \"SELECT * FROM CAMPAIGN_METRICS WHERE CLICKS IS NULL\"",
-      "git checkout -b fix/conversion-rate-nulls",
-      "nano models/marts/rpt_campaign_performance.sql",
-      "dbt build",
-      "git add -A",
-      "git commit -m 'fix: handle NULL clicks in conversion_rate'",
-      "git push -u origin fix/conversion-rate-nulls",
-      "exit",
-    ],
-  },
 };
 
 const DAY2_CHAPTER3_MARCUS_DM: Checkpoint = {
@@ -362,13 +334,6 @@ const DAY2_CHAPTER3_MARCUS_DM: Checkpoint = {
     "build_chip_plugin_quest",
   ],
   computers: ["home", "nexacorp", "devcontainer", "chipinfra"],
-  commandHistory: {
-    ...DAY2_PIPELINE_FIXED.commandHistory,
-    nexacorp: [
-      ...(DAY2_PIPELINE_FIXED.commandHistory?.nexacorp ?? []),
-      "coder ssh chip",
-    ],
-  },
 };
 
 export const CHECKPOINTS: Checkpoint[] = [

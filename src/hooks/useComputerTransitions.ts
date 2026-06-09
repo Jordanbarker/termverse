@@ -540,15 +540,8 @@ export function useComputerTransitions(deps: TransitionDeps) {
         }
       }
 
-      // Preserve .zsh_history from previous FS
-      if (prevHomeFs) {
-        const historyPath = `/home/${username}/.zsh_history`;
-        const prevHistory = prevHomeFs.readFile(historyPath);
-        if (prevHistory.content) {
-          const result = newFs.writeFile(historyPath, prevHistory.content);
-          if (result.fs) newFs = result.fs;
-        }
-      }
+      // (.zsh_history is now restored generically by initComputer from the
+      // durable zshHistory mirror — no per-transition preservation needed.)
 
       s.initComputer("home", newFs);
 

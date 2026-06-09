@@ -21,6 +21,7 @@ import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "../engine/commands/types";
 import { parseTmuxPrefix } from "../engine/terminal/tmuxConfig";
+import { parseZshHistory } from "../engine/terminal/zshHistory";
 import { Mounts } from "../engine/filesystem/mounts";
 import { applyRedirection, extractStdoutRedirect } from "../engine/commands/redirection";
 
@@ -61,7 +62,7 @@ function buildCommandContext(
     stdin,
     rawArgs,
     isPiped,
-    commandHistory: store.computerState[computerId]?.commandHistory ?? [],
+    commandHistory: parseZshHistory(fs.readFile(`${homeDir}/.zsh_history`).content ?? ""),
     envVars: store.computerState[computerId]?.envVars ?? {},
     setEnvVars: (env: Record<string, string>) => store.setComputerEnv(computerId, env),
     aliases: store.computerState[computerId]?.aliases ?? {},

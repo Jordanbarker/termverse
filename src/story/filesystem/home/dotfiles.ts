@@ -78,6 +78,7 @@ cat data/companies_applied.csv
 cd ~
 clear
 mail
+nano terminal_notes.txt
 `),
     ".gitconfig": file(".gitconfig", `[user]
 \tname = ${PLAYER.displayName}

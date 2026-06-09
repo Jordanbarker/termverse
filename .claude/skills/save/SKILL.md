@@ -31,14 +31,18 @@ src/hooks/useTerminal.ts                 # gameAction handler (save/load/listSav
 Full snapshot of all game state:
 ```ts
 {
-  version: number;        // SAVE_FORMAT_VERSION (currently 13)
+  version: number;        // SAVE_FORMAT_VERSION (currently 14)
   timestamp: number;      // Date.now() at save time
   label: string;          // Display label
   username, gamePhase, currentChapter, completedObjectives,
   deliveredEmailIds, deliveredPiperIds: string[];
   storyFlags: StoryFlags;
   // Keyed by ComputerId ("home" | "nexacorp" | "devcontainer" | "chipinfra" | "erik-pc")
-  computerStates: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>;
+  computerStates: Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>;
+  // Durable per-computer .zsh_history mirror — survives removeComputer so shell
+  // history (the single source of truth, the .zsh_history file) continues across
+  // day/computer transitions even for FS that get torn down and rebuilt.
+  zshHistory: Partial<Record<ComputerId, string>>;
   tabs: SavedTabState[];      // Tab layout: {computerId, cwd}[]
   activeTabIndex: number;     // Index of active tab in tabs[]
 }
@@ -109,7 +113,8 @@ Zustand auto-save key: `terminal-turmoil-save`
 ### Store state (auto-persisted via Zustand `partialize`)
 | Field | What it tracks |
 |-------|---------------|
-| `serializedComputerState` | Per-computer serialized filesystems, command history, env vars, aliases, and mounts |
+| `serializedComputerState` | Per-computer serialized filesystems (incl. the `.zsh_history` file), env vars, aliases, and mounts |
+| `zshHistory` | Durable per-computer `.zsh_history` mirror — survives `removeComputer`/FS rebuilds so shell history (the single source of truth) continues across day/computer transitions. Added in v14. |
 | `persistedTabs` / `persistedActiveTabIndex` | Tab layout and active tab position |
 | `username` | Player's chosen username |
 | `gamePhase` | `"login" \| "booting" \| "playing" \| "transitioning"` |

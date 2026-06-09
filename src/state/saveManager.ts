@@ -30,16 +30,17 @@ export interface SaveableState {
   deliveredEmailIds: string[];
   deliveredPiperIds: string[];
   storyFlags: StoryFlags;
-  computerState: Partial<Record<ComputerId, { fs: VirtualFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>;
+  computerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>;
+  zshHistory: Partial<Record<ComputerId, string>>;
   tabs: TabLike[];
   activeTabIndex: number;
   notifiedChipTopicIds: string[];
 }
 
 export function createSaveData(state: SaveableState, label: string): SaveData {
-  const computerStates: Record<string, { fs: SerializedFS; commandHistory: string[]; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }> = {};
+  const computerStates: Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }> = {};
   for (const [id, cs] of Object.entries(state.computerState)) {
-    if (cs) computerStates[id] = { fs: serializeFS(cs.fs), commandHistory: cs.commandHistory.slice(-500), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
+    if (cs) computerStates[id] = { fs: serializeFS(cs.fs), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
   }
 
   return {
@@ -54,6 +55,7 @@ export function createSaveData(state: SaveableState, label: string): SaveData {
     deliveredPiperIds: [...state.deliveredPiperIds],
     storyFlags: { ...state.storyFlags },
     computerStates,
+    zshHistory: { ...state.zshHistory },
     tabs: state.tabs.map((t) => ({ computerId: t.computerId, cwd: t.cwd })),
     activeTabIndex: state.activeTabIndex >= 0 ? state.activeTabIndex : 0,
     notifiedChipTopicIds: [...state.notifiedChipTopicIds],

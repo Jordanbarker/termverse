@@ -1,10 +1,11 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore } from "../state/gameStore";
 import { getAvailableCommands } from "../engine/commands/registry";
 import { getSuggestion, SuggestionContext } from "../engine/suggestions/suggest";
 import { getCompletions, CompletionResult } from "../engine/suggestions/complete";
 import { isBackspace, isPrintable, CTRL_C, TAB } from "../engine/terminal/keyCodes";
+import { parseZshHistory } from "../engine/terminal/zshHistory";
 import { ComputerId } from "../state/types";
 
 interface CommandLineDeps {
@@ -12,11 +13,6 @@ interface CommandLineDeps {
   activeComputerRef: React.MutableRefObject<ComputerId>;
   writePrompt: (term: Terminal) => void;
 }
-
-// Stable reference for the empty-history fallback. Returning a fresh `[]`
-// from the Zustand selector triggers React's "getSnapshot should be cached"
-// infinite-loop bailout when computerState[computerId] is missing.
-const EMPTY_HISTORY: string[] = [];
 
 export interface CommandLineResult {
   type: "submit";
@@ -42,9 +38,16 @@ export function useCommandLine(deps: CommandLineDeps) {
   const ghostLengthRef = useRef(0);
   const completionStateRef = useRef<CompletionState | null>(null);
 
-  const pushHistory = useGameStore((s) => s.pushHistory);
+  // The `.zsh_history` file is the single source of truth for history recall.
+  // Select the file *content string* (not a derived array): strings compare by
+  // value, so the selector stays stable and avoids React's "getSnapshot should
+  // be cached" infinite-loop bailout. Parse it into the recall list via useMemo.
   const computerId = activeComputerRef.current;
-  const commandHistory = useGameStore((s) => s.computerState[computerId]?.commandHistory ?? EMPTY_HISTORY);
+  const historyFileContent = useGameStore((s) => {
+    const fs = s.computerState[computerId]?.fs;
+    return fs ? fs.readFile(`${fs.homeDir}/.zsh_history`).content ?? "" : "";
+  });
+  const commandHistory = useMemo(() => parseZshHistory(historyFileContent), [historyFileContent]);
 
   const historyRef = useRef(commandHistory);
   const historyIndexRef = useRef(-1);
@@ -362,7 +365,9 @@ export function useCommandLine(deps: CommandLineDeps) {
 
         if (input.trim()) {
           term.write("\r\n");
-          pushHistory(activeComputerRef.current, input);
+          // History is recorded by the command runner appending to the
+          // `.zsh_history` file (the single source of truth) once the command
+          // executes; no separate push needed here.
           historyIndexRef.current = -1;
           return { type: "submit", input };
         }
@@ -411,7 +416,7 @@ export function useCommandLine(deps: CommandLineDeps) {
 
       return null;
     },
-    [clearGhost, renderGhostText, rewriteFromCursor, pushHistory, writePrompt, handleTabCompletion, clearCompletionState]
+    [clearGhost, renderGhostText, rewriteFromCursor, writePrompt, handleTabCompletion, clearCompletionState]
   );
 
   const findPrevWordBoundary = useCallback((buffer: string, pos: number): number => {
