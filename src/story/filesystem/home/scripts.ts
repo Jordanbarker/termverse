@@ -1,5 +1,4 @@
 import { DirectoryNode } from "../../../engine/filesystem/types";
-import { PLAYER } from "../../../state/types";
 import { file, dir } from "../../../engine/filesystem/builders";
 
 export function buildScriptsDir(username: string): DirectoryNode {

@@ -27,12 +27,15 @@ function check(label: string, ok: boolean, detail?: string) {
   }
 }
 
-function safeRun(runner: any, input: string): { output: string; exitCode: number; crashed: boolean; error?: string } {
+function safeRun(
+  runner: { run(input: string): { output: string; exitCode: number } },
+  input: string
+): { output: string; exitCode: number; crashed: boolean; error?: string } {
   try {
     const r = runner.run(input);
     return { output: r.output, exitCode: r.exitCode, crashed: false };
-  } catch (e: any) {
-    return { output: "", exitCode: -1, crashed: true, error: e.message };
+  } catch (e) {
+    return { output: "", exitCode: -1, crashed: true, error: e instanceof Error ? e.message : String(e) };
   }
 }
 

@@ -67,10 +67,6 @@ function expectExit(out: { exitCode: number; output: string }, code: number, lab
   if (out.exitCode === code) pass(`exit ${code}${label ? ` (${label})` : ""}`);
   else fail(`expected exit ${code} got ${out.exitCode}${label ? ` (${label})` : ""}: ${out.output.slice(0, 100)}`);
 }
-function expectOutputContains(out: { output: string }, needle: string, label?: string) {
-  if (out.output.includes(needle)) pass(`output contains "${needle}"${label ? ` (${label})` : ""}`);
-  else fail(`output missing "${needle}"${label ? ` (${label})` : ""}: ${out.output.slice(0, 200)}`);
-}
 
 // ── Helpers to simulate piper-driven flag unlocks (since headless runner
 //    has no interactive piper sessions). These match what useSessionRouter.ts
@@ -80,35 +76,6 @@ function simulatePiperUnlocks(runner: GameRunner, ...flags: string[]) {
   for (const f of flags) {
     runner.storyFlags = { ...runner.storyFlags, [f]: true };
   }
-}
-
-// Mail-index helper: try mail 1..N until the given email id is delivered.
-function readMailUntilEmail(runner: GameRunner, emailId: string, maxN = 10): boolean {
-  for (let i = 1; i <= maxN; i++) {
-    const r = runner.run(`mail ${i}`);
-    if (runner.deliveredEmailIds.includes(emailId) || runner.storyFlags[`read_${emailId}`]) {
-      return true;
-    }
-    // mail with prompts may pause — if pending, continue
-    if (r.promptPending) continue;
-  }
-  return false;
-}
-
-// Find the index of an email matching id in the mail list, then read it.
-function readEmailById(runner: GameRunner, emailId: string): { found: boolean; index: number } {
-  // Mail list output shows subject lines. Easier: just iterate mail N from 1..15
-  // and check storyFlags / deliveredEmailIds afterward.
-  for (let i = 1; i <= 15; i++) {
-    const before = runner.deliveredEmailIds.length + Object.keys(runner.storyFlags).length;
-    runner.run(`mail ${i}`);
-    // Some triggers fire on file_read with detail=emailId. The flag may not change,
-    // so we can't strictly detect. Instead, just rely on outer expectations.
-    if (before > 0) {
-      // no-op
-    }
-  }
-  return { found: false, index: -1 };
 }
 
 // ── ARC 1: Chapter 1 main path + accept the offer ──────────────────
@@ -250,12 +217,12 @@ function arc4_rejectNexacorp() {
   const r = new GameRunner("home");
 
   step("Open offer");
-  let out = r.run("mail 3");
+  r.run("mail 3");
   expectFlag(r, "read_nexacorp_offer");
   if (!r.pendingPrompt) { fail("no prompt on offer"); return; }
 
   step("Reject #1 (option 2)");
-  out = r.selectOption(2);
+  r.selectOption(2);
   expectObjective(r, "rejected_nexacorp_1");
   expectEmail(r, "nexacorp_persuasion_1");
 
@@ -265,7 +232,7 @@ function arc4_rejectNexacorp() {
   if (!r.pendingPrompt) { fail("no prompt on persuasion #1"); return; }
 
   step("Reject #2");
-  out = r.selectOption(2);
+  r.selectOption(2);
   expectObjective(r, "rejected_nexacorp_2");
   expectEmail(r, "nexacorp_persuasion_2");
 
@@ -274,7 +241,7 @@ function arc4_rejectNexacorp() {
   if (!r.pendingPrompt) { fail("no prompt on persuasion #2"); return; }
 
   step("Reject final");
-  out = r.selectOption(2);
+  r.selectOption(2);
   expectObjective(r, "rejected_nexacorp_final");
 
   step("Verify no nexacorp_followup arrives (dead end)");

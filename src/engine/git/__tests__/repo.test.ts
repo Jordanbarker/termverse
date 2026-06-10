@@ -7,7 +7,7 @@ import {
   listBranches, createBranch, deleteBranch, gitCheckout, gitDiffFiles,
   gitStashSave, gitStashPop, gitStashList,
   gitRm, gitClone, gitPush, gitPull,
-  resolveHead, readCommit, readIndex,
+  resolveHead, readIndex,
 } from "../repo";
 import { formatStatus, formatLog } from "../output";
 import { buildSimpleRemote, REMOTE_REPOS } from "../remotes";
@@ -100,7 +100,7 @@ describe("git init", () => {
   });
 
   it("reports reinit for existing repo", () => {
-    let fs = initRepo(makeFs());
+    const fs = initRepo(makeFs());
     const result = gitInit(fs, "/home/player", AUTHOR);
     expect(result.alreadyExisted).toBe(true);
     expect(result.output).toContain("Reinitialized");
@@ -357,7 +357,7 @@ describe("git branch -a / -r", () => {
     const cloneResult = gitClone(fs, "/home/player", TEST_URL, AUTHOR);
     const root = "/home/player/branch-a-remote";
     // Manually add a second remote ref to verify sort order
-    let withExtra = cloneResult.fs.writeFile(
+    const withExtra = cloneResult.fs.writeFile(
       `${root}/.git/refs/remotes/origin/develop`,
       resolveHead(cloneResult.fs, root) ?? "",
     ).fs!;

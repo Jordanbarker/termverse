@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAliases, parseEnvAssignments, initAliasesForComputer } from "../env";
+import { parseAliases, initAliasesForComputer } from "../env";
 
 describe("parseAliases", () => {
   it("parses single-quoted alias", () => {

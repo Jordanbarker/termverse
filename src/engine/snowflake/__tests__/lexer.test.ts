@@ -309,7 +309,6 @@ describe("Lexer — tokenize()", () => {
 
   describe("comments", () => {
     it("skips single-line comments", () => {
-      const tokens = tokenize("SELECT 1 -- this is a comment\nFROM t");
       const tt = tokenTypes("SELECT 1 -- this is a comment\nFROM t");
       expect(tt).not.toContain("COMMENT");
       expect(tt).toContain("SELECT");

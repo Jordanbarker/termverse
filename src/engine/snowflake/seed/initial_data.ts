@@ -1,5 +1,5 @@
 import { SnowflakeState, SnowflakeData } from "../state";
-import { Database, Schema, Table, Column, Row, createSchema } from "../types";
+import { Database, Schema, Column, Row, createSchema } from "../types";
 import { LogOptions } from "../../../story/filesystem/logs";
 
 import nexacorpProdJson from "../../../story/data/snowflake/nexacorp_prod.json";

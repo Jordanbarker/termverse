@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { execute, executeAsync } from "../registry";
 import { CommandContext } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";

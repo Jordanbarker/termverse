@@ -143,7 +143,7 @@ export function getConversationHistory(
   channelId: string,
   deliveredIds: string[],
   username: string,
-  computerId: ComputerId = "nexacorp"
+  _computerId: ComputerId = "nexacorp"
 ): PiperMessage[] {
   const messages: PiperMessage[] = [];
   const defMap = new Map(getPiperDeliveries(username).map((d) => [d.id, d]));

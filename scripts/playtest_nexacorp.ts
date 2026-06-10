@@ -158,7 +158,7 @@ async function main() {
 
   section("8. NEXACORP MAIL");
 
-  const mailResult = cmd(runner, "mail");
+  cmd(runner, "mail");
 
   // Read each email (1-indexed)
   for (let i = 1; i <= 5; i++) {

@@ -173,7 +173,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         }, BOOT_LINE_INTERVAL_MS);
       }
     }, BOOT_LINE_INTERVAL_MS);
-  }, [cwdRef, activeComputerRef]);
+  }, [cwdRef, activeComputerRef, runErikpcArrival]);
 
   /**
    * Build a fresh per-computer filesystem for a Coder workspace transition.
@@ -611,7 +611,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         }
       }, BOOT_LINE_INTERVAL_MS);
     }, 2500);
-  }, [cwdRef, activeComputerRef, writePrompt]);
+  }, [cwdRef, activeComputerRef]);
 
   /**
    * Forced disconnect from NexaCorp after a security tripwire fires. Mirrors

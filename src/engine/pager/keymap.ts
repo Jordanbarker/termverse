@@ -1,7 +1,6 @@
 import { BACKSPACE, BACKSPACE_ALT, CTRL_C, isPrintable } from "../terminal/keyCodes";
 
 const CTRL_L = 0x0c;
-const ESC = 0x1b;
 const ENTER = 0x0d;
 const LF = 0x0a;
 

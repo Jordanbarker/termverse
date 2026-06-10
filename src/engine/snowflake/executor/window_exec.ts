@@ -1,5 +1,5 @@
-import { Row, Value } from "../types";
-import { SelectItem, Expression, WindowCall, OrderByItem } from "../parser/ast";
+import { Row } from "../types";
+import { SelectItem, Expression, OrderByItem } from "../parser/ast";
 import { evaluate, compareValues, EvalContext, windowKey } from "./evaluator";
 import { computeWindowFunction } from "./functions/window";
 

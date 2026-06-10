@@ -200,7 +200,7 @@ const CHIP_MESSAGES: ((day: number) => string)[] = [
     const mb = 24 + ((day * 13) % 40);
     return `chip-service: response cache pruned, freed ${mb}MB (retention: 24h)`;
   },
-  (day) => `chip-service: model hot-reload complete (chip-v2.4.1, config refresh)`,
+  (_day) => `chip-service: model hot-reload complete (chip-v2.4.1, config refresh)`,
   (day) => {
     const n = 6 + ((day * 7) % 15);
     return `chip-service: webhook delivery to piper (${n} notifications dispatched)`;

@@ -302,7 +302,7 @@ export function gitRm(fs: VirtualFS, root: string, paths: string[], recursive: b
 export function gitCommit(
   fs: VirtualFS, root: string, message: string, author: string, amend: boolean, autoStage: boolean, timestamp: number
 ): { fs: VirtualFS; output: string; error?: string } {
-  let index = readIndex(fs, root);
+  const index = readIndex(fs, root);
   const headHash = resolveHead(fs, root);
   const headCommit = headHash ? readCommit(fs, root, headHash) : null;
   const headTree = headCommit?.tree ?? {};
@@ -747,7 +747,6 @@ export function gitStashList(fs: VirtualFS, root: string): string {
 
 // ── git clone ────────────────────────────────────────────────────────
 
-import { RemoteRepoDef } from "./types";
 import { REMOTE_REPOS } from "./remotes";
 
 function repoNameFromUrl(url: string): string {
@@ -846,8 +845,8 @@ export function gitPush(
   const repo = readRepo(fs, root);
 
   // Resolve remote and branch
-  let targetRemote = remote ?? repo.upstream?.remote ?? "origin";
-  let targetBranch = branch ?? repo.upstream?.branch ?? repo.currentBranch;
+  const targetRemote = remote ?? repo.upstream?.remote ?? "origin";
+  const targetBranch = branch ?? repo.upstream?.branch ?? repo.currentBranch;
   if (!targetBranch) {
     return { fs, output: "", error: "fatal: No configured push destination" };
   }

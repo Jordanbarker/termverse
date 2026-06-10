@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { SnowflakeState } from "../state";
 import type { SessionContext } from "../session/context";
 import type { Row } from "../types";
-import { createTestContext, executeQuery, rows, columnValues } from "./testHelpers";
+import { executeQuery, rows, columnValues } from "./testHelpers";
 
 // ─── Test State Factory ──────────────────────────────────────────────
 
@@ -267,7 +267,6 @@ describe("Executor — execute()", () => {
     it("LEFT JOIN includes unmatched left rows with NULLs", () => {
       // Add an employee with no matching department
       const s = createTestState();
-      const empTbl = s.getTable("NEXACORP_DB", "PUBLIC", "EMPLOYEES")!;
       const updatedState = s.insertRows("NEXACORP_DB", "PUBLIC", "EMPLOYEES", [
         { ID: 6, NAME: "Ghost", DEPT_ID: 99, STATUS: "active", SALARY: 50000, HIRE_DATE: "2023-01-01" },
       ]);

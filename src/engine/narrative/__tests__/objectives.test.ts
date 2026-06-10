@@ -251,12 +251,6 @@ describe("resolveObjectives", () => {
 
     it("only considers visible children for completion", () => {
       // child_a is visible and complete, child_b is not visible
-      const result = resolveObjectives(
-        groupChapter,
-        { parent_visible: true, child_a_done: true },
-        [],
-        []
-      );
       // child_b is not visible (visibleWhen: child_a_done → true, so actually it IS visible)
       // Let me construct a case where child_b truly isn't visible
       const chapterMixed: ChapterDefinition = {

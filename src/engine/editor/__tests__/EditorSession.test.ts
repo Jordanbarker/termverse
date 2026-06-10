@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";

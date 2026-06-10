@@ -7,7 +7,7 @@ import { PythonReplSession } from "../engine/python/PythonReplSession";
 import { SnowSqlSession } from "../engine/snowflake/session/SnowSqlSession";
 import { createDefaultContext } from "../engine/snowflake/session/context";
 import { gameNowFor } from "../engine/snowflake/session/gameClock";
-import { checkEmailDeliveries, type GameEvent } from "../engine/mail/delivery";
+import { checkEmailDeliveries } from "../engine/mail/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../engine/narrative/storyFlags";
 import { colorize, ansi } from "../lib/ansi";
 import { PromptSession } from "../engine/prompt/PromptSession";
@@ -41,7 +41,7 @@ const EVENT_ACTIONS: Record<string, (ctx: EventActionContext) => EventActionResu
     store.setStoryFlag("first_ssh_connect", true);
     return { skipDefault: true };
   },
-  search_tools_accepted: (ctx) => {
+  search_tools_accepted: (_ctx) => {
     const store = useGameStore.getState();
     store.setStoryFlag("search_tools_unlocked", true);
     store.addToast("grep, find, and diff are now available!");
@@ -52,25 +52,25 @@ const EVENT_ACTIONS: Record<string, (ctx: EventActionContext) => EventActionResu
     }
     return {};
   },
-  inspection_tools_accepted: (ctx) => {
+  inspection_tools_accepted: (_ctx) => {
     const store = useGameStore.getState();
     store.setStoryFlag("inspection_tools_unlocked", true);
     store.addToast("head, tail, and wc are now available!");
     return {};
   },
-  processing_tools_accepted: (ctx) => {
+  processing_tools_accepted: (_ctx) => {
     const store = useGameStore.getState();
     store.setStoryFlag("processing_tools_unlocked", true);
     store.addToast("sort and uniq are now available!");
     return {};
   },
-  pipeline_tools_accepted: (ctx) => {
+  pipeline_tools_accepted: (_ctx) => {
     const store = useGameStore.getState();
     store.setStoryFlag("coder_unlocked", true);
     store.addToast("coder command is now available! Try: coder ssh ai");
     return {};
   },
-  dana_ops_accepted: (ctx) => {
+  dana_ops_accepted: (_ctx) => {
     const store = useGameStore.getState();
     store.setStoryFlag("chmod_unlocked", true);
     store.addToast("chmod command unlocked!");

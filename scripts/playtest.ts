@@ -37,14 +37,6 @@ function expectFlag(runner: GameRunner, flag: string, label?: string) {
   }
 }
 
-function expectNoFlag(runner: GameRunner, flag: string) {
-  if (!runner.storyFlags[flag]) {
-    ok(`Flag '${flag}' correctly not set yet`);
-  } else {
-    issue(`Flag '${flag}' is set prematurely`);
-  }
-}
-
 function expectObjective(runner: GameRunner, obj: string) {
   if (runner.completedObjectives.includes(obj)) {
     ok(`Objective '${obj}' completed`);
@@ -58,14 +50,6 @@ function expectEmail(runner: GameRunner, id: string) {
     ok(`Email '${id}' delivered`);
   } else {
     issue(`Email '${id}' NOT delivered`);
-  }
-}
-
-function expectPiper(runner: GameRunner, id: string) {
-  if ((runner as any).deliveredPiperIds?.includes(id)) {
-    ok(`Piper '${id}' delivered`);
-  } else {
-    warn(`Piper '${id}' delivery not tracked (GameRunner bug — deliveredPiperIds not tracked)`);
   }
 }
 
@@ -189,7 +173,6 @@ async function playtest() {
   step("Reading Chip's SSH setup email to unlock SSH");
   r = runner.run("mail");
   // Find the chip_ssh_setup email
-  const mailList = r.output;
   // Read each new email until we find chip_ssh_setup
   for (let i = 1; i <= 8; i++) {
     r = runner.run(`mail ${i}`);

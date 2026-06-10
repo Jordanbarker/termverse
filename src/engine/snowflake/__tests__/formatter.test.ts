@@ -28,7 +28,7 @@ function makeStatus(
 
 // Helper: strip ANSI escape codes for content assertions
 function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
+   
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 
@@ -191,7 +191,7 @@ describe("Table Formatter — formatResultSet()", () => {
     const output = formatResultSet(rs);
 
     // Check for ESC character (\x1b or \u001b)
-    // eslint-disable-next-line no-control-regex
+     
     expect(output).toMatch(/\x1b\[/);
   });
 });

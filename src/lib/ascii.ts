@@ -95,7 +95,7 @@ export const nexacorpLogo = [
   "",
 ];
 
-export function getSshConnectionSequence(username: string): string[] {
+export function getSshConnectionSequence(_username: string): string[] {
   return [
     "",
     `${colorize(`Authenticated to nexacorp-ws01.nexacorp.internal ([10.0.1.47]:22) using "publickey".`, ansi.dim)}`,

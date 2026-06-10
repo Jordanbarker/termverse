@@ -104,7 +104,6 @@ describe("tab actions", () => {
 
   it("removeTab activates adjacent tab when active is removed", () => {
     const store = useGameStore.getState();
-    const id1 = store.tabs[0].id;
     const id2 = store.addTab("home", "/a");
     const id3 = store.addTab("home", "/b");
     // Active is id3. Remove it — should activate id2
@@ -194,7 +193,6 @@ describe("multi-tab integration", () => {
 
   it("removeTab middle tab activates correct neighbor", () => {
     const store = useGameStore.getState();
-    const id1 = store.tabs[0].id;
     const id2 = store.addTab("home", "/a");
     const id3 = store.addTab("home", "/b");
     // Activate middle tab

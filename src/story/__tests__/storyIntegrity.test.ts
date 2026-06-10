@@ -7,8 +7,6 @@ import { CHAPTERS } from "../chapters";
 
 const TEST_USERNAME = "ren";
 const ALL_FLAG_NAMES = new Set(STORY_FLAG_NAMES);
-const ALL_HOME_EMAIL_IDS = new Set(HOME_EMAIL_IDS);
-const ALL_NEXACORP_EMAIL_IDS = new Set(NEXACORP_EMAIL_IDS);
 const ALL_PIPER_DELIVERY_IDS = new Set(PIPER_DELIVERY_IDS);
 
 // Collect all email IDs for cross-reference lookups
@@ -34,7 +32,6 @@ for (const delivery of allPiperDeliveries) {
 const homeTriggers = getStoryFlagTriggers(TEST_USERNAME);
 const nexacorpTriggers = getNexacorpStoryFlagTriggers(TEST_USERNAME);
 const devcontainerTriggers = getDevcontainerStoryFlagTriggers(TEST_USERNAME);
-const allTriggers = [...homeTriggers, ...nexacorpTriggers, ...devcontainerTriggers];
 
 describe("Story Integrity", () => {
   describe("1. Story flag triggers use valid flag names", () => {

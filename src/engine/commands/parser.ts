@@ -239,7 +239,6 @@ export function expandAliases(input: string, aliases: Record<string, string>): s
     if (atCommandPos && !inSingle && !inDouble) {
       // Extract the word (until space, quote, or chain operator)
       let word = '';
-      const wordStart = i;
       while (i < input.length) {
         const c = input[i];
         if (c === ' ' || c === "'" || c === '"') break;

@@ -1,4 +1,3 @@
-import { Value } from "../../types";
 import { ScalarFn } from "./registry";
 
 export const numericFunctions: Record<string, ScalarFn> = {

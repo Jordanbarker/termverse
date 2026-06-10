@@ -108,12 +108,6 @@ function executeDelete(stmt: AST.DeleteStatement, state: SnowflakeState, ctx: Se
   if (!tbl) return { result: { type: "error", message: tableNotFoundError(stmt.table.join(".")) }, state };
 
   let affected = 0;
-  const predicate = (row: Row): boolean => {
-    if (!stmt.where) return true;
-    const match = toBool(evaluate(stmt.where, row, evalCtx));
-    if (match) affected++;
-    return match;
-  };
 
   // Count first
   for (const row of tbl.rows) {

@@ -14,7 +14,7 @@ export function renderPiperHeader(title: string, width: number, description?: st
 export function renderChannelList(
   channels: { name: string; type: "channel" | "dm"; unread: number }[],
   selectedIndex: number,
-  width: number
+  _width: number
 ): string {
   const lines: string[] = [];
 

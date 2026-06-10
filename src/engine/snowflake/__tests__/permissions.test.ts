@@ -138,7 +138,7 @@ describe("permissions integration", () => {
     });
 
     it("ENGINEER can INSERT into ANALYTICS", () => {
-      let s = state.createTable("NEXACORP_PROD", "ANALYTICS", "ENG_TEST", [
+      const s = state.createTable("NEXACORP_PROD", "ANALYTICS", "ENG_TEST", [
         { name: "ID", type: "NUMBER", nullable: false },
       ]);
       const { results } = execute("INSERT INTO ANALYTICS.ENG_TEST VALUES (1)", s, ctx("ENGINEER"));

@@ -39,9 +39,6 @@ function unary(operator: string, operand: Expression): Expression {
   return { kind: "unary_expr", op: operator, operand };
 }
 
-function functionCall(name: string, args: Expression[]): Expression {
-  return { kind: "function_call", name, args };
-}
 
 function caseExpr(
   whenClauses: Array<{ condition: Expression; result: Expression }>,

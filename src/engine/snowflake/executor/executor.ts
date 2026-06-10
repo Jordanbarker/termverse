@@ -1,13 +1,13 @@
 import { SnowflakeState } from "../state";
 import { Row, Value, DataType } from "../types";
 import { tokenize } from "../lexer/lexer";
-import { parse, parseMultiple } from "../parser/parser";
+import { parseMultiple } from "../parser/parser";
 import { ParseError } from "../parser/errors";
 import { planSelect } from "../planner/planner";
 import * as Plan from "../planner/plan";
 import * as AST from "../parser/ast";
 import { QueryResult, ResultSet } from "../formatter/result_types";
-import { evaluate, EvalContext, evalContextFromSession, toBool, compareValues } from "./evaluator";
+import { evaluate, EvalContext, evalContextFromSession, toBool } from "./evaluator";
 import { nestedLoopJoin } from "./joins";
 import { executeAggregation } from "./aggregation";
 import { executeWindowFunctions } from "./window_exec";
@@ -518,7 +518,7 @@ function inferColumnName(expr: AST.Expression): string {
   }
 }
 
-function inferType(expr: AST.Expression, row?: Row): DataType {
+function inferType(expr: AST.Expression, _row?: Row): DataType {
   switch (expr.kind) {
     case "number_literal": return "NUMBER";
     case "string_literal": return "VARCHAR";

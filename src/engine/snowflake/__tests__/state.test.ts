@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SnowflakeState, SnowflakeData } from "../state";
+import { SnowflakeState } from "../state";
 import { Column } from "../types";
 
 function emptyState(): SnowflakeState {

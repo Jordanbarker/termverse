@@ -3,7 +3,7 @@ import { createInitialSnowflakeState } from "../seed/initial_data";
 import { SnowflakeState } from "../state";
 import type { SessionContext } from "../session/context";
 import { formatResultSet } from "../formatter/table_formatter";
-import { createTestContext, executeQuery, rows, singleValue, columnValues, expectError, stripAnsi } from "./testHelpers";
+import { createTestContext, executeQuery, rows, singleValue, expectError, stripAnsi } from "./testHelpers";
 
 // ─── Shared Helpers ─────────────────────────────────────────────────
 
@@ -516,12 +516,6 @@ describe("CAST to DATE/TIMESTAMP", () => {
 // ═════════════════════════════════════════════════════════════════════
 
 describe("VARIANT/ARRAY/OBJECT Formatting", () => {
-  let state: SnowflakeState;
-
-  beforeEach(() => {
-    state = createInitialSnowflakeState();
-  });
-
   it("VARIANT object is formatted as JSON in output", () => {
     const simpleState = createSimpleState();
     const result = run(

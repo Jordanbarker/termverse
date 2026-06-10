@@ -7,7 +7,6 @@ import {
   discoverResources,
   parseMaterializationConfig,
   buildMaterializationMap,
-  parseGenericTests,
 } from "./project";
 import { STANDARD_MODEL_ORDER } from "./data";
 import {

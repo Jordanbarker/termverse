@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "../../state/gameStore";
 import { CHAPTERS } from "../../engine/narrative/chapters";
 import {
@@ -165,13 +165,16 @@ export default function ObjectiveTracker() {
   const deliveredEmailIds = useGameStore((s) => s.deliveredEmailIds);
 
   const chapter = CHAPTERS.find((c) => c.id === currentChapter);
-  if (!chapter) return null;
 
-  const objectives = resolveObjectives(
-    chapter,
-    storyFlags,
-    completedObjectives,
-    deliveredEmailIds
+  // Resolved unconditionally (empty when no chapter) so the effect below can run
+  // before any early return, keeping hook order stable across renders. Memoized so
+  // the effect's dependency identity is stable across renders.
+  const objectives = useMemo(
+    () =>
+      chapter
+        ? resolveObjectives(chapter, storyFlags, completedObjectives, deliveredEmailIds)
+        : [],
+    [chapter, storyFlags, completedObjectives, deliveredEmailIds]
   );
 
   // Auto-sync objectives that resolved as completed (via story flags, etc.)
@@ -187,6 +190,8 @@ export default function ObjectiveTracker() {
       }
     }
   }, [objectives, completedObjectives]);
+
+  if (!chapter) return null;
 
   if (storyFlags.terminated_for_misconduct) {
     return (

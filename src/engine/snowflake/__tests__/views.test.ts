@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SnowflakeState } from "../state";
-import { createDatabase, createSchema } from "../types";
+import { createSchema } from "../types";
 import { execute } from "../executor/executor";
 import { createTestContext } from "./testHelpers";
 

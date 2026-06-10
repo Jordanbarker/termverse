@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderConversation, renderNewMessagesDivider } from "../render";
+import { renderConversation } from "../render";
 import { getVisibleChannels, getConversationHistory } from "../delivery";
 import { PiperMessage } from "../types";
 

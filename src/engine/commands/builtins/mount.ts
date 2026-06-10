@@ -1,6 +1,5 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
 import { findDevice } from "../../../story/blockDevices";
 import { Mount, normalizeMountKey } from "../../filesystem/mounts";

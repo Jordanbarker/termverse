@@ -61,7 +61,7 @@ export function expectError(result: ExecutionResult, substring: string): void {
     throw new Error(`Error message "${qr.message}" does not contain "${substring}"`);
 }
 
-// eslint-disable-next-line no-control-regex
+ 
 export function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore } from "../state/gameStore";
-import { parseInput, parsePipeline, parseChainedPipeline, expandAliases } from "../engine/commands/parser";
+import { parseInput, parseChainedPipeline, expandAliases } from "../engine/commands/parser";
 import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "../engine/commands/registry";
 import { resolvePath } from "../lib/pathUtils";
 import { colorize, ansi, stripAnsi } from "../lib/ansi";
 import { expandZshPrompt } from "../lib/promptExpand";
-import { nexacorpLogo } from "../lib/ascii";
 import { VirtualFS } from "../engine/filesystem/VirtualFS";
 import { createDefaultContext } from "../engine/snowflake/session/context";
 import { SaveSlotId } from "../state/saveTypes";
@@ -163,16 +162,17 @@ export function useTerminal() {
   });
 
   // Refresh piper session when switching back to its tab (picks up state changes from other tabs)
+  const { refreshPiperSession } = sessionRouter;
   useEffect(() => {
     let prevTabId = useGameStore.getState().activeTabId;
     const unsub = useGameStore.subscribe((state) => {
       if (state.activeTabId !== prevTabId) {
         prevTabId = state.activeTabId;
-        sessionRouter.refreshPiperSession();
+        refreshPiperSession();
       }
     });
     return unsub;
-  }, [sessionRouter.refreshPiperSession]);
+  }, [refreshPiperSession]);
 
   const commandLine = useCommandLine({
     cwdRef,

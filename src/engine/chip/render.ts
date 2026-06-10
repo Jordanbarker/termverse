@@ -6,9 +6,6 @@ const VERSION = "v0.1.63";
 export function renderHeader(width: number): string {
   const title = `Chip ${VERSION}`;
   const welcome = "Welcome!";
-  const inner = width - 4; // 2 for border chars + 2 for padding
-  const titleLine = `  ${title}${" ".repeat(Math.max(0, inner - title.length))}`;
-  const welcomeLine = `  ${welcome}${" ".repeat(Math.max(0, inner - welcome.length))}`;
   const top = colorize(`\u256D\u2500\u2500\u2500 ${title} ${"─".repeat(Math.max(0, width - title.length - 7))}\u256E`, ansi.cyan);
   const mid = colorize(`\u2502`, ansi.cyan) + colorize(`  ${welcome}`, ansi.brightCyan) + " ".repeat(Math.max(0, width - welcome.length - 4)) + colorize(`\u2502`, ansi.cyan);
   const bot = colorize(`\u2570${"─".repeat(Math.max(0, width - 2))}\u256F`, ansi.cyan);

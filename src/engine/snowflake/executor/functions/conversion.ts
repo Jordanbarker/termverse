@@ -1,4 +1,3 @@
-import { Value } from "../../types";
 import { ScalarFn } from "./registry";
 import { castValue } from "../evaluator";
 

@@ -695,10 +695,10 @@ class Parser {
     let increment: number | undefined;
     while (!this.isAtEnd() && !this.check(TokenType.SEMICOLON)) {
       if (this.matchKeyword("START")) {
-        this.match(TokenType.EQ) || this.matchKeyword("WITH");
+        if (!this.match(TokenType.EQ)) this.matchKeyword("WITH");
         start = parseInt(this.advance().value);
       } else if (this.matchKeyword("INCREMENT")) {
-        this.match(TokenType.EQ) || this.matchKeyword("BY");
+        if (!this.match(TokenType.EQ)) this.matchKeyword("BY");
         increment = parseInt(this.advance().value);
       } else break;
     }

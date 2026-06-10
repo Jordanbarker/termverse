@@ -419,8 +419,7 @@ export function getChipinfraStoryFlagTriggers(username: string): StoryFlagTrigge
   ];
 }
 
-export function getDevcontainerStoryFlagTriggers(username: string): StoryFlagTrigger[] {
-  const p = HOME_PATHS;
+export function getDevcontainerStoryFlagTriggers(_username: string): StoryFlagTrigger[] {
   return [
     { event: "command_executed", detail: "git_clone_nexacorp-analytics", flag: "dbt_project_cloned", value: true, toast: "dbt project cloned to ~/nexacorp-analytics/" },
     { event: "command_executed", detail: "dbt_build", flag: "ran_dbt", value: true },

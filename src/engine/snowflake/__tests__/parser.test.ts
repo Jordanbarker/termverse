@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parse, parseMultiple } from "../parser/parser";
+import { parse } from "../parser/parser";
 import { tokenize } from "../lexer/lexer";
-import type { Statement } from "../parser/ast";
 
 // Helper: tokenize + parse in one step
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -9,11 +8,6 @@ function parseSql(sql: string): any {
   return parse(tokenize(sql));
 }
 
-// Helper for multi-statement parsing
-function parseSqlStatements(sql: string): Statement[] {
-  const tokens = tokenize(sql);
-  return parseMultiple(tokens);
-}
 
 describe("Parser — parse()", () => {
   // ─── Simple SELECT ──────────────────────────────────────────────────

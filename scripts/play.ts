@@ -21,7 +21,7 @@ globalThis.localStorage = {
 import { parsePipeline, parseInput } from "../src/engine/commands/parser";
 import { execute, executeAsync, isAsyncCommand } from "../src/engine/commands/registry";
 import "../src/engine/commands/builtins"; // side-effect: registers all commands
-import { computeEffects, AppliedEffects, SessionToStart } from "../src/engine/commands/applyResult";
+import { computeEffects, SessionToStart } from "../src/engine/commands/applyResult";
 import { CommandResult } from "../src/engine/commands/types";
 import { VirtualFS } from "../src/engine/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
@@ -39,7 +39,7 @@ import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
 import { resolvePath } from "../src/lib/pathUtils";
 import { extractStdoutRedirect, applyRedirection } from "../src/engine/commands/redirection";
-import { PromptSessionInfo, PromptOption } from "../src/engine/prompt/types";
+import { PromptSessionInfo } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
 import { parseZshHistory } from "../src/engine/terminal/zshHistory";
@@ -509,7 +509,7 @@ export class GameRunner {
     if (session.type === "prompt") {
       this.pendingPrompt = session.info;
       // Include the prompt text and options in output
-      let text = "\n" + session.info.promptText;
+      const text = "\n" + session.info.promptText;
       return { text, promptPending: true };
     }
 

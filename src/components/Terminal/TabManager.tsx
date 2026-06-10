@@ -393,6 +393,10 @@ export default function TabManager() {
     const instances = tabInstancesRef.current;
     for (const [id, instance] of instances) {
       const isActive = id === activeTabId;
+      // Intentional imperative DOM toggle inside an effect: each tab's xterm
+      // container is shown/hidden by activeTabId. The react-hooks immutability
+      // rule false-positives on mutating ref-held DOM nodes here.
+      // eslint-disable-next-line react-hooks/immutability
       instance.containerEl.style.visibility = isActive ? "visible" : "hidden";
       instance.containerEl.style.pointerEvents = isActive ? "auto" : "none";
       if (isActive) {

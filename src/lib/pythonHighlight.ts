@@ -37,7 +37,6 @@ function scanString(code: string, i: number, len: number): number {
   const q = code[i];
   // Check for triple-quote
   if (i + 2 < len && code[i + 1] === q && code[i + 2] === q) {
-    const triple = q + q + q;
     let j = i + 3;
     while (j < len) {
       if (code[j] === "\\" && j + 1 < len) {

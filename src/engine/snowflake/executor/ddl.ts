@@ -1,7 +1,7 @@
 import { SnowflakeState } from "../state";
 import { Column } from "../types";
 import * as AST from "../parser/ast";
-import { QueryResult, StatusMessage } from "../formatter/result_types";
+import { QueryResult } from "../formatter/result_types";
 import { SessionContext } from "../session/context";
 import { resolveThreePart, tableNotFoundError } from "./resolve";
 import { checkPermission, getRoleDef } from "../session/permissions";

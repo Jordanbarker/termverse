@@ -1,4 +1,4 @@
-import { Row, Value } from "../types";
+import { Row } from "../types";
 import { Expression, SelectItem } from "../parser/ast";
 import { evaluate, EvalContext, aggregateKey } from "./evaluator";
 import { initAccumulator, feedAccumulator, finalizeAccumulator } from "./functions/aggregate";

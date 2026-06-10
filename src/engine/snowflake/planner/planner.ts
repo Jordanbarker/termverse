@@ -1,6 +1,5 @@
 import * as AST from "../parser/ast";
 import * as Plan from "./plan";
-import { ParseError } from "../parser/errors";
 
 export interface PlannerContext {
   currentDatabase: string;

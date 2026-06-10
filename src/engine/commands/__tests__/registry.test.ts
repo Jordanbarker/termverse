@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
 import { CommandContext } from "../types";

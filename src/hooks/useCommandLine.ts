@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore } from "../state/gameStore";
 import { getAvailableCommands } from "../engine/commands/registry";
@@ -51,7 +51,11 @@ export function useCommandLine(deps: CommandLineDeps) {
 
   const historyRef = useRef(commandHistory);
   const historyIndexRef = useRef(-1);
-  historyRef.current = commandHistory;
+  // historyRef is only read inside event-handler callbacks (recall, suggestions),
+  // never during render — so keep it in sync via an effect rather than a render-time write.
+  useEffect(() => {
+    historyRef.current = commandHistory;
+  }, [commandHistory]);
 
   const clearGhost = useCallback((term: Terminal) => {
     if (ghostLengthRef.current > 0) {
@@ -105,7 +109,7 @@ export function useCommandLine(deps: CommandLineDeps) {
       cwd: cwdRef.current,
       homeDir: currentFs.homeDir,
     };
-  }, [cwdRef]);
+  }, [cwdRef, activeComputerRef]);
 
   const renderGhostText = useCallback((term: Terminal) => {
     const input = lineBuffer.current;
@@ -578,7 +582,7 @@ export function useCommandLine(deps: CommandLineDeps) {
         }
       }
     },
-    [clearCompletionState, clearGhost, clearAndRewriteLine, renderGhostText, buildSuggestionContext, cwdRef, findPrevWordBoundary, findNextWordBoundary]
+    [clearCompletionState, clearGhost, clearAndRewriteLine, renderGhostText, buildSuggestionContext, findPrevWordBoundary, findNextWordBoundary]
   );
 
   return { handleChar, handleArrow, deleteWordBackward, deleteWordForward };
