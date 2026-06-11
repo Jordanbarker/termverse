@@ -5,6 +5,8 @@
 export const TAB = 9;
 export const BACKSPACE = 127;
 export const BACKSPACE_ALT = 8;
+// xterm.js sends \x7f for plain Backspace and \x08 for Ctrl+Backspace on all OSes
+export const CTRL_BACKSPACE = 8;
 export const CTRL_C = 3;
 export const CTRL_D = 4;
 export const SPACE = 32;

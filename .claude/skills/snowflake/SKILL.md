@@ -229,7 +229,7 @@ Scalar functions are registered in `functions/registry.ts`. Aggregate functions 
 | `handleInput(data)` | Processes keystrokes: accumulates SQL until `;`, dispatches to pipeline, renders output inline |
 | `getPrompt()` | Returns `NEXACORP_DB.PUBLIC>` style prompt based on current context |
 
-The REPL has its own hand-rolled CSI parser (separate from `useCommandLine.ts`). Supported line-edit keys: arrows (Up/Down = history, Left/Right = cursor), Backspace, plain Delete (`\x1b[3~`), Ctrl+Left/Right and Ctrl+Delete (modifier=5 on the CSI param), Ctrl+Backspace (`\x1b\x7f`), Ctrl+W (raw 0x17), Ctrl+C (cancel), Ctrl+D (exit on empty buffer). Word boundaries use the shared `findPrev/NextWordBoundary` helpers in `src/engine/terminal/wordBoundary.ts`. **Caution:** prior changes here have regressed history navigation — if editing the parser, preserve the existing A/B branches verbatim and verify Up/Down still work.
+The REPL has its own hand-rolled CSI parser (separate from `useCommandLine.ts`). Supported line-edit keys: arrows (Up/Down = history, Left/Right = cursor), Backspace, plain Delete (`\x1b[3~`), Ctrl+Left/Right and Ctrl+Delete (modifier=5 on the CSI param), Alt/Option+Backspace (`\x1b\x7f`), Ctrl+Backspace (raw 0x08, what xterm.js emits — deletes previous word), Ctrl+W (raw 0x17), Ctrl+C (cancel), Ctrl+D (exit on empty buffer). Word boundaries use the shared `findPrev/NextWordBoundary` helpers in `src/engine/terminal/wordBoundary.ts`. **Caution:** prior changes here have regressed history navigation — if editing the parser, preserve the existing A/B branches verbatim and verify Up/Down still work.
 
 ### `bridge/fs_bridge.ts`
 

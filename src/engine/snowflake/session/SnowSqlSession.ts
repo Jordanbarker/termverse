@@ -4,7 +4,7 @@ import { SessionContext } from "./context";
 import { execute } from "../executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "../formatter/table_formatter";
 import { colorize, ansi } from "../../../lib/ansi";
-import { isBackspace, isPrintable, CTRL_C, CTRL_D } from "../../terminal/keyCodes";
+import { isBackspace, isPrintable, CTRL_C, CTRL_D, CTRL_BACKSPACE } from "../../terminal/keyCodes";
 import { findPrevWordBoundary, findNextWordBoundary } from "../../terminal/wordBoundary";
 import { ISession, SessionResult } from "../../session/types";
 import { GameEvent } from "../../mail/delivery";
@@ -172,8 +172,8 @@ export class SnowSqlSession implements ISession {
           this.cursorPos = this.inputBuffer.length;
           this.writeContinuationPrompt();
         }
-      } else if (code === 23) {
-        // Ctrl+W — delete previous word
+      } else if (code === 23 || code === CTRL_BACKSPACE) {
+        // Ctrl+W (0x17) or Ctrl+Backspace (0x08) — delete previous word
         this.deleteWordBackward();
       } else if (isBackspace(code)) {
         if (this.cursorPos > 0) {
