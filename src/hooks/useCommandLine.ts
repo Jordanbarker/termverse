@@ -12,11 +12,14 @@ interface CommandLineDeps {
   cwdRef: React.MutableRefObject<string>;
   activeComputerRef: React.MutableRefObject<ComputerId>;
   writePrompt: (term: Terminal) => void;
+  getPrompt: () => string;
 }
 
 export interface CommandLineResult {
   type: "submit";
   input: string;
+  /** Don't record this submission in .zsh_history (e.g. Ctrl+D EOF exit). */
+  skipHistory?: boolean;
 }
 
 interface CompletionState {
@@ -32,7 +35,7 @@ interface CompletionState {
 }
 
 export function useCommandLine(deps: CommandLineDeps) {
-  const { cwdRef, activeComputerRef, writePrompt } = deps;
+  const { cwdRef, activeComputerRef, writePrompt, getPrompt } = deps;
   const lineBuffer = useRef("");
   const cursorPos = useRef(0);
   const ghostLengthRef = useRef(0);
@@ -476,6 +479,82 @@ export function useCommandLine(deps: CommandLineDeps) {
     [clearCompletionState, clearGhost, renderGhostText, rewriteFromCursor, findNextWordBoundary]
   );
 
+  /** Delete the character at the cursor (Delete key / mid-line Ctrl+D). */
+  const deleteCharForward = useCallback(
+    (term: Terminal): void => {
+      clearCompletionState(term, false);
+      clearGhost(term);
+      const pos = cursorPos.current;
+      const buf = lineBuffer.current;
+      if (pos < buf.length) {
+        lineBuffer.current = buf.slice(0, pos) + buf.slice(pos + 1);
+        rewriteFromCursor(term, lineBuffer.current, pos);
+      }
+      renderGhostText(term);
+    },
+    [clearCompletionState, clearGhost, renderGhostText, rewriteFromCursor]
+  );
+
+  /** Ctrl+K — kill from cursor to end of line. */
+  const killToEnd = useCallback(
+    (term: Terminal): void => {
+      clearCompletionState(term, false);
+      clearGhost(term);
+      const pos = cursorPos.current;
+      if (pos < lineBuffer.current.length) {
+        lineBuffer.current = lineBuffer.current.slice(0, pos);
+        term.write("\x1b[K");
+      }
+      renderGhostText(term);
+    },
+    [clearCompletionState, clearGhost, renderGhostText]
+  );
+
+  /** Ctrl+U — zsh kill-whole-line (clears the entire buffer, not just left of cursor). */
+  const killWholeLine = useCallback(
+    (term: Terminal): void => {
+      clearCompletionState(term, false);
+      clearGhost(term);
+      const oldLen = lineBuffer.current.length;
+      if (oldLen > 0) {
+        clearAndRewriteLine(term, oldLen, cursorPos.current, "", 0);
+        lineBuffer.current = "";
+        cursorPos.current = 0;
+      }
+    },
+    [clearCompletionState, clearGhost, clearAndRewriteLine]
+  );
+
+  /** Ctrl+L — clear the screen and redraw the prompt with the in-progress line intact. */
+  const clearScreenAndRedraw = useCallback(
+    (term: Terminal): void => {
+      clearCompletionState(term, false);
+      clearGhost(term);
+      term.write("\x1b[H\x1b[2J");
+      term.write(getPrompt() + lineBuffer.current);
+      const moveBack = lineBuffer.current.length - cursorPos.current;
+      if (moveBack > 0) term.write(`\x1b[${moveBack}D`);
+      renderGhostText(term);
+    },
+    [clearCompletionState, clearGhost, renderGhostText, getPrompt]
+  );
+
+  /** Ctrl+D — delete-char on a non-empty line; EOF (exit shell) on an empty one, like zsh. */
+  const handleEof = useCallback(
+    (term: Terminal): CommandLineResult | null => {
+      if (lineBuffer.current.length > 0) {
+        deleteCharForward(term);
+        return null;
+      }
+      clearCompletionState(term, false);
+      clearGhost(term);
+      term.write("\r\n");
+      historyIndexRef.current = -1;
+      return { type: "submit", input: "exit", skipHistory: true };
+    },
+    [deleteCharForward, clearCompletionState, clearGhost]
+  );
+
   const handleArrow = useCallback(
     (term: Terminal, arrow: string, modifier: number = 0): void => {
       clearCompletionState(term, false);
@@ -585,7 +664,17 @@ export function useCommandLine(deps: CommandLineDeps) {
     [clearCompletionState, clearGhost, clearAndRewriteLine, renderGhostText, buildSuggestionContext, findPrevWordBoundary, findNextWordBoundary]
   );
 
-  return { handleChar, handleArrow, deleteWordBackward, deleteWordForward };
+  return {
+    handleChar,
+    handleArrow,
+    deleteWordBackward,
+    deleteWordForward,
+    deleteCharForward,
+    killToEnd,
+    killWholeLine,
+    clearScreenAndRedraw,
+    handleEof,
+  };
 }
 
 /** Helper to get the prefix portion of the original input before replaceFrom. */

@@ -20,7 +20,7 @@ import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "../engine/commands/types";
 import { parseTmuxPrefix } from "../engine/terminal/tmuxConfig";
-import { CTRL_BACKSPACE } from "../engine/terminal/keyCodes";
+import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "../engine/terminal/keyCodes";
 import { parseZshHistory } from "../engine/terminal/zshHistory";
 import { Mounts } from "../engine/filesystem/mounts";
 import { applyRedirection, extractStdoutRedirect } from "../engine/commands/redirection";
@@ -179,6 +179,7 @@ export function useTerminal() {
     cwdRef,
     activeComputerRef,
     writePrompt,
+    getPrompt,
   });
 
   /** Apply state-only effects (FS, cwd, story flags, email/piper deliveries). No terminal writes. */
@@ -402,6 +403,8 @@ export function useTerminal() {
             const keyCode = parts.length > 0 ? parseInt(parts[0], 10) : 0;
             if (keyCode === 3 && (modifier === 3 || modifier === 5)) {
               commandLine.deleteWordForward(term);
+            } else if (keyCode === 3) {
+              commandLine.deleteCharForward(term);
             }
             continue;
           }
@@ -422,7 +425,29 @@ export function useTerminal() {
           continue;
         }
 
-        const result = commandLine.handleChar(term, char, code);
+        if (code === CTRL_A) {
+          commandLine.handleArrow(term, "H");
+          continue;
+        }
+        if (code === CTRL_E) {
+          commandLine.handleArrow(term, "F");
+          continue;
+        }
+        if (code === CTRL_U) {
+          commandLine.killWholeLine(term);
+          continue;
+        }
+        if (code === CTRL_K) {
+          commandLine.killToEnd(term);
+          continue;
+        }
+        if (code === CTRL_L) {
+          commandLine.clearScreenAndRedraw(term);
+          continue;
+        }
+
+        // Ctrl+D: delete-char mid-line; EOF (submits `exit`) on an empty line
+        const result = code === CTRL_D ? commandLine.handleEof(term) : commandLine.handleChar(term, char, code);
         if (!result) continue;
 
         // Command submitted — expand aliases textually, then parse chain of pipelines
@@ -650,7 +675,7 @@ export function useTerminal() {
           const existing = runningFs.readFile(historyPath);
           const prev = existing.content ?? "";
           const lastLine = prev.trimEnd().split("\n").pop() ?? "";
-          if (lastLine !== result.input) {
+          if (!result.skipHistory && lastLine !== result.input) {
             const suffix = prev.endsWith("\n") || prev === "" ? "" : "\n";
             const historyUpdated = prev + suffix + result.input + "\n";
             const histWrite = runningFs.writeFile(historyPath, historyUpdated);

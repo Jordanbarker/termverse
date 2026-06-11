@@ -4,6 +4,7 @@ import { EditorState, EditorConfig, PromptState } from "./types";
 import { parseEditorInput, EditorAction } from "./keymap";
 import { renderEditor } from "./render";
 import { ISession, SessionResult } from "../session/types";
+import { findPrevWordBoundary, findNextWordBoundary } from "../terminal/wordBoundary";
 import { GameEvent } from "../mail/delivery";
 
 export interface EditorTrigger {
@@ -283,6 +284,12 @@ export class EditorSession implements ISession {
         break;
       case "arrowRight":
         this.moveCursor(1, 0);
+        break;
+      case "wordLeft":
+        this.moveWordLeft();
+        break;
+      case "wordRight":
+        this.moveWordRight();
         break;
       case "home":
         this.state.cursor.col = 0;
@@ -769,6 +776,34 @@ export class EditorSession implements ISession {
       } else {
         this.state.cursor.col = newCol;
       }
+    }
+    this.ensureCursorVisible();
+  }
+
+  /** Ctrl+Left — move to the previous word start, crossing line boundaries like real nano. */
+  private moveWordLeft(): void {
+    const cursor = this.state.cursor;
+    if (cursor.col === 0) {
+      if (cursor.row > 0) {
+        cursor.row--;
+        cursor.col = this.currentLine().length;
+      }
+    } else {
+      cursor.col = findPrevWordBoundary(this.currentLine(), cursor.col);
+    }
+    this.ensureCursorVisible();
+  }
+
+  /** Ctrl+Right — move to the next word start, crossing line boundaries like real nano. */
+  private moveWordRight(): void {
+    const cursor = this.state.cursor;
+    if (cursor.col >= this.currentLine().length) {
+      if (cursor.row < this.state.lines.length - 1) {
+        cursor.row++;
+        cursor.col = 0;
+      }
+    } else {
+      cursor.col = findNextWordBoundary(this.currentLine(), cursor.col);
     }
     this.ensureCursorVisible();
   }

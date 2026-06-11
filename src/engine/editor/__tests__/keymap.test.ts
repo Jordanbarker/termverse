@@ -42,6 +42,14 @@ describe("parseEditorInput", () => {
       expect(parseEditorInput("\x1b[1;5A")).toEqual([{ type: "arrowUp" }]);
     });
 
+    it("Ctrl+Left/Right jump by word like real nano", () => {
+      expect(parseEditorInput("\x1b[1;5C")).toEqual([{ type: "wordRight" }]);
+      expect(parseEditorInput("\x1b[1;5D")).toEqual([{ type: "wordLeft" }]);
+      // Other modifiers stay plain arrows
+      expect(parseEditorInput("\x1b[1;2D")).toEqual([{ type: "arrowLeft" }]);
+      expect(parseEditorInput("\x1b[1;3D")).toEqual([{ type: "arrowLeft" }]);
+    });
+
     it("handles modified tilde sequences", () => {
       // \x1b[3;3~ = Alt+Delete, \x1b[5;5~ = Ctrl+PageUp
       expect(parseEditorInput("\x1b[3;3~")).toEqual([{ type: "delete" }]);

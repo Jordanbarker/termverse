@@ -7,8 +7,13 @@ export const BACKSPACE = 127;
 export const BACKSPACE_ALT = 8;
 // xterm.js sends \x7f for plain Backspace and \x08 for Ctrl+Backspace on all OSes
 export const CTRL_BACKSPACE = 8;
+export const CTRL_A = 1;
 export const CTRL_C = 3;
 export const CTRL_D = 4;
+export const CTRL_E = 5;
+export const CTRL_K = 11;
+export const CTRL_L = 12;
+export const CTRL_U = 21;
 export const SPACE = 32;
 
 export function isBackspace(code: number): boolean {

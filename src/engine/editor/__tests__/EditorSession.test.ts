@@ -666,6 +666,46 @@ describe("EditorSession", () => {
       expect(getState(session).cursor).toEqual({ row: 0, col: 5 });
     });
 
+    it("Ctrl+Right moves to next word start", () => {
+      const { session } = createSession("hello world foo");
+      session.handleInput("\x1b[1;5C"); // wordRight
+      expect(getState(session).cursor.col).toBe(6); // start of "world"
+      session.handleInput("\x1b[1;5C");
+      expect(getState(session).cursor.col).toBe(12); // start of "foo"
+    });
+
+    it("Ctrl+Left moves to previous word start", () => {
+      const { session } = createSession("hello world");
+      session.handleInput("\x1b[F"); // End (col=11)
+      session.handleInput("\x1b[1;5D"); // wordLeft
+      expect(getState(session).cursor.col).toBe(6); // start of "world"
+      session.handleInput("\x1b[1;5D");
+      expect(getState(session).cursor.col).toBe(0);
+    });
+
+    it("Ctrl+Left at start of line crosses to end of previous line", () => {
+      const { session } = createSession("hello\nworld");
+      session.handleInput("\x1b[B"); // down to "world", col 0
+      session.handleInput("\x1b[1;5D"); // wordLeft
+      expect(getState(session).cursor).toEqual({ row: 0, col: 5 });
+    });
+
+    it("Ctrl+Right at end of line crosses to start of next line", () => {
+      const { session } = createSession("hello\nworld");
+      session.handleInput("\x1b[F"); // End of "hello"
+      session.handleInput("\x1b[1;5C"); // wordRight
+      expect(getState(session).cursor).toEqual({ row: 1, col: 0 });
+    });
+
+    it("Ctrl+Left/Right at document edges do nothing", () => {
+      const { session } = createSession("hello");
+      session.handleInput("\x1b[1;5D"); // wordLeft at (0,0)
+      expect(getState(session).cursor).toEqual({ row: 0, col: 0 });
+      session.handleInput("\x1b[F"); // End
+      session.handleInput("\x1b[1;5C"); // wordRight at end of last line
+      expect(getState(session).cursor).toEqual({ row: 0, col: 5 });
+    });
+
     it("Home moves to start of line", () => {
       const { session } = createSession("hello");
       session.handleInput("\x1b[C\x1b[C\x1b[C"); // right x3

@@ -9,6 +9,8 @@ export type EditorAction =
   | { type: "arrowDown" }
   | { type: "arrowLeft" }
   | { type: "arrowRight" }
+  | { type: "wordLeft" }
+  | { type: "wordRight" }
   | { type: "home" }
   | { type: "end" }
   | { type: "pageUp" }
@@ -48,15 +50,17 @@ export function parseEditorInput(data: string): EditorAction[] {
       const final = j < data.length ? data[j] : "";
       i = j + 1;
 
-      // Map final byte to action, treating modified keys (e.g. \x1b[1;3C) the same as plain keys
+      // Map final byte to action. Ctrl+Left/Right (modifier 5) jump by word like real
+      // nano; other modified keys (e.g. \x1b[1;3C) are treated the same as plain keys.
+      const modifier = params.includes(";") ? parseInt(params.split(";")[1], 10) : 0;
       if (final === "A") {
         actions.push({ type: "arrowUp" });
       } else if (final === "B") {
         actions.push({ type: "arrowDown" });
       } else if (final === "C") {
-        actions.push({ type: "arrowRight" });
+        actions.push(modifier === 5 ? { type: "wordRight" } : { type: "arrowRight" });
       } else if (final === "D") {
-        actions.push({ type: "arrowLeft" });
+        actions.push(modifier === 5 ? { type: "wordLeft" } : { type: "arrowLeft" });
       } else if (final === "H") {
         actions.push({ type: "home" });
       } else if (final === "F") {

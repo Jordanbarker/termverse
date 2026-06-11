@@ -4,7 +4,7 @@ import { SessionContext } from "./context";
 import { execute } from "../executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "../formatter/table_formatter";
 import { colorize, ansi } from "../../../lib/ansi";
-import { isBackspace, isPrintable, CTRL_C, CTRL_D, CTRL_BACKSPACE } from "../../terminal/keyCodes";
+import { isBackspace, isPrintable, CTRL_A, CTRL_C, CTRL_D, CTRL_E, CTRL_K, CTRL_U, CTRL_BACKSPACE } from "../../terminal/keyCodes";
 import { findPrevWordBoundary, findNextWordBoundary } from "../../terminal/wordBoundary";
 import { ISession, SessionResult } from "../../session/types";
 import { GameEvent } from "../../mail/delivery";
@@ -119,6 +119,10 @@ export class SnowSqlSession implements ISession {
             this.cursorPos--;
             this.terminal.write("\x1b[D");
           }
+        } else if (char === "H" || (char === "~" && keyCode === 1)) {
+          this.cursorToLineStart();
+        } else if (char === "F" || (char === "~" && keyCode === 4)) {
+          this.cursorToLineEnd();
         } else if (char === "~" && keyCode === 3) {
           if (isWordSkip) this.deleteWordForward();
           else this.deleteForward();
@@ -175,6 +179,15 @@ export class SnowSqlSession implements ISession {
       } else if (code === 23 || code === CTRL_BACKSPACE) {
         // Ctrl+W (0x17) or Ctrl+Backspace (0x08) — delete previous word
         this.deleteWordBackward();
+      } else if (code === CTRL_A) {
+        this.cursorToLineStart();
+      } else if (code === CTRL_E) {
+        this.cursorToLineEnd();
+      } else if (code === CTRL_U) {
+        // readline unix-line-discard — kill to start of line (matches real snowsql)
+        this.killToLineStart();
+      } else if (code === CTRL_K) {
+        this.killToLineEnd();
       } else if (isBackspace(code)) {
         if (this.cursorPos > 0) {
           const before = this.inputBuffer.slice(0, this.cursorPos - 1);
@@ -285,6 +298,52 @@ export class SnowSqlSession implements ISession {
     const delta = endPos - this.cursorPos;
     if (delta === 0) return;
     const after = this.inputBuffer.slice(endPos);
+    this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + after;
+    this.terminal.write(after + " ".repeat(delta) + `\x1b[${after.length + delta}D`);
+  }
+
+  /** Start index of the line containing the cursor (continuation lines start after the last \n). */
+  private currentLineStart(): number {
+    return this.inputBuffer.lastIndexOf("\n", this.cursorPos - 1) + 1;
+  }
+
+  /** End index (exclusive) of the line containing the cursor. */
+  private currentLineEnd(): number {
+    const idx = this.inputBuffer.indexOf("\n", this.cursorPos);
+    return idx === -1 ? this.inputBuffer.length : idx;
+  }
+
+  private cursorToLineStart(): void {
+    const delta = this.cursorPos - this.currentLineStart();
+    if (delta > 0) {
+      this.cursorPos -= delta;
+      this.terminal.write(`\x1b[${delta}D`);
+    }
+  }
+
+  private cursorToLineEnd(): void {
+    const delta = this.currentLineEnd() - this.cursorPos;
+    if (delta > 0) {
+      this.cursorPos += delta;
+      this.terminal.write(`\x1b[${delta}C`);
+    }
+  }
+
+  private killToLineStart(): void {
+    const lineStart = this.currentLineStart();
+    const delta = this.cursorPos - lineStart;
+    if (delta === 0) return;
+    const after = this.inputBuffer.slice(this.cursorPos);
+    this.inputBuffer = this.inputBuffer.slice(0, lineStart) + after;
+    this.cursorPos = lineStart;
+    this.terminal.write(`\x1b[${delta}D` + after + " ".repeat(delta) + `\x1b[${after.length + delta}D`);
+  }
+
+  private killToLineEnd(): void {
+    const lineEnd = this.currentLineEnd();
+    const delta = lineEnd - this.cursorPos;
+    if (delta === 0) return;
+    const after = this.inputBuffer.slice(lineEnd);
     this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + after;
     this.terminal.write(after + " ".repeat(delta) + `\x1b[${after.length + delta}D`);
   }
