@@ -79,6 +79,7 @@ export default function TabManager() {
   const activeTabId = useGameStore((s) => s.activeTabId);
   const gamePhase = useGameStore((s) => s.gamePhase);
   const storyFlags = useGameStore((s) => s.storyFlags);
+  const copyModeHelpHidden = useGameStore((s) => s.copyModeHelpHidden);
   // Tab prefix is read from the home PC's ~/.tmux.conf (your local terminal's
   // tmux config governs the tabs, regardless of which box a tab is connected to).
   // Select the raw conf string (a primitive) so the selector stays referentially
@@ -202,6 +203,10 @@ export default function TabManager() {
         if (!active && sessionUsesAltScreen(getActiveSessionTypeRef.current())) {
           resizeActiveSessionRef.current();
         }
+      },
+      onToggleHelp: () => {
+        const store = useGameStore.getState();
+        store.setCopyModeHelpHidden(!store.copyModeHelpHidden);
       },
       onYank: (text) => {
         void copyToClipboard(text).then((ok) => {
@@ -488,7 +493,11 @@ export default function TabManager() {
         {copyModeActive && (
           <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
             <span className="font-bold text-[#e6b450]">COPY MODE</span>
-            <span className="text-[#6c7380]"> · hjkl/arrows move · 0/$ line · g/G top/bot · v select · y yank · esc exit</span>
+            <span className="text-[#6c7380]">
+              {copyModeHelpHidden
+                ? " · ? help"
+                : " · hjkl/arrows move · 0/$ line · g/G top/bot · v select · y yank · esc exit · ? hide"}
+            </span>
           </div>
         )}
         {/* Pre-unlock there's no tab bar, so float the prefix indicator here instead. */}

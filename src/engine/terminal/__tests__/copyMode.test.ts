@@ -91,8 +91,9 @@ function setup(opts: FakeOptions = {}) {
   const term = new FakeTerminal(opts);
   const onChange = vi.fn();
   const onYank = vi.fn();
-  const controller = new CopyModeController(term, { onChange, onYank });
-  return { term, onChange, onYank, controller };
+  const onToggleHelp = vi.fn();
+  const controller = new CopyModeController(term, { onChange, onYank, onToggleHelp });
+  return { term, onChange, onYank, onToggleHelp, controller };
 }
 
 describe("CopyModeController", () => {
@@ -265,6 +266,14 @@ describe("CopyModeController", () => {
     controller.handleKeydown(key("u")); // no ctrl -> no-op
     expect(term.lastSelect()).toEqual(before);
     expect(term.scrollLinesCalls).toEqual([]);
+  });
+
+  it("fires onToggleHelp on `?` and consumes the key without exiting", () => {
+    const { controller, onToggleHelp } = setup();
+    controller.enter();
+    expect(controller.handleKeydown(key("?"))).toBe(true);
+    expect(onToggleHelp).toHaveBeenCalledTimes(1);
+    expect(controller.isActive()).toBe(true);
   });
 
   it("clamps onto short lines and restores the preferred column on longer ones", () => {

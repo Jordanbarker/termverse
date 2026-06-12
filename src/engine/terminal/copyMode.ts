@@ -44,6 +44,8 @@ export interface CopyModeCallbacks {
   onChange(active: boolean): void;
   /** Fired with the yanked text when the user presses `y` on a non-empty selection. */
   onYank(text: string): void;
+  /** Fired when the user presses `?` to toggle the key-hint overlay. */
+  onToggleHelp?(): void;
 }
 
 interface KeyEventLike {
@@ -227,6 +229,9 @@ export class CopyModeController {
       case "q":
       case "Escape":
         this.exit();
+        return true;
+      case "?":
+        this.callbacks.onToggleHelp?.();
         return true;
       default:
         // Unrecognized key — still swallowed so nothing leaks to the shell.

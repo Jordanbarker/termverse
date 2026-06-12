@@ -53,6 +53,8 @@ interface GameStore {
   activeSnowSession: string | null;
   pendingPiperNotification: boolean;
   notifiedChipTopicIds: string[];
+  // UI preference: hide the copy-mode key-hint overlay (toggled with `?` in copy mode).
+  copyModeHelpHidden: boolean;
 
   // Actions
   setUsername: (username: string) => void;
@@ -84,6 +86,7 @@ interface GameStore {
   removeComputer: (computer: ComputerId) => void;
   setPendingPiperNotification: (value: boolean) => void;
   markChipTopicsNotified: (ids: string[]) => void;
+  setCopyModeHelpHidden: (hidden: boolean) => void;
 }
 
 export function buildFs(
@@ -140,6 +143,7 @@ function createInitialState(username = PLAYER.username) {
     activeSnowSession: null as string | null,
     pendingPiperNotification: false,
     notifiedChipTopicIds: [] as string[],
+    copyModeHelpHidden: false,
   };
 }
 
@@ -202,6 +206,7 @@ export const useGameStore = create<GameStore>()(
           };
         }),
       setHasSeenIntro: () => set({ hasSeenIntro: true }),
+      setCopyModeHelpHidden: (hidden) => set({ copyModeHelpHidden: hidden }),
       addToast: (message) =>
         set((state) => ({
           toasts: [...state.toasts, { id: String(++toastId), message }],
@@ -430,6 +435,7 @@ export const useGameStore = create<GameStore>()(
           persistedTabs: state.tabs.map((t) => ({ computerId: t.computerId, cwd: t.cwd })),
           persistedActiveTabIndex: activeTabIndex >= 0 ? activeTabIndex : 0,
           notifiedChipTopicIds: state.notifiedChipTopicIds,
+          copyModeHelpHidden: state.copyModeHelpHidden,
         };
       },
       merge: (persisted, currentState) => {
@@ -530,6 +536,7 @@ export const useGameStore = create<GameStore>()(
           tabs,
           activeTabId: tabs[activeIdx].id,
           notifiedChipTopicIds: (p.notifiedChipTopicIds as string[]) ?? [],
+          copyModeHelpHidden: (p.copyModeHelpHidden as boolean) ?? currentState.copyModeHelpHidden,
         };
       },
     }
