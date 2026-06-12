@@ -45,6 +45,9 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   // Shell builtins for conditionals
   "true",
   "false",
+  // Always available: a non-questline shutdown is consequence-free (cosmetic
+  // reboot at home, SSH disconnect on remote boxes) — see builtins/shutdown.ts.
+  "shutdown",
 ]);
 
 /** NexaCorp commands gated behind colleague emails. */
@@ -96,6 +99,7 @@ export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
   "ssh", "ssh-add",
   "lsblk", "mount", "umount",
   "true", "false",
+  "shutdown",
 ]);
 
 /** Home PC commands gated behind story flags. */
@@ -125,7 +129,6 @@ export const HOME_GATED: Record<string, StoryFlagName> = {
   tail: "returned_home_day1",
   diff: "returned_home_day1",
   less: "returned_home_day1",
-  shutdown: "returned_home_day1",
   lsblk: "accepted_usb_drive",
   mount: "accepted_usb_drive",
   umount: "accepted_usb_drive",

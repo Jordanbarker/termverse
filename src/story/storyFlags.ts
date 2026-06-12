@@ -236,8 +236,10 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
     { event: "command_executed", detail: "data_deduped", flag: "used_sort_uniq_home", value: true },
     { event: "command_executed", detail: "files_searched", flag: "used_find_home", value: true },
 
-    // Day 1 → Day 2 transition
-    { event: "command_executed", detail: "shutdown", flag: "day1_shutdown", value: true },
+    // Day 1 → Day 2 transition. Guarded on returned_home_day1: shutdown is
+    // available from game start, but only the scripted end-of-Day-1 shutdown
+    // advances the day — an early shutdown is just a cosmetic reboot.
+    { event: "command_executed", detail: "shutdown", flag: "day1_shutdown", value: true, requiredFlags: ["returned_home_day1"] },
     { event: "command_executed", detail: "piper", flag: "read_piper_day1_home", value: true },
     { event: "command_executed", detail: "ssh_nexacorp", flag: "ssh_day2", value: true },
 
@@ -247,7 +249,9 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
     { event: "file_read", detail: "marcus_board_debrief", flag: "read_board_debrief_day2", value: true, toast: "Day 2 over. Get some sleep." },
 
     // Day 2: "Anonymous Tip" quest. Surfaces on first home boot of Day 2.
-    { event: "command_executed", detail: "shutdown", flag: "anon_tip_quest_started", value: true },
+    // Same returned_home_day1 guard as day1_shutdown above — a pre-Day-2
+    // cosmetic reboot must not surface the quest early.
+    { event: "command_executed", detail: "shutdown", flag: "anon_tip_quest_started", value: true, requiredFlags: ["returned_home_day1"] },
 
     // Reply branches — both resolve the "Check Piper" objective; only the
     // accept branch sets accepted_usb_drive and reveals the device + scaffold.

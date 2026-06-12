@@ -129,6 +129,23 @@ describe("used_find_home — files_searched event", () => {
   });
 });
 
+describe("shutdown triggers — guarded so cosmetic reboots stay consequence-free", () => {
+  const triggers = getStoryFlagTriggers(username);
+  const event: GameEvent = { type: "command_executed", detail: "shutdown" };
+
+  it("does NOT advance the day before returned_home_day1 (early-game cosmetic reboot)", () => {
+    const flags = fireFlags(event, triggers, {});
+    expect(flags).not.toContain("day1_shutdown");
+    expect(flags).not.toContain("anon_tip_quest_started");
+  });
+
+  it("fires both flags on the scripted end-of-Day-1 shutdown", () => {
+    const flags = fireFlags(event, triggers, { returned_home_day1: true });
+    expect(flags).toContain("day1_shutdown");
+    expect(flags).toContain("anon_tip_quest_started");
+  });
+});
+
 describe("used_which_python — python_located event", () => {
   const triggers = getStoryFlagTriggers(username);
 

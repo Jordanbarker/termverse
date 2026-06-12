@@ -490,6 +490,48 @@ export function useComputerTransitions(deps: TransitionDeps) {
     }, BOOT_LINE_INTERVAL_MS);
   }, [cwdRef, activeComputerRef, writePrompt]);
 
+  /**
+   * Cosmetic home-PC reboot for a non-questline `shutdown`: power off, boot
+   * right back up. No FS rebuild, no story flags, no deliveries, no chapter
+   * change — the in-game clock derives from delivery progression, so the
+   * datetime is unchanged too. Other tabs are closed (a reboot kills every
+   * terminal and any SSH session originating from this box) but computerState
+   * is kept, so reconnecting finds everything as it was.
+   */
+  const runRebootTransition = useCallback((term: Terminal) => {
+    const store = useGameStore.getState();
+    store.setGamePhase("transitioning");
+
+    term.write("\x1b[?25l"); // hide cursor during animation
+    term.clear();
+
+    setTimeout(() => {
+      const s = useGameStore.getState();
+      const otherTabs = s.tabs.filter((t) => t.id !== s.activeTabId);
+      for (const t of otherTabs) s.removeTab(t.id);
+
+      // Fresh login shell starts in ~
+      const homeDir = `/home/${s.username}`;
+      s.setTabCwd(s.activeTabId, homeDir);
+      cwdRef.current = homeDir;
+
+      useGameStore.getState().setGamePhase("booting");
+      const bootLines = getHomeBootSequence();
+      let j = 0;
+      const bootInterval = setInterval(() => {
+        if (j < bootLines.length) {
+          term.writeln(bootLines[j]);
+          j++;
+        } else {
+          clearInterval(bootInterval);
+          term.write("\x1b[?25h"); // restore cursor
+          useGameStore.getState().setGamePhase("playing");
+          writePrompt(term);
+        }
+      }, BOOT_LINE_INTERVAL_MS);
+    }, 2500);
+  }, [cwdRef, writePrompt]);
+
   const runShutdownTransition = useCallback((term: Terminal) => {
     const store = useGameStore.getState();
     const isEndgame = Boolean(store.storyFlags.read_board_debrief_day2);
@@ -794,5 +836,5 @@ export function useComputerTransitions(deps: TransitionDeps) {
     [runCoderTransition, runExitToParent, runSshTransition, runExitToHome, runTerminationTransition]
   );
 
-  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToParent, runExitToHome, runShutdownTransition, runTerminationTransition, dispatchTransition };
+  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToParent, runExitToHome, runShutdownTransition, runRebootTransition, runTerminationTransition, dispatchTransition };
 }

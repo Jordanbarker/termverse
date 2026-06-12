@@ -81,6 +81,41 @@ export function getShutdownIncrementalLines(withCountdown: boolean): Incremental
   return lines;
 }
 
+/**
+ * Shutdown as seen from an SSH session into the machine being powered off:
+ * the wall broadcast, then the connection drops. No systemd stop lines — an
+ * SSH session dies before those would render.
+ */
+export function getRemoteShutdownIncrementalLines(hostname: string, withCountdown: boolean): IncrementalLine[] {
+  const lines: IncrementalLine[] = [];
+
+  lines.push({ text: "", delayMs: 0 });
+  lines.push({
+    text: colorize(`Broadcast message from root@${hostname}:`, ansi.yellow),
+    delayMs: 200,
+  });
+  if (withCountdown) {
+    lines.push({
+      text: colorize("The system is going down for poweroff in 1 minute!", ansi.yellow),
+      delayMs: 200,
+    });
+    lines.push({ text: "", delayMs: 0 });
+    lines.push({ text: colorize("Shutdown in 45s...", ansi.dim), delayMs: 15000 });
+    lines.push({ text: colorize("Shutdown in 30s...", ansi.dim), delayMs: 15000 });
+    lines.push({ text: colorize("Shutdown in 15s...", ansi.dim), delayMs: 15000 });
+    lines.push({ text: "", delayMs: 15000 });
+  } else {
+    lines.push({
+      text: colorize("The system is going down for poweroff NOW!", ansi.yellow),
+      delayMs: 200,
+    });
+    lines.push({ text: "", delayMs: 0 });
+  }
+  lines.push({ text: `Connection to ${hostname} closed by remote host.`, delayMs: 800 });
+
+  return lines;
+}
+
 export const nexacorpLogo = [
   "",
   `  ${colorize("███╗   ██╗███████╗██╗  ██╗ █████╗  ██████╗ ██████╗ ██████╗ ██████╗", ansi.cyan)}`,

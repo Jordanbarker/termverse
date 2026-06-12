@@ -61,7 +61,8 @@ export type GameAction =
   | { type: "listCheckpoints" }
   | { type: "loadCheckpoint"; checkpointId: string }
   | { type: "newGame" }
-  | { type: "shutdown" };
+  | { type: "shutdown" }
+  | { type: "reboot" };
 
 export interface InteractiveSessionInfo {
   type: "pythonRepl";

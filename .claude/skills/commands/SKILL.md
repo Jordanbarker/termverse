@@ -88,7 +88,7 @@ interface CommandResult {
   chipSession?: { ... };        // Enter Chip assistant
   piperSession?: { ... };       // Enter Piper session
   lessSession?: { filename, content };  // Enter less pager (file or piped stdin)
-  gameAction?: GameAction;      // save/load/newgame/shutdown/listCheckpoints/loadCheckpoint
+  gameAction?: GameAction;      // save/load/newgame/shutdown/reboot/listCheckpoints/loadCheckpoint (reboot = cosmetic home reboot, no state changes)
   triggerEvents?: GameEvent[];  // Events for email/story processing
   transitionTo?: ComputerId;    // Transition to another computer (devcontainer, nexacorp)
   incrementalLines?: IncrementalLine[];  // Lines to print with per-line delays (e.g. boot sequences)

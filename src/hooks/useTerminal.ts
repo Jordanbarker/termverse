@@ -147,7 +147,7 @@ export function useTerminal() {
   );
 
   // Compose transition functions
-  const { runShutdownTransition, dispatchTransition } = useComputerTransitions({
+  const { runShutdownTransition, runRebootTransition, dispatchTransition } = useComputerTransitions({
     cwdRef,
     activeComputerRef,
     writePrompt,
@@ -268,6 +268,8 @@ export function useTerminal() {
             busyTabIdRef.current = null;
             if (effects.gameAction?.type === "shutdown") {
               runShutdownTransition(term);
+            } else if (effects.gameAction?.type === "reboot") {
+              runRebootTransition(term);
             } else if (effects.transitionTo && dispatchTransition(term, effects.transitionTo, computerId, effects.terminationReason)) {
               // dispatchTransition handles its own notifications/prompt
             } else {
@@ -354,7 +356,7 @@ export function useTerminal() {
 
       return effects.suppressPrompt;
     },
-    [sessionRouter, getPrompt, dispatchTransition, runShutdownTransition, applyStateEffects, writeNotifications, writePrompt]
+    [sessionRouter, getPrompt, dispatchTransition, runShutdownTransition, runRebootTransition, applyStateEffects, writeNotifications, writePrompt]
   );
 
   const handleInput = useCallback(

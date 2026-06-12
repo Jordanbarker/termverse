@@ -161,7 +161,7 @@ export function computeEffects(
       effects.suppressPrompt = true;
     } else if (result.gameAction.type === "newGame") {
       effects.suppressPrompt = true;
-    } else if (result.gameAction.type === "shutdown") {
+    } else if (result.gameAction.type === "shutdown" || result.gameAction.type === "reboot") {
       effects.suppressPrompt = true;
     } else if (result.gameAction.type === "save" || result.gameAction.type === "load") {
       effects.suppressPrompt = result.gameAction.type === "load";
