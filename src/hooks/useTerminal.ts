@@ -23,7 +23,7 @@ import { parseTmuxPrefix } from "../engine/terminal/tmuxConfig";
 import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "../engine/terminal/keyCodes";
 import { parseZshHistory } from "../engine/terminal/zshHistory";
 import { Mounts } from "../engine/filesystem/mounts";
-import { applyRedirection, extractStdoutRedirect } from "../engine/commands/redirection";
+import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../engine/commands/redirection";
 
 // ---------------------------------------------------------------------------
 // Module-scope helpers (no React dependencies)
@@ -570,9 +570,25 @@ export function useTerminal() {
 
             // Extract redirection from last pipeline command (per-segment)
             const lastSegment = pipeline[pipeline.length - 1];
-            const { command: stripped, redirectFile, redirectAppend } =
+            const { command: stripped, redirects, parseError } =
               extractStdoutRedirect(lastSegment.raw);
-            if (redirectFile) {
+            if (parseError) {
+              if (wroteOutput) term.write("\r\n");
+              term.write(colorize(parseError, ansi.red));
+              wroteOutput = true;
+              lastExitCode = 1;
+              continue;
+            }
+            if (redirects.length > 0) {
+              // zsh opens redirect targets before exec — a bad target means the command never runs
+              const precheckError = precheckRedirects(redirects, cwdRef.current, homeDir, runningFs);
+              if (precheckError) {
+                if (wroteOutput) term.write("\r\n");
+                term.write(colorize(precheckError, ansi.red));
+                wroteOutput = true;
+                lastExitCode = 1;
+                continue;
+              }
               pipeline[pipeline.length - 1] = parseInput(stripped);
             }
 
@@ -600,7 +616,7 @@ export function useTerminal() {
                 homeDir,
                 stdin,
                 p.rawArgs,
-                pi < pipeline.length - 1 || !!redirectFile,
+                pi < pipeline.length - 1 || redirects.length > 0,
                 useGameStore.getState(),
                 runningMounts
               );
@@ -650,8 +666,8 @@ export function useTerminal() {
               lastResult = { ...lastResult, securityViolation: pipelineViolation };
             }
 
-            if (redirectFile && lastResult) {
-              const redir = applyRedirection(redirectFile, redirectAppend, lastResult, cwdRef.current, homeDir, runningFs, computerId);
+            if (redirects.length > 0 && lastResult) {
+              const redir = applyRedirection(redirects, lastResult, cwdRef.current, homeDir, runningFs, computerId);
               lastResult = redir.result;
               runningFs = redir.fs;
             }

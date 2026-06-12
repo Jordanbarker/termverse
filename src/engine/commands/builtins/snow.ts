@@ -19,6 +19,7 @@ register(
     if (subcommand !== "sql") {
       return {
         output: `snow: unknown command '${subcommand}'\n\nAvailable commands:\n  sql    Execute SQL queries\n\nRun 'snow --help' for usage.`,
+        exitCode: 1,
       };
     }
 
@@ -32,6 +33,7 @@ register(
     if (flags["q"] && sqlArgs.length === 0) {
       return {
         output: `snow sql: -q requires a SQL query argument\n\nUsage: snow sql -q 'SELECT ...'`,
+        exitCode: 1,
       };
     }
 
@@ -78,8 +80,10 @@ register(
         triggerEvents.push({ type: "command_executed", detail: "queried_campaign_metrics" });
       }
 
+      const hasError = results.some((r) => r.type === "error");
       return {
         output: outputLines.join("\n"),
+        exitCode: hasError ? 1 : 0,
         ...(triggerEvents.length > 0 && { triggerEvents }),
       };
     }

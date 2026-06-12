@@ -18,11 +18,11 @@ globalThis.localStorage = {
 } as Storage;
 
 // Engine imports (no React/Zustand dependency)
-import { parsePipeline, parseInput } from "../src/engine/commands/parser";
+import { parseChainedPipeline, parseInput, expandAliases } from "../src/engine/commands/parser";
 import { execute, executeAsync, isAsyncCommand } from "../src/engine/commands/registry";
 import "../src/engine/commands/builtins"; // side-effect: registers all commands
 import { computeEffects, SessionToStart } from "../src/engine/commands/applyResult";
-import { CommandResult } from "../src/engine/commands/types";
+import { CommandResult, ChainSegment, ParsedCommand } from "../src/engine/commands/types";
 import { VirtualFS } from "../src/engine/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
 import { createNexacorpFilesystem } from "../src/story/filesystem/nexacorp";
@@ -38,7 +38,7 @@ import { createDefaultContext, SessionContext } from "../src/engine/snowflake/se
 import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
 import { resolvePath } from "../src/lib/pathUtils";
-import { extractStdoutRedirect, applyRedirection } from "../src/engine/commands/redirection";
+import { extractStdoutRedirect, applyRedirection, precheckRedirects } from "../src/engine/commands/redirection";
 import { PromptSessionInfo } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
@@ -73,8 +73,8 @@ export class GameRunner {
   snowflakeContext: SessionContext;
   completedObjectives: string[];
   pendingPrompt: PromptSessionInfo | null;
-  envVars: Record<ComputerId, Record<string, string>>;
-  aliases: Record<ComputerId, Record<string, string>>;
+  envVars: Partial<Record<ComputerId, Record<string, string>>>;
+  aliases: Partial<Record<ComputerId, Record<string, string>>>;
   mounts: Record<ComputerId, Mounts>;
 
   constructor(computer: ComputerId = "home") {
@@ -88,8 +88,8 @@ export class GameRunner {
     this.snowflakeContext = createDefaultContext(this.username);
     this.completedObjectives = [];
     this.pendingPrompt = null;
-    this.envVars = { home: {}, nexacorp: {}, devcontainer: {}, chipinfra: {}, "erik-pc": {} };
-    this.aliases = { home: {}, nexacorp: {}, devcontainer: {}, chipinfra: {}, "erik-pc": {} };
+    this.envVars = {};
+    this.aliases = {};
     this.mounts = { home: {}, nexacorp: {}, devcontainer: {}, chipinfra: {}, "erik-pc": {} };
 
     const root = computer === "home"
@@ -128,55 +128,152 @@ export class GameRunner {
     }
   }
 
-  /** Execute a command string and return structured output. */
+  /**
+   * Execute a command string and return structured output.
+   * Supports aliases, pipes, redirection, and `&&`/`||`/`;` chains
+   * (mirrors useTerminal.ts). Async commands (python, dbt, snow) require runAsync().
+   */
   run(input: string): CommandOutput {
     this.commandHistory[this.activeComputer].push(input);
-    const pipeline = parsePipeline(input);
+    const { chain, parseError, empty } = this.prepareChain(input);
+    if (parseError) return this.parseErrorOutput(parseError);
+    if (empty) return this.emptyOutput();
 
-    // Check for redirection in the last segment
+    let lastExitCode = 0;
+    let merged: CommandOutput | null = null;
+
+    for (const seg of chain) {
+      if (seg.operator === "&&" && lastExitCode !== 0) continue;
+      if (seg.operator === "||" && lastExitCode === 0) continue;
+      // ';' and null (first): always execute
+
+      const { result, lastParsed } = this.runSegmentPipelineSync(seg);
+      lastExitCode = result.exitCode ?? 0;
+      const segOut = this.applyEffects(result, lastParsed);
+      merged = merged ? this.mergeOutputs(merged, segOut) : segOut;
+      if (this.isChainEarlyReturn(result)) break;
+    }
+
+    this.appendZshHistory(input);
+    const out = merged ?? this.emptyOutput();
+    out.exitCode = lastExitCode;
+    return out;
+  }
+
+  /** Run a command that may be async (e.g. dbt). Same chain semantics as run(). */
+  async runAsync(input: string): Promise<CommandOutput> {
+    this.commandHistory[this.activeComputer].push(input);
+    const { chain, parseError, empty } = this.prepareChain(input);
+    if (parseError) return this.parseErrorOutput(parseError);
+    if (empty) return this.emptyOutput();
+
+    let lastExitCode = 0;
+    let merged: CommandOutput | null = null;
+
+    for (const seg of chain) {
+      if (seg.operator === "&&" && lastExitCode !== 0) continue;
+      if (seg.operator === "||" && lastExitCode === 0) continue;
+
+      const { result, lastParsed } = await this.runSegmentPipelineAsync(seg);
+      lastExitCode = result.exitCode ?? 0;
+      const segOut = this.applyEffects(result, lastParsed);
+      merged = merged ? this.mergeOutputs(merged, segOut) : segOut;
+      if (this.isChainEarlyReturn(result)) break;
+    }
+
+    this.appendZshHistory(input);
+    const out = merged ?? this.emptyOutput();
+    out.exitCode = lastExitCode;
+    return out;
+  }
+
+  /** Alias-expand the input and parse it into chain segments, surfacing parse errors. */
+  private prepareChain(input: string): { chain: ChainSegment[]; parseError?: string; empty: boolean } {
+    const expanded = expandAliases(input, this.aliases[this.activeComputer] ?? {});
+    const chain = parseChainedPipeline(expanded);
+    const errCmd = chain.flatMap((seg) => seg.pipeline).find((p) => p.error);
+    if (errCmd) return { chain, parseError: errCmd.error, empty: false };
+    const empty = chain.length === 1 && chain[0].pipeline.length === 1 && !chain[0].pipeline[0].command;
+    return { chain, empty };
+  }
+
+  private parseErrorOutput(error: string): CommandOutput {
+    const raw = colorize(error, ansi.red);
+    return { ...this.emptyOutput(), output: stripAnsi(raw), rawOutput: raw, exitCode: 2 };
+  }
+
+  /** Mirror of useTerminal.ts isChainEarlyReturn — results that must stop the chain. */
+  private isChainEarlyReturn(result: CommandResult): boolean {
+    return !!(result.editorSession || result.interactiveSession || result.snowSqlSession ||
+      result.sshSession || result.chipSession || result.piperSession || result.promptSession ||
+      result.incrementalLines || result.transitionTo);
+  }
+
+  private buildCtx(p: ParsedCommand, stdin: string | undefined, isPiped: boolean) {
+    return {
+      fs: this.fs,
+      cwd: this.cwd,
+      homeDir: this.fs.homeDir,
+      username: this.username,
+      activeComputer: this.activeComputer,
+      storyFlags: this.storyFlags,
+      stdin,
+      rawArgs: p.rawArgs,
+      isPiped,
+      commandHistory: parseZshHistory(this.fs.readFile(`${this.fs.homeDir}/.zsh_history`).content ?? ""),
+      snowflakeState: this.snowflakeState,
+      snowflakeContext: this.snowflakeContext,
+      setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
+      deliveredPiperIds: this.deliveredPiperIds,
+      envVars: this.envVars[this.activeComputer]!,
+      setEnvVars: (env: Record<string, string>) => { this.envVars[this.activeComputer] = env; },
+      aliases: this.aliases[this.activeComputer]!,
+      setAliases: (a: Record<string, string>) => { this.aliases[this.activeComputer] = a; },
+      mounts: this.mounts[this.activeComputer],
+      setMounts: (m: Mounts) => { this.mounts[this.activeComputer] = m; },
+      setCwd: (newCwd: string) => { this.cwd = newCwd; },
+    };
+  }
+
+  /** Strip `>`/`>>` redirection from the last command of a segment's pipeline. */
+  private prepareSegment(seg: ChainSegment) {
+    const pipeline = [...seg.pipeline];
     const lastSegment = pipeline[pipeline.length - 1];
-    const { command: stripped, redirectFile, redirectAppend } =
+    const { command: stripped, redirects, parseError } =
       extractStdoutRedirect(lastSegment.raw);
-    if (redirectFile) {
+    if (parseError) {
+      return { pipeline, redirects, parseError };
+    }
+    if (redirects.length > 0) {
+      const precheckError = precheckRedirects(redirects, this.cwd, this.fs.homeDir, this.fs);
+      if (precheckError) {
+        return { pipeline, redirects, parseError: precheckError };
+      }
       pipeline[pipeline.length - 1] = parseInput(stripped);
     }
+    return { pipeline, redirects, parseError: undefined };
+  }
 
-    const parsed = pipeline[0];
-    if (!parsed.command && pipeline.length === 1) {
-      return this.emptyOutput();
+  /** Execute one chain segment's pipeline synchronously. */
+  private runSegmentPipelineSync(seg: ChainSegment): { result: CommandResult; lastParsed: ParsedCommand } {
+    const { pipeline, redirects, parseError } = this.prepareSegment(seg);
+    if (parseError) {
+      // The command never runs (zsh opens redirect targets before exec)
+      return {
+        result: { output: parseError, exitCode: 1 },
+        lastParsed: { command: "", args: [], flags: {}, raw: "", rawArgs: [] },
+      };
     }
 
-    // Synchronous pipeline execution (async commands run synchronously here)
-    let stdin: string | undefined;
+    let stdin: string | undefined; // reset per chain segment
     let lastResult: CommandResult = { output: "" };
+    const allTriggerEvents: NonNullable<CommandResult["triggerEvents"]> = [];
 
     for (let pi = 0; pi < pipeline.length; pi++) {
       const p = pipeline[pi];
       if (!p.command) continue;
 
-      const ctx = {
-        fs: this.fs,
-        cwd: this.cwd,
-        homeDir: this.fs.homeDir,
-        username: this.username,
-        activeComputer: this.activeComputer,
-        storyFlags: this.storyFlags,
-        stdin,
-        rawArgs: p.rawArgs,
-        isPiped: pi < pipeline.length - 1 || !!redirectFile,
-        commandHistory: parseZshHistory(this.fs.readFile(`${this.fs.homeDir}/.zsh_history`).content ?? ""),
-        snowflakeState: this.snowflakeState,
-        snowflakeContext: this.snowflakeContext,
-        setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
-        deliveredPiperIds: this.deliveredPiperIds,
-        envVars: this.envVars[this.activeComputer],
-        setEnvVars: (env: Record<string, string>) => { this.envVars[this.activeComputer] = env; },
-        aliases: this.aliases[this.activeComputer],
-        setAliases: (a: Record<string, string>) => { this.aliases[this.activeComputer] = a; },
-        mounts: this.mounts[this.activeComputer],
-        setMounts: (m: Mounts) => { this.mounts[this.activeComputer] = m; },
-        setCwd: (newCwd: string) => { this.cwd = newCwd; },
-      };
+      const ctx = this.buildCtx(p, stdin, pi < pipeline.length - 1 || redirects.length > 0);
 
       if (isAsyncCommand(p.command)) {
         // Async commands (python, dbt, snow) require runAsync() — warn if called synchronously
@@ -185,76 +282,57 @@ export class GameRunner {
         lastResult = execute(p.command, p.args, p.flags, ctx);
       }
 
+      if (lastResult.triggerEvents) {
+        allTriggerEvents.push(...lastResult.triggerEvents);
+      }
+
       // Apply FS changes mid-pipeline
       if (lastResult.newFs) {
         this.fs = lastResult.newFs;
+      }
+      if (lastResult.newMounts) {
+        this.mounts[this.activeComputer] = lastResult.newMounts;
       }
 
       stdin = stripAnsi(lastResult.output);
     }
 
-    // Handle redirection
-    if (redirectFile && lastResult) {
+    if (allTriggerEvents.length > 0) {
+      lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
+    }
+
+    if (redirects.length > 0) {
       const r = applyRedirection(
-        redirectFile, !!redirectAppend, lastResult,
+        redirects, lastResult,
         this.cwd, this.fs.homeDir, this.fs, this.activeComputer,
       );
       lastResult = r.result;
       this.fs = r.fs;
     }
 
-    this.appendZshHistory(input);
-    return this.applyEffects(lastResult, pipeline[pipeline.length - 1]);
+    return { result: lastResult, lastParsed: pipeline[pipeline.length - 1] };
   }
 
-  /** Run a command that may be async (e.g. dbt). */
-  async runAsync(input: string): Promise<CommandOutput> {
-    this.commandHistory[this.activeComputer].push(input);
-    const pipeline = parsePipeline(input);
-
-    // Check for redirection
-    const lastSegment = pipeline[pipeline.length - 1];
-    const { command: stripped, redirectFile, redirectAppend } =
-      extractStdoutRedirect(lastSegment.raw);
-    if (redirectFile) {
-      pipeline[pipeline.length - 1] = parseInput(stripped);
-    }
-
-    const parsed = pipeline[0];
-    if (!parsed.command && pipeline.length === 1) {
-      return this.emptyOutput();
+  /** Execute one chain segment's pipeline, awaiting async commands. */
+  private async runSegmentPipelineAsync(seg: ChainSegment): Promise<{ result: CommandResult; lastParsed: ParsedCommand }> {
+    const { pipeline, redirects, parseError } = this.prepareSegment(seg);
+    if (parseError) {
+      // The command never runs (zsh opens redirect targets before exec)
+      return {
+        result: { output: parseError, exitCode: 1 },
+        lastParsed: { command: "", args: [], flags: {}, raw: "", rawArgs: [] },
+      };
     }
 
     let stdin: string | undefined;
     let lastResult: CommandResult = { output: "" };
+    const allTriggerEvents: NonNullable<CommandResult["triggerEvents"]> = [];
 
     for (let pi = 0; pi < pipeline.length; pi++) {
       const p = pipeline[pi];
       if (!p.command) continue;
 
-      const ctx = {
-        fs: this.fs,
-        cwd: this.cwd,
-        homeDir: this.fs.homeDir,
-        username: this.username,
-        activeComputer: this.activeComputer,
-        storyFlags: this.storyFlags,
-        stdin,
-        rawArgs: p.rawArgs,
-        isPiped: pi < pipeline.length - 1 || !!redirectFile,
-        commandHistory: parseZshHistory(this.fs.readFile(`${this.fs.homeDir}/.zsh_history`).content ?? ""),
-        snowflakeState: this.snowflakeState,
-        snowflakeContext: this.snowflakeContext,
-        setSnowflakeState: (state: SnowflakeState) => { this.snowflakeState = state; },
-        deliveredPiperIds: this.deliveredPiperIds,
-        envVars: this.envVars[this.activeComputer],
-        setEnvVars: (env: Record<string, string>) => { this.envVars[this.activeComputer] = env; },
-        aliases: this.aliases[this.activeComputer],
-        setAliases: (a: Record<string, string>) => { this.aliases[this.activeComputer] = a; },
-        mounts: this.mounts[this.activeComputer],
-        setMounts: (m: Mounts) => { this.mounts[this.activeComputer] = m; },
-        setCwd: (newCwd: string) => { this.cwd = newCwd; },
-      };
+      const ctx = this.buildCtx(p, stdin, pi < pipeline.length - 1 || redirects.length > 0);
 
       if (isAsyncCommand(p.command)) {
         lastResult = await executeAsync(p.command, p.args, p.flags, ctx);
@@ -262,25 +340,48 @@ export class GameRunner {
         lastResult = execute(p.command, p.args, p.flags, ctx);
       }
 
+      if (lastResult.triggerEvents) {
+        allTriggerEvents.push(...lastResult.triggerEvents);
+      }
+
       if (lastResult.newFs) {
         this.fs = lastResult.newFs;
+      }
+      if (lastResult.newMounts) {
+        this.mounts[this.activeComputer] = lastResult.newMounts;
       }
 
       stdin = stripAnsi(lastResult.output);
     }
 
-    // Handle redirection
-    if (redirectFile && lastResult) {
+    if (allTriggerEvents.length > 0) {
+      lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
+    }
+
+    if (redirects.length > 0) {
       const r = applyRedirection(
-        redirectFile, !!redirectAppend, lastResult,
+        redirects, lastResult,
         this.cwd, this.fs.homeDir, this.fs, this.activeComputer,
       );
       lastResult = r.result;
       this.fs = r.fs;
     }
 
-    this.appendZshHistory(input);
-    return this.applyEffects(lastResult, pipeline[pipeline.length - 1]);
+    return { result: lastResult, lastParsed: pipeline[pipeline.length - 1] };
+  }
+
+  /** Merge consecutive chain-segment outputs into one CommandOutput. */
+  private mergeOutputs(acc: CommandOutput, next: CommandOutput): CommandOutput {
+    return {
+      output: [acc.output, next.output].filter(Boolean).join("\n"),
+      rawOutput: [acc.rawOutput, next.rawOutput].filter(Boolean).join("\n"),
+      exitCode: next.exitCode,
+      events: [...acc.events, ...next.events],
+      storyFlagUpdates: [...acc.storyFlagUpdates, ...next.storyFlagUpdates],
+      newEmails: [...acc.newEmails, ...next.newEmails],
+      promptPending: acc.promptPending || next.promptPending,
+      sshSessionStarted: acc.sshSessionStarted || next.sshSessionStarted,
+    };
   }
 
   /** Resolve a pending prompt by choosing option N (1-indexed). */
@@ -402,8 +503,10 @@ export class GameRunner {
     this.cwd = homeDir;
     this.snowflakeState = createInitialSnowflakeState({ includeDay2: !!this.storyFlags.day1_shutdown });
     this.snowflakeContext = createDefaultContext(this.username);
-    this.envVars[to] = initEnvForComputer(to, this.username, this.fs);
-    this.aliases[to] = initAliasesForComputer(to, this.username, this.fs);
+    // First visit only — revisits keep env/aliases set via export/alias,
+    // matching gameStore.initComputer (gated on absent computerState entry)
+    if (!this.envVars[to]) this.envVars[to] = initEnvForComputer(to, this.username, this.fs);
+    if (!this.aliases[to]) this.aliases[to] = initAliasesForComputer(to, this.username, this.fs);
   }
 
   /** Return a summary of the current game state. */
@@ -699,17 +802,9 @@ async function main() {
         return;
       }
 
-      // Check if any command in the pipeline is async
-      const pipeline = parsePipeline(trimmed);
-      const hasAsync = pipeline.some((p) => isAsyncCommand(p.command));
-
-      if (hasAsync) {
-        const result = await runner.runAsync(trimmed);
-        printOutput(result);
-      } else {
-        const result = runner.run(trimmed);
-        printOutput(result);
-      }
+      // runAsync handles sync commands too (and aliases may expand to async ones)
+      const result = await runner.runAsync(trimmed);
+      printOutput(result);
 
       promptUser();
     });

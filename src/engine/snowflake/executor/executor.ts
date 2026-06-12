@@ -213,10 +213,40 @@ function executeSelect(stmt: AST.SelectStatement, state: SnowflakeState, ctx: Se
   };
 }
 
+/** Rebuild a SessionContext from an EvalContext (for executing a nested SELECT). */
+function sessionFromEvalCtx(ctx: EvalContext): SessionContext {
+  return {
+    currentDatabase: ctx.currentDatabase,
+    currentSchema: ctx.currentSchema,
+    currentWarehouse: ctx.currentWarehouse,
+    currentRole: ctx.currentRole,
+    currentUser: ctx.currentUser,
+    gameNow: ctx.gameNow,
+  };
+}
+
 function executePlan(plan: Plan.LogicalPlan, state: SnowflakeState, ctx: EvalContext, originalStmt?: AST.SelectStatement, outerRow?: Row): Row[] {
   switch (plan.kind) {
     case "empty":
       return [outerRow ? { ...outerRow } : {}]; // Single empty row for SELECT without FROM
+
+    case "derived": {
+      // Derived table / CTE reference: run the inner query as a complete
+      // SELECT so its projections (and window fns, ORDER BY, LIMIT) all
+      // apply, then expose its output columns as row keys for the outer query.
+      const result = executeSelect(plan.query, state, sessionFromEvalCtx(ctx), ctx);
+      if (result.type !== "resultset") {
+        throw new Error(result.type === "error" ? result.message : "Derived table did not produce a result set");
+      }
+      return result.data.rows.map((valueRow) => {
+        const row: Row = { ...(outerRow ?? {}) };
+        result.data.columns.forEach((col, i) => {
+          row[col.name] = valueRow[i];
+          if (plan.alias) row[`${plan.alias}.${col.name}`] = valueRow[i];
+        });
+        return row;
+      });
+    }
 
     case "scan": {
       if (!(ctx.viewDepth ?? 0)) {
@@ -233,14 +263,7 @@ function executePlan(plan: Plan.LogicalPlan, state: SnowflakeState, ctx: EvalCon
           }
           const viewCtx: EvalContext = { ...ctx, viewDepth: depth + 1 };
           const viewStmt = parseMultiple(tokenize(view.query))[0] as AST.SelectStatement;
-          const viewResult = executeSelect(viewStmt, state, {
-            currentDatabase: ctx.currentDatabase,
-            currentSchema: ctx.currentSchema,
-            currentWarehouse: ctx.currentWarehouse,
-            currentRole: ctx.currentRole,
-            currentUser: ctx.currentUser,
-            gameNow: ctx.gameNow,
-          }, viewCtx);
+          const viewResult = executeSelect(viewStmt, state, sessionFromEvalCtx(ctx), viewCtx);
           if (viewResult.type === "resultset") {
             return viewResult.data.rows.map((valueRow) => {
               const row: Row = { ...(outerRow ?? {}) };

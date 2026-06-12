@@ -43,8 +43,24 @@ describe("registry", () => {
 
     it("returns 'command not found' for unknown commands", () => {
       const result = execute("nonexistent-xyz", [], {}, makeCtx());
-      expect(result.output).toContain("command not found");
-      expect(result.output).toContain("nonexistent-xyz");
+      expect(result.output).toContain("zsh: command not found: nonexistent-xyz");
+      expect(result.exitCode).toBe(127);
+    });
+
+    it("devcontainer-only commands get 'command not found' on nexacorp, not the colleague hint", () => {
+      // snow/dbt/git are never installed on the workstation — the yellow
+      // "colleagues will help you get set up" hint would be a false promise
+      for (const cmd of ["snow", "dbt", "git"]) {
+        const result = execute(cmd, [], {}, makeCtx());
+        expect(result.output).toContain("command not found");
+        expect(result.output).not.toContain("not yet available");
+        expect(result.exitCode).toBe(127);
+      }
+    });
+
+    it("gated-but-unlockable commands on nexacorp still get the colleague hint", () => {
+      const result = execute("grep", ["x"], {}, makeCtx());
+      expect(result.output).toContain("not yet available");
     });
 
     it("passes args, flags, and context to the handler", () => {

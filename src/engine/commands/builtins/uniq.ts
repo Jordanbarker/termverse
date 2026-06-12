@@ -2,6 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
+import { splitLines } from "../../../lib/textUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 const uniq: CommandHandler = (args, flags, ctx) => {
@@ -24,7 +25,7 @@ const uniq: CommandHandler = (args, flags, ctx) => {
     return { output: "uniq: missing file operand", exitCode: 2 };
   }
 
-  const lines = content.split("\n");
+  const lines = splitLines(content);
   const groups: { line: string; count: number }[] = [];
 
   for (const line of lines) {

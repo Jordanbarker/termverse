@@ -220,18 +220,23 @@ describe("isCommandAvailable", () => {
   });
 
   describe("erik-pc", () => {
-    it("blocks tree without tree_installed flag", () => {
-      expect(isCommandAvailable("tree", "erik-pc")).toBe(false);
-      expect(isCommandAvailable("tree", "erik-pc", {})).toBe(false);
+    it("home tutorial gating does not apply (Erik's laptop is fully set up)", () => {
+      // Even with no flags set (player skipped Olive's optional challenge),
+      // basics work on Erik's machine
+      expect(isCommandAvailable("echo", "erik-pc")).toBe(true);
+      expect(isCommandAvailable("whoami", "erik-pc", {})).toBe(true);
+      expect(isCommandAvailable("hostname", "erik-pc", {})).toBe(true);
+      expect(isCommandAvailable("mkdir", "erik-pc", {})).toBe(true);
+      // All HOME_GATED commands are pre-installed, flags or not
+      expect(isCommandAvailable("tree", "erik-pc", {})).toBe(true);
+      expect(isCommandAvailable("apt", "erik-pc", {})).toBe(true);
+      expect(isCommandAvailable("sudo", "erik-pc", {})).toBe(true);
+      expect(isCommandAvailable("ssh", "erik-pc", {})).toBe(true);
     });
 
-    it("unlocks tree with tree_installed flag", () => {
-      expect(isCommandAvailable("tree", "erik-pc", { tree_installed: true })).toBe(true);
-    });
-
-    it("apt is available once apt_unlocked (Erik runs Linux)", () => {
-      expect(isCommandAvailable("apt", "erik-pc", { apt_unlocked: true })).toBe(true);
-      expect(isCommandAvailable("sudo", "erik-pc", { apt_unlocked: true })).toBe(true);
+    it("still blocks devcontainer-only commands", () => {
+      expect(isCommandAvailable("dbt", "erik-pc", {})).toBe(false);
+      expect(isCommandAvailable("snow", "erik-pc", {})).toBe(false);
     });
 
     it("exit is available (returns to chipinfra)", () => {

@@ -201,19 +201,24 @@ Scalar functions are registered in `functions/registry.ts`. Aggregate functions 
 
 | Function | Purpose |
 |----------|---------|
-| `plan(ast, context)` | Translates AST → LogicalPlan tree (Scan, Filter, Project, Join, Aggregate, Sort, Limit) |
+| `plan(ast, context)` | Translates AST → LogicalPlan tree (Scan, Derived, Filter, Project, Join, Aggregate, Sort, Limit) |
+
+**Derived tables and CTEs** plan to a `DerivedNode` (`{ kind: "derived", query, alias? }`), never inlined: the executor runs the inner query as a complete `executeSelect` (so its projections, window functions, ORDER BY/LIMIT all apply) and maps the resultset back into rows keyed `COL` plus `alias.COL` — the same pattern view expansion uses. Because the derived query is re-planned at execution time, `withOuterCtes()` attaches the planner's in-scope CTEs to the query (excluding the CTE's own name, so a self-reference resolves as a table instead of recursing). The top-level `project` node remains a no-op in `executePlan` — projection for the *outer* statement still happens once in `projectRows` after window functions.
 
 ### `executor/executor.ts`
 
 | Function | Purpose |
 |----------|---------|
 | `execute(plan, state, context)` | Dispatches LogicalPlan nodes to sub-executors, returns QueryResult |
+| `sessionFromEvalCtx(ctx)` | Rebuilds a SessionContext from an EvalContext — used by the `derived` case and view expansion to run a nested `executeSelect` |
 
 ### `executor/evaluator.ts`
 
 | Function | Purpose |
 |----------|---------|
 | `evaluate(expr, row, context)` | Evaluates expression AST against a row: handles column refs, literals, operators, function calls, NULL propagation, type coercion |
+
+**Division by zero**: `x / 0`, `x % 0`, and `MOD(x, 0)` throw `Division by zero` (caught per-statement → `{ type: "error" }`), matching real Snowflake. `DIV0()` (→ 0) and `DIV0NULL()` (→ NULL) are the sanctioned escape hatches.
 
 ### `formatter/table_formatter.ts`
 
@@ -242,7 +247,7 @@ The REPL has its own hand-rolled CSI parser (separate from `useCommandLine.ts`).
 | Usage | Action |
 |-------|--------|
 | `snow sql` | Enter interactive REPL with `NEXACORP_PROD.ANALYTICS>` prompt (default for ANALYST) |
-| `snow sql -q "SELECT 1"` | Execute single query inline, return result |
+| `snow sql -q "SELECT 1"` | Execute single query inline, return result. Exit code 1 if **any** statement in the batch errors (and on usage errors), 0 otherwise |
 | Inside REPL: SQL ending with `;` | Execute query, show result |
 | Inside REPL: `quit` / `exit` / Ctrl+D | Exit REPL (trailing `;` accepted) |
 | Inside REPL: `settings` | Show current session settings |

@@ -1,7 +1,8 @@
-import { Expression, OrderByItem } from "../parser/ast";
+import { Expression, OrderByItem, SelectStatement } from "../parser/ast";
 
 export type LogicalPlan =
   | ScanNode
+  | DerivedNode
   | FilterNode
   | ProjectNode
   | JoinNode
@@ -19,6 +20,18 @@ export interface ScanNode {
   database: string;
   schema: string;
   table: string;
+  alias?: string;
+}
+
+/**
+ * A derived table (subquery in FROM) or CTE reference. The inner query is
+ * executed as a complete SELECT — its projections, window functions, ORDER
+ * BY, and LIMIT all run — and its output columns become the row columns the
+ * outer query sees.
+ */
+export interface DerivedNode {
+  kind: "derived";
+  query: SelectStatement;
   alias?: string;
 }
 

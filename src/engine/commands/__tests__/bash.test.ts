@@ -232,13 +232,13 @@ describe("path execution (./script.sh)", () => {
 
   it("returns permission denied without execute bit", async () => {
     const result = await executeAsync("./no-exec.sh", [], {}, ctx());
-    expect(result.output).toContain("Permission denied");
+    expect(result.output).toBe("zsh: permission denied: ./no-exec.sh");
     expect(result.exitCode).toBe(126);
   });
 
   it("returns not found for nonexistent path", async () => {
     const result = await executeAsync("./missing.sh", [], {}, ctx());
-    expect(result.output).toContain("No such file or directory");
+    expect(result.output).toBe("zsh: no such file or directory: ./missing.sh");
     expect(result.exitCode).toBe(127);
   });
 
@@ -434,6 +434,51 @@ describe("bash -c quote-aware redirection", () => {
       ctx(),
     );
     expect(result.output.trim()).toBe("found");
+  });
+
+  it("multios: writes output to every redirect target", async () => {
+    const result = await executeAsync(
+      "bash",
+      ['echo hi > /home/player/a.txt > /home/player/b.txt'],
+      { c: true },
+      ctx(),
+    );
+    expect(result.newFs!.readFile("/home/player/a.txt").content?.trim()).toBe("hi");
+    expect(result.newFs!.readFile("/home/player/b.txt").content?.trim()).toBe("hi");
+  });
+
+  it("failed redirect target: command does not run, exit 1", async () => {
+    const result = await executeAsync(
+      "bash",
+      ['echo hi > /no/such/dir/f.txt && echo ran'],
+      { c: true },
+      ctx(),
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("no such file or directory");
+    expect(result.output).not.toContain("ran");
+  });
+
+  it("|| runs after a failed redirect", async () => {
+    const result = await executeAsync(
+      "bash",
+      ['echo hi > /no/such/dir/f.txt || echo fallback'],
+      { c: true },
+      ctx(),
+    );
+    expect(result.output).toContain("fallback");
+  });
+
+  it("redirect onto a directory refuses and leaves the directory intact", async () => {
+    const result = await executeAsync(
+      "bash",
+      ['echo hi > /home/player'],
+      { c: true },
+      ctx(),
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("is a directory");
+    expect(result.newFs ?? undefined).toBeUndefined();
   });
 });
 

@@ -3,7 +3,7 @@ import { setKnownFlags } from "../flagValidation";
 import { AsyncCommandHandler, CommandContext, CommandResult } from "../types";
 import { parsePipeline, parseInput, parseChainedPipeline } from "../parser";
 import { execute, executeAsync, isAsyncCommand } from "../registry";
-import { applyRedirection, extractStdoutRedirect } from "../redirection";
+import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../redirection";
 import { resolvePath } from "../../../lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "../../filesystem/VirtualFS";
@@ -467,8 +467,7 @@ async function executePipeline(
   currentCwd: string,
   allTriggerEvents: GameEvent[],
   functions?: Map<string, ScriptNode[]>,
-  redirectFile?: string | null,
-  redirectAppend?: boolean,
+  redirects?: import("../redirection").RedirectTarget[],
 ): Promise<{ output: string; fs: VirtualFS; cwd: string; stopped: boolean; exitCode: number }> {
   let stdin: string | undefined;
   let lastResult: CommandResult = { output: "" };
@@ -502,7 +501,7 @@ async function executePipeline(
       cwd,
       stdin,
       rawArgs: p.rawArgs,
-      isPiped: pi < pipeline.length - 1 || !!redirectFile,
+      isPiped: pi < pipeline.length - 1 || (redirects?.length ?? 0) > 0,
     };
 
     if (isAsyncCommand(p.command)) {
@@ -548,8 +547,8 @@ async function executePipeline(
   }
 
   // Apply redirection
-  if (redirectFile && lastResult) {
-    const redir = applyRedirection(redirectFile, redirectAppend ?? false, lastResult, cwd, ctx.homeDir, fs, ctx.activeComputer);
+  if (redirects && redirects.length > 0 && lastResult) {
+    const redir = applyRedirection(redirects, lastResult, cwd, ctx.homeDir, fs, ctx.activeComputer);
     lastResult = redir.result;
     fs = redir.fs;
   }
@@ -568,7 +567,7 @@ async function executeSingleLine(
 ): Promise<{ output: string; fs: VirtualFS; cwd: string; stopped: boolean; exitCode: number }> {
   // Strip stderr redirects before parsing
   const cleanedText = stripStderrRedirects(lineText);
-  const chain = parseChainedPipeline(cleanedText);
+  const chain = parseChainedPipeline(cleanedText, "bash");
 
   // Check for parse errors in any segment
   for (const seg of chain) {
@@ -593,14 +592,26 @@ async function executeSingleLine(
 
     // Extract redirection from last pipeline command (quote-aware)
     const lastSegment = pipeline[pipeline.length - 1];
-    const { command: stripped, redirectFile, redirectAppend } =
+    const { command: stripped, redirects, parseError } =
       extractStdoutRedirect(lastSegment.raw);
-    if (redirectFile) {
+    if (parseError) {
+      outputs.push(parseError);
+      lastExitCode = 1;
+      continue;
+    }
+    if (redirects.length > 0) {
+      // Redirect targets are opened before exec — a bad target means the command never runs
+      const precheckError = precheckRedirects(redirects, cwd, ctx.homeDir, fs);
+      if (precheckError) {
+        outputs.push(precheckError);
+        lastExitCode = 1;
+        continue;
+      }
       pipeline[pipeline.length - 1] = parseInput(stripped);
     }
 
     const result = await executePipeline(
-      pipeline, { ...ctx, fs, cwd }, fs, cwd, allTriggerEvents, functions, redirectFile, redirectAppend,
+      pipeline, { ...ctx, fs, cwd }, fs, cwd, allTriggerEvents, functions, redirects,
     );
 
     if (result.output) outputs.push(result.output);

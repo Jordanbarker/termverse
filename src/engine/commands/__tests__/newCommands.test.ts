@@ -203,6 +203,12 @@ describe("grep", () => {
     expect(result.output).toBe("2");
   });
 
+  it("-v does not match a phantom empty line from a trailing newline", () => {
+    const fs = createTestFS().writeFile("/home/player/nl.txt", "alpha\nbeta\n").fs!;
+    const result = execute("grep", ["alpha", "nl.txt"], { v: true }, ctx(fs));
+    expect(stripAnsi(result.output)).toBe("beta");
+  });
+
   it("supports -v for invert match", () => {
     const result = execute("grep", ["hello", "notes.txt"], { v: true }, ctx());
     expect(result.output).toContain("foo bar");
@@ -299,6 +305,12 @@ describe("head", () => {
   it("returns error for missing file", () => {
     const result = execute("head", ["missing.txt"], {}, ctx());
     expect(result.output).toContain("No such file or directory");
+  });
+
+  it("does not print a phantom empty line for a short file with a trailing newline", () => {
+    const fs = createTestFS().writeFile("/home/player/nl.txt", "one\ntwo\n").fs!;
+    const result = execute("head", ["nl.txt"], {}, ctx(fs));
+    expect(result.output).toBe("one\ntwo");
   });
 });
 
@@ -715,6 +727,20 @@ describe("sort", () => {
     const result = execute("sort", ["data.txt", "missing.txt"], {}, ctx());
     expect(result.output).toContain("No such file or directory");
   });
+
+  it("does not invent an empty line for content with a trailing newline", () => {
+    const result = execute("sort", [], {}, ctx(undefined, { stdin: "c\na\nb\n" }));
+    expect(result.output).toBe("a\nb\nc");
+  });
+
+  it("multi-file sort with trailing newlines has no phantom blank lines", () => {
+    const base = createTestFS();
+    const withFiles = base
+      .writeFile("/home/player/n1.txt", "banana\napple\n").fs!
+      .writeFile("/home/player/n2.txt", "cherry\n").fs!;
+    const result = execute("sort", ["n1.txt", "n2.txt"], {}, ctx(withFiles));
+    expect(result.output).toBe("apple\nbanana\ncherry");
+  });
 });
 
 // --- uniq ---
@@ -735,6 +761,12 @@ describe("uniq", () => {
     expect(result.output).toContain("a");
     expect(result.output).toContain("c");
     expect(result.output).not.toContain("b");
+  });
+
+  it("does not count a phantom empty line for content with a trailing newline", () => {
+    const result = execute("uniq", [], { c: true }, ctx(undefined, { stdin: "a\na\n" }));
+    expect(result.output.trim()).toBe("2 a");
+    expect(result.output.split("\n")).toHaveLength(1);
   });
 });
 
@@ -1307,6 +1339,12 @@ describe("cp (additional)", () => {
 
 // --- touch (additional) ---
 describe("touch (additional)", () => {
+  it("uses coreutils wording when the parent directory is missing", () => {
+    const result = execute("touch", ["/no/such/dir/x.txt"], {}, ctx());
+    expect(result.output).toBe("touch: cannot touch '/no/such/dir/x.txt': No such file or directory");
+    expect(result.exitCode).toBe(1);
+  });
+
   it("returns error for missing operand", () => {
     const result = execute("touch", [], {}, ctx());
     expect(result.output).toContain("missing file operand");

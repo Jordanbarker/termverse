@@ -488,6 +488,36 @@ describe("Executor — execute()", () => {
       expect(r[0].D10).toBe(2);
       expect(r[0].D20).toBe(2);
     });
+
+    it("CTE with a renamed column projects that column", () => {
+      const { result } = run(
+        "WITH x AS (SELECT id AS a FROM employees WHERE id = 1) SELECT a, x.a FROM x",
+        state
+      );
+      const qr = result.results[0];
+      expect(qr.type).toBe("resultset");
+      if (qr.type === "resultset") {
+        expect(qr.data.rows).toEqual([[1, 1]]);
+      }
+    });
+
+    it("CTE referencing an earlier CTE", () => {
+      const { result } = run(
+        "WITH a AS (SELECT 1 AS n), b AS (SELECT n + 1 AS m FROM a) SELECT m FROM b",
+        state
+      );
+      expect(rows(result)[0].M).toBe(2);
+    });
+
+    it("derived table referencing an outer CTE", () => {
+      const { result } = run(
+        "WITH x AS (SELECT 1 AS a) SELECT * FROM (SELECT a FROM x)",
+        state
+      );
+      const r = rows(result);
+      expect(r).toHaveLength(1);
+      expect(r[0].A).toBe(1);
+    });
   });
 
   // ─── Set Operations ───────────────────────────────────────────────
@@ -738,6 +768,110 @@ describe("Executor — execute()", () => {
       const r = rows(result);
       // Active employees with salary > 85000: Alice (90000), Eve (92000)
       expect(r).toHaveLength(2);
+      // The derived table projects only NAME and SALARY — inner columns must not leak
+      expect(Object.keys(r[0]).sort()).toEqual(["NAME", "SALARY"]);
+    });
+
+    it("resolves a derived table's projected alias", () => {
+      const { result } = run("SELECT a FROM (SELECT 1 AS a)", state);
+      const r = rows(result);
+      expect(r).toHaveLength(1);
+      expect(r[0].A).toBe(1);
+    });
+
+    it("expands * to the derived table's output columns", () => {
+      const { result } = run("SELECT * FROM (SELECT 1 AS a)", state);
+      const r = rows(result);
+      expect(r).toHaveLength(1);
+      expect(Object.keys(r[0])).toEqual(["A"]);
+      expect(r[0].A).toBe(1);
+    });
+
+    it("resolves alias-qualified refs and alias.* against a derived table", () => {
+      const { result } = run("SELECT t.a, t.* FROM (SELECT 1 AS a) t", state);
+      const qr = result.results[0];
+      expect(qr.type).toBe("resultset");
+      if (qr.type === "resultset") {
+        // Both projections resolve to the derived column (output names collapse to A)
+        expect(qr.data.rows).toEqual([[1, 1]]);
+      }
+    });
+
+    it("supports nested derived tables", () => {
+      const { result } = run(
+        "SELECT b FROM (SELECT a + 1 AS b FROM (SELECT 1 AS a))",
+        state
+      );
+      expect(rows(result)[0].B).toBe(2);
+    });
+
+    it("supports GROUP BY over a derived/renamed column", () => {
+      const { result } = run(
+        "SELECT g, COUNT(*) AS cnt FROM (SELECT dept_id AS g FROM employees) GROUP BY g ORDER BY g",
+        state
+      );
+      const r = rows(result);
+      expect(r).toHaveLength(3);
+      expect(r[0].G).toBe(10);
+      expect(r[0].CNT).toBe(2);
+    });
+
+    it("runs window functions inside a derived table", () => {
+      const { result } = run(
+        "SELECT name FROM (SELECT name, ROW_NUMBER() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rn FROM employees) WHERE rn = 1 ORDER BY name",
+        state
+      );
+      const r = rows(result);
+      expect(r).toHaveLength(3); // top earner per department
+    });
+
+    it("applies inner ORDER BY + LIMIT before the outer query", () => {
+      const { result } = run(
+        "SELECT COUNT(*) AS cnt FROM (SELECT name FROM employees ORDER BY salary DESC LIMIT 2)",
+        state
+      );
+      expect(rows(result)[0].CNT).toBe(2);
+    });
+
+    it("joins two derived tables", () => {
+      const { result } = run(
+        "SELECT e.name, d.dname FROM (SELECT name, dept_id FROM employees) e JOIN (SELECT id, name AS dname FROM departments) d ON e.dept_id = d.id WHERE e.name = 'Alice'",
+        state
+      );
+      const r = rows(result);
+      expect(r).toHaveLength(1);
+      expect(r[0].DNAME).toBe("Engineering");
+    });
+  });
+
+  // ─── Division by zero ─────────────────────────────────────────────
+
+  describe("division by zero", () => {
+    it("SELECT 1/0 raises a Division by zero error", () => {
+      const { result } = run("SELECT 1/0", state);
+      expect(result.results[0].type).toBe("error");
+      if (result.results[0].type === "error") {
+        expect(result.results[0].message).toContain("Division by zero");
+      }
+    });
+
+    it("modulo by zero raises a Division by zero error", () => {
+      const { result } = run("SELECT 1 % 0", state);
+      expect(result.results[0].type).toBe("error");
+    });
+
+    it("DIV0 and DIV0NULL remain the sanctioned escape hatches", () => {
+      const { result } = run("SELECT DIV0(1, 0) AS a, DIV0NULL(1, 0) AS b", state);
+      const r = rows(result);
+      expect(r[0].A).toBe(0);
+      expect(r[0].B).toBeNull();
+    });
+
+    it("a following statement in the same batch still runs", () => {
+      const { result } = run("SELECT 1/0; SELECT 2 AS ok", state);
+      expect(result.results[0].type).toBe("error");
+      expect(result.results[1].type).toBe("resultset");
+      expect(rows(result, 1)[0].OK).toBe(2);
     });
   });
 

@@ -244,6 +244,16 @@ describe("VirtualFS", () => {
       expect(result.error).toContain("parent directory does not exist");
     });
 
+    it("refuses to overwrite a directory and leaves it intact", () => {
+      const fs = createTestFS();
+      const result = fs.writeFile("/home/player", "x");
+      expect(result.fs).toBeUndefined();
+      expect(result.error).toContain("Is a directory");
+      const node = fs.getNode("/home/player");
+      expect(node?.type).toBe("directory");
+      expect(fs.getNode("/home/player/notes.txt")).not.toBeNull();
+    });
+
     it("marks dotfiles as hidden", () => {
       const fs = createTestFS();
       const result = fs.writeFile("/home/player/.env", "SECRET=yes");

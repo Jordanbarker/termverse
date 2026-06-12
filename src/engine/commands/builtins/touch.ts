@@ -6,7 +6,7 @@ import { VirtualFS } from "../../filesystem/VirtualFS";
 
 const touch: CommandHandler = (args, _flags, ctx) => {
   if (args.length === 0) {
-    return { output: "touch: missing file operand" };
+    return { output: "touch: missing file operand", exitCode: 1 };
   }
 
   let currentFs: VirtualFS = ctx.fs;
@@ -19,7 +19,7 @@ const touch: CommandHandler = (args, _flags, ctx) => {
     if (!existing) {
       const result = currentFs.writeFile(absPath, "");
       if (result.error) {
-        return { output: result.error.replace("Cannot write", "touch: cannot create") };
+        return { output: `touch: cannot touch '${arg}': No such file or directory`, exitCode: 1 };
       }
       currentFs = result.fs!;
       createdPaths.push(absPath);

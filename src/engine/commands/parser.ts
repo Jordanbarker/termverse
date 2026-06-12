@@ -137,12 +137,21 @@ export function splitOnChainOperators(input: string): { text: string; operator: 
  * Parse raw input into a chain of pipeline segments.
  * Splits on `&&`, `||`, `;` first, then calls `parsePipeline` on each segment.
  * This ordering is essential: `||` must be consumed before `splitOnPipe` sees it.
+ *
+ * `shell` selects the syntax-error wording: the interactive shell is zsh
+ * (`zsh: parse error near \`&&'`), while `bash script.sh` lines keep bash's
+ * `bash: syntax error near unexpected token` form.
  */
-export function parseChainedPipeline(raw: string): ChainSegment[] {
+export function parseChainedPipeline(raw: string, shell: "zsh" | "bash" = "zsh"): ChainSegment[] {
   const trimmed = raw.trim();
   if (!trimmed) {
     return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [] }], operator: null }];
   }
+
+  const syntaxError = (op: string) =>
+    shell === "bash"
+      ? `bash: syntax error near unexpected token \`${op}'`
+      : `zsh: parse error near \`${op}'`;
 
   const segments = splitOnChainOperators(trimmed);
 
@@ -154,14 +163,14 @@ export function parseChainedPipeline(raw: string): ChainSegment[] {
       if (i === 0 && segments.length > 1) {
         // Leading operator: e.g., "&& cmd"
         const nextOp = segments[1].operator ?? '&&';
-        return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [], error: `bash: syntax error near unexpected token '${nextOp}'` }], operator: null }];
+        return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [], error: syntaxError(nextOp) }], operator: null }];
       } else if (i === segments.length - 1 && segments[i].operator) {
         // Trailing operator: e.g., "cmd &&"
-        return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [], error: `bash: syntax error near unexpected token '${segments[i].operator}'` }], operator: null }];
+        return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [], error: syntaxError(segments[i].operator!) }], operator: null }];
       } else if (segments[i].operator && i + 1 < segments.length && segments[i + 1].operator) {
         // Consecutive operators: e.g., "cmd && && cmd2"
         const op = segments[i + 1].operator!;
-        return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [], error: `bash: syntax error near unexpected token '${op}'` }], operator: null }];
+        return [{ pipeline: [{ command: "", args: [], flags: {}, raw: trimmed, rawArgs: [], error: syntaxError(op) }], operator: null }];
       }
     }
   }

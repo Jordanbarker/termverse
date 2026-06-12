@@ -26,7 +26,7 @@ export const numericFunctions: Record<string, ScalarFn> = {
   MOD: ([a, b]) => {
     if (a === null || b === null) return null;
     const bNum = Number(b);
-    if (bNum === 0) return null;
+    if (bNum === 0) throw new Error("Division by zero");
     return Number(a) % bNum;
   },
 

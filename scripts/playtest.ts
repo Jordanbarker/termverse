@@ -115,7 +115,7 @@ async function playtest() {
   step("Objective: Check email (read_nexacorp_offer)");
   r = runner.run("mail");
   expectExitCode(r, 0, "mail command works");
-  expectOutput(r, "nexacorp", "mail list shows NexaCorp");
+  expectOutput(r, "NexaCorp", "mail list shows NexaCorp");
 
   // Read the NexaCorp offer
   r = runner.run("mail 3");
@@ -251,20 +251,6 @@ async function playtest() {
     issue("piper_unlocked not set — welcome_edward email not found");
   }
 
-  // Check that chip_intro was delivered (immediate)
-  step("Checking immediate NexaCorp emails");
-  // Read chip_intro to unlock chip
-  for (let i = 1; i <= 6; i++) {
-    r = runner.run(`mail ${i}`);
-    if (runner.storyFlags.chip_unlocked) {
-      ok(`chip_unlocked after reading mail #${i}`);
-      break;
-    }
-  }
-  if (!runner.storyFlags.chip_unlocked) {
-    issue("chip_unlocked not set — chip_intro email not found");
-  }
-
   // ── Read onboarding docs ──
   step("Reading onboarding docs (Edward's Onboarding quest)");
   r = runner.run("cat /srv/engineering/onboarding.md");
@@ -277,6 +263,17 @@ async function playtest() {
   step("Reading team info");
   r = runner.run("cat /srv/engineering/team-info.md");
   expectFlag(runner, "read_team_info", "cat team-info.md");
+
+  // Edward's Chip DM delivers after read_team_info; its piper_delivered
+  // cascade sets chip_unlocked (storyFlags.ts trigger on edward_chip_intro)
+  step("Edward's Chip DM unlocks chip");
+  r = runner.run("ls"); // any command processes pending deliveries
+  if (runner.deliveredPiperIds.includes("edward_chip_intro")) {
+    ok("edward_chip_intro Piper DM delivered");
+  } else {
+    issue("edward_chip_intro Piper DM NOT delivered after read_team_info");
+  }
+  expectFlag(runner, "chip_unlocked", "Edward's Chip DM (piper_delivered cascade)");
 
   // ── Oscar's log investigation ──
   step("Oscar's log investigation");
@@ -337,11 +334,23 @@ async function playtest() {
   r = runner.run("cat /var/log/auth.log.bak");
   expectFlag(runner, "found_auth_backup", "read auth.log.bak");
 
+  // Chip plugin directives live on the chipinfra workspace (the plugin tree
+  // migrated; see getChipinfraStoryFlagTriggers in storyFlags.ts). In the real
+  // game `coder ssh chip` is gated behind unlock_chip_plugin_development.
+  step("Investigating Chip plugin directives (chipinfra)");
+  if (!runner.storyFlags.unlock_chip_plugin_development) {
+    runner.storyFlags = { ...runner.storyFlags, unlock_chip_plugin_development: true };
+    warn("unlock_chip_plugin_development set manually (Edward's Chapter 3 DM)");
+  }
+  runner.switchComputer("chipinfra");
+
   r = runner.run("cat /opt/chip/plugins/system-monitor/SKILL.md");
-  expectFlag(runner, "found_chip_directives", "read chip plugin");
+  expectFlag(runner, "found_chip_directives", "read chip plugin (chipinfra)");
 
   r = runner.run("cat /opt/chip/plugins/log-maintenance/cleanup.sh");
-  expectFlag(runner, "found_cleanup_script", "read cleanup script");
+  expectFlag(runner, "found_cleanup_script", "read cleanup script (chipinfra)");
+
+  runner.switchComputer("nexacorp");
 
   // ── Coder dev container & dbt ──
   step("Coder dev container & dbt pipeline");
@@ -380,6 +389,10 @@ async function playtest() {
     runner.storyFlags = { ...runner.storyFlags, chmod_unlocked: true };
     warn("chmod_unlocked set manually");
   }
+
+  // /srv/operations ships mode rwx------ — the player must chmod it open
+  r = runner.run("chmod 755 /srv/operations");
+  expectExitCode(r, 0, "chmod /srv/operations");
 
   r = runner.run("cat /srv/operations/ops_incidents.csv");
   expectFlag(runner, "read_ops_incidents", "read ops incidents");
@@ -505,7 +518,7 @@ async function playtest() {
   const shutdownRunner = new GameRunner("home");
   shutdownRunner.storyFlags = { ...shutdownRunner.storyFlags, returned_home_day1: true, day1_shutdown: true };
   r = shutdownRunner.run("shutdown");
-  expectOutput(r, "not found", "shutdown blocked after already used");
+  expectOutput(r, "Not now", "shutdown declines after already used (story gate)");
 
   // ────────────────────────────────────────────────────────────
   // Summary

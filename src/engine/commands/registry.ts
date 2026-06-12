@@ -1,5 +1,5 @@
 import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "./types";
-import { isCommandAvailable } from "./availability";
+import { isCommandAvailable, DEVCONTAINER_ONLY } from "./availability";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { resolvePath } from "../../lib/pathUtils";
 import { colorize, ansi } from "../../lib/ansi";
@@ -61,6 +61,15 @@ export function commandReadsFiles(name: string): boolean {
   return !!(commands.get(name)?.readsFiles ?? asyncCommands.get(name)?.readsFiles);
 }
 
+/** zsh-style command-not-found error, with a dimmed tutorial hint for new players. */
+function commandNotFound(commandName: string): string {
+  return (
+    colorize(`zsh: command not found: ${commandName}`, ansi.red) +
+    "\n" +
+    colorize("Type 'help' for available commands.", ansi.dim)
+  );
+}
+
 export function execute(
   commandName: string,
   args: string[],
@@ -68,15 +77,17 @@ export function execute(
   ctx: CommandContext
 ): CommandResult {
   if (!isCommandAvailable(commandName, ctx.activeComputer, ctx.storyFlags)) {
-    if (ctx.activeComputer === "nexacorp") {
+    // Dev-container-only tools are never installed on the workstation, so the
+    // "colleagues will help you get set up" hint would be a false promise
+    if (ctx.activeComputer === "nexacorp" && !DEVCONTAINER_ONLY.has(commandName)) {
       const hint = NEXACORP_GATE_HINTS[commandName] ?? "Check your mail and Piper messages; your colleagues will help you get set up.";
       return { output: colorize(`${commandName}: not yet available. ${hint}`, ansi.yellow), exitCode: 127 };
     }
-    return { output: colorize(`${commandName}: command not found. Type 'help' for available commands.`, ansi.red), exitCode: 127 };
+    return { output: commandNotFound(commandName), exitCode: 127 };
   }
   const entry = commands.get(commandName);
   if (!entry) {
-    return { output: colorize(`${commandName}: command not found. Type 'help' for available commands.`, ansi.red), exitCode: 127 };
+    return { output: commandNotFound(commandName), exitCode: 127 };
   }
   if (flags["help"] && entry.helpText) {
     return { output: entry.helpText };
@@ -117,15 +128,16 @@ async function executePathCommand(pathStr: string, ctx: CommandContext): Promise
   const absPath = resolvePath(pathStr, ctx.cwd, ctx.homeDir);
   const node = ctx.fs.getNode(absPath);
   if (!node) {
-    return { output: `bash: ${pathStr}: No such file or directory`, exitCode: 127 };
+    return { output: `zsh: no such file or directory: ${pathStr}`, exitCode: 127 };
   }
+  // zsh reports directories as "permission denied" (it tries to exec them), not "Is a directory"
   if (node.type === "directory") {
-    return { output: `bash: ${pathStr}: Is a directory`, exitCode: 126 };
+    return { output: `zsh: permission denied: ${pathStr}`, exitCode: 126 };
   }
   // Check execute permission (owner execute = index 2 in "rwxr-xr-x")
   const perms = node.permissions ?? "rw-r--r--";
   if (perms[2] !== "x") {
-    return { output: `bash: ${pathStr}: Permission denied`, exitCode: 126 };
+    return { output: `zsh: permission denied: ${pathStr}`, exitCode: 126 };
   }
   // Intercept auto_apply.py on home PC
   if (ctx.activeComputer === "home" && absPath.endsWith("/auto_apply.py")) {

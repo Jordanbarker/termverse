@@ -2,6 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
+import { splitLines } from "../../../lib/textUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 const sort: CommandHandler = (args, flags, ctx) => {
@@ -10,25 +11,23 @@ const sort: CommandHandler = (args, flags, ctx) => {
   const unique = flags["u"];
   const fileArgs = args.filter((a) => !a.startsWith("-"));
 
-  let content: string;
+  let lines: string[];
   if (fileArgs.length === 0 && ctx.stdin !== undefined) {
-    content = ctx.stdin;
+    lines = splitLines(ctx.stdin);
   } else if (fileArgs.length > 0) {
-    const parts: string[] = [];
+    lines = [];
     for (const file of fileArgs) {
       const absPath = resolvePath(file, ctx.cwd, ctx.homeDir);
       const result = ctx.fs.readFile(absPath);
       if (result.error) {
         return { output: result.error.replace("cat:", "sort:"), exitCode: 2 };
       }
-      parts.push(result.content ?? "");
+      lines.push(...splitLines(result.content ?? ""));
     }
-    content = parts.join("\n");
   } else {
     return { output: "sort: missing file operand", exitCode: 2 };
   }
 
-  const lines = content.split("\n");
   lines.sort((a, b) => {
     if (numeric) {
       const na = parseFloat(a) || 0;

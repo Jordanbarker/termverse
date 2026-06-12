@@ -43,8 +43,8 @@ export class GameRunner {
   snowflakeState: SnowflakeState;
   completedObjectives: string[];
   pendingPrompt: PromptSessionInfo | null;
-  envVars: Record<ComputerId, Record<string, string>>;
-  aliases: Record<ComputerId, Record<string, string>>;
+  envVars: Partial<Record<ComputerId, Record<string, string>>>;   // lazily populated on first visit
+  aliases: Partial<Record<ComputerId, Record<string, string>>>;   // lazily populated on first visit
   mounts: Record<ComputerId, Mounts>;
 
   constructor(computer: ComputerId = "home")
@@ -60,9 +60,9 @@ export class GameRunner {
 
 ### `run(input)` / `runAsync(input)`
 
-Parses the input as a pipeline, executes each command in sequence (passing stdout as stdin), handles `>` / `>>` redirection, then calls `computeEffects()` to process story flags, email delivery, and session starts. Returns a `CommandOutput`.
+Mirrors `useTerminal.ts` command submission: expands user aliases textually, parses the input with `parseChainedPipeline` (so `&&` / `||` / `;` chains work with bash short-circuit semantics), and executes each chain segment as a pipeline (passing stdout as stdin, `>` / `>>` redirection extracted per segment). `computeEffects()` runs per segment to process story flags, email delivery, and session starts; segment outputs are merged into one `CommandOutput` whose `exitCode` is the last executed segment's. A segment that starts a session, prompt, or computer transition stops the chain (same as the real game). Syntax errors (`echo one &&`) print the bash error, execute nothing, and return exit code 2.
 
-Use `runAsync()` for commands that may be async (e.g. `dbt run`). Use `run()` for everything else.
+Use `runAsync()` for inputs that may involve async commands (e.g. `dbt run` — also via alias or chain). Use `run()` for everything else; an async command hit by `run()` returns a "use runAsync()" error result with exit code 1.
 
 ### `selectOption(choice)`
 
@@ -70,11 +70,11 @@ Resolves a pending inline prompt (from `mail` reply options). Fires `triggerEven
 
 ### `switchComputer(to)`
 
-Rebuilds the filesystem for the target computer (`"home"`, `"nexacorp"`, `"devcontainer"`, `"chipinfra"`, or `"erik-pc"`), resets `cwd` to that computer's home directory (uses `getComputerUsername` so `erik-pc` lands in `/home/erik`), and reinitializes `envVars` and `aliases` for the computer via `initEnvForComputer`/`initAliasesForComputer`. Story flags carry over.
+Rebuilds the filesystem for the target computer (`"home"`, `"nexacorp"`, `"devcontainer"`, `"chipinfra"`, or `"erik-pc"`) and resets `cwd` to that computer's home directory (uses `getComputerUsername` so `erik-pc` lands in `/home/erik`). `envVars` and `aliases` are initialized via `initEnvForComputer`/`initAliasesForComputer` **on first visit only** (matching `gameStore.initComputer`); revisits keep anything set via `export`/`alias`. Note the FS itself is still rebuilt from seed on every switch — file changes do not survive a round-trip, only env/aliases/mounts and story flags do.
 
 ### Env / aliases / mounts persistence
 
-The runner mirrors the Zustand store's per-computer state. `export FOO=bar` is preserved across subsequent `run()` calls on the same computer; switching computers loads that computer's separately tracked env. Same for `alias` and for the per-computer `mounts` map (USB on home, etc.).
+The runner mirrors the Zustand store's per-computer state. `export FOO=bar` is preserved across subsequent `run()` calls on the same computer **and across `switchComputer` round-trips**; switching computers loads that computer's separately tracked env. Same for `alias` (aliases are expanded by `run()`/`runAsync()`, so aliased commands are fully testable headlessly) and for the per-computer `mounts` map (USB on home, etc.).
 
 ## CommandOutput Type
 

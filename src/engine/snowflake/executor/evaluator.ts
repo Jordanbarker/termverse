@@ -209,11 +209,13 @@ function evaluateBinary(expr: AST.BinaryExpr, row: Row, ctx: EvalContext): Value
     case "*": return toNumber(left) * toNumber(right);
     case "/": {
       const d = toNumber(right);
-      return d === 0 ? null : toNumber(left) / d;
+      if (d === 0) throw new Error("Division by zero");
+      return toNumber(left) / d;
     }
     case "%": {
       const d = toNumber(right);
-      return d === 0 ? null : toNumber(left) % d;
+      if (d === 0) throw new Error("Division by zero");
+      return toNumber(left) % d;
     }
 
     // String concat

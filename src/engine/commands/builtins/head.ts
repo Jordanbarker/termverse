@@ -2,6 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { skipFlagValidation } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
+import { splitLines } from "../../../lib/textUtils";
 import { isBinaryFile } from "../../filesystem/VirtualFS";
 import { colorizeCsv } from "../../../lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
@@ -27,7 +28,7 @@ const head: CommandHandler = (args, _flags, ctx) => {
 
   // Read from stdin if no file args
   if (fileArgs.length === 0 && ctx.stdin !== undefined) {
-    const lines = ctx.stdin.split("\n");
+    const lines = splitLines(ctx.stdin);
     return { output: lines.slice(0, numLines).join("\n") };
   }
 
@@ -59,7 +60,7 @@ const head: CommandHandler = (args, _flags, ctx) => {
       outputs.push(`==> ${fileArg} <==`);
     }
 
-    const lines = (result.content ?? "").split("\n");
+    const lines = splitLines(result.content ?? "");
     const sliced = lines.slice(0, numLines).join("\n");
     outputs.push(fileArg.endsWith(".csv") ? colorizeCsv(sliced) : sliced);
   }

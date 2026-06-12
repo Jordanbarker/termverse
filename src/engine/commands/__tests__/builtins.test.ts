@@ -5,6 +5,8 @@ import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
 import { HELP_TEXTS } from "../builtins/helpTexts";
 import { stripAnsi } from "../../../lib/ansi";
+import { createInitialSnowflakeState } from "../../snowflake/seed/initial_data";
+import { createDefaultContext } from "../../snowflake/session/context";
 
 // Import builtins to trigger registration
 import "../builtins/ls";
@@ -1110,5 +1112,33 @@ describe("snow invalid flag rejection", () => {
     const result = execute("snow", ["sql"], { X: true }, { ...ctx(), activeComputer: "devcontainer" });
     expect(result.output).toContain("snow sql: invalid option -- 'X'");
     expect(result.exitCode).toBe(2);
+  });
+});
+
+describe("snow sql -q exit codes", () => {
+  function snowCtx(): CommandContext {
+    return {
+      ...ctx(),
+      activeComputer: "devcontainer",
+      snowflakeState: createInitialSnowflakeState(),
+      snowflakeContext: createDefaultContext(),
+    };
+  }
+
+  it("exits 0 on a successful query", () => {
+    const result = execute("snow", ["sql", "SELECT 1"], { q: true }, snowCtx());
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("exits 1 on a SQL error", () => {
+    const result = execute("snow", ["sql", "SELECT 1/0"], { q: true }, snowCtx());
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain("Division by zero");
+  });
+
+  it("resolves a derived table end-to-end", () => {
+    const result = execute("snow", ["sql", "SELECT a FROM (SELECT 1 AS a)"], { q: true }, snowCtx());
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("1");
   });
 });

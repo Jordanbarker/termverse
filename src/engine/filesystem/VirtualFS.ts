@@ -129,6 +129,11 @@ export class VirtualFS {
       return { error: `Cannot write to '${absolutePath}': parent directory does not exist` };
     }
 
+    const existing = this.getNode(normalized);
+    if (existing && isDirectory(existing)) {
+      return { error: `Cannot write to '${absolutePath}': Is a directory` };
+    }
+
     const traversalError = this.checkTraversal(absolutePath);
     if (traversalError) return { error: traversalError };
 

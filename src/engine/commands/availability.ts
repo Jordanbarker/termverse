@@ -17,11 +17,14 @@ export function isCommandAvailable(commandName: string, computer: ComputerId, st
     return true;
   }
   // erik-pc is reached via SSH from chipinfra — `exit` returns there.
-  // Otherwise erik-pc shares Linux dev-box gating with home (Erik's work laptop).
   if (computer === "erik-pc" && commandName === "exit") return true;
   if (DEVCONTAINER_ONLY.has(commandName)) return false;
   const homeFlag = HOME_GATED[commandName];
   if (homeFlag) {
+    // Erik's work laptop is fully set up — the player's home-PC tutorial
+    // unlocks don't apply there (skipping Olive's optional challenge must not
+    // make basics like echo/whoami "command not found" on Erik's machine)
+    if (computer === "erik-pc") return true;
     if (!storyFlags?.[homeFlag]) return false;
     return true;
   }

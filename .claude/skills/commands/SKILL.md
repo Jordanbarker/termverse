@@ -148,11 +148,11 @@ interface ChainSegment {
 }
 ```
 
-**Parsing order**: `parseChainedPipeline` splits on chain operators first (consuming `||` before `splitOnPipe` can misinterpret it), then calls `parsePipeline` on each segment. Empty segments produce syntax errors.
+**Parsing order**: `parseChainedPipeline(raw, shell?)` splits on chain operators first (consuming `||` before `splitOnPipe` can misinterpret it), then calls `parsePipeline` on each segment. Empty segments produce syntax errors whose wording follows the `shell` param: the interactive shell uses zsh wording (`` zsh: parse error near `&&' ``, the default); `bash.ts` passes `"bash"` so script lines keep `` bash: syntax error near unexpected token `&&' `` with exit 2. Unknown commands print `zsh: command not found: <name>` (exit 127) with a dimmed `Type 'help'` hint line; `./script` path execution errors are also zsh-worded (`zsh: no such file or directory:` exit 127, `zsh: permission denied:` exit 126 for directories and non-executable files alike).
 
 **Execution** (`useTerminal.ts`): Outer loop over `ChainSegment[]`, inner loop runs each segment's pipeline. Per-segment: story flags/deliveries written to store (for gating), FS accumulated locally, output written to terminal. Sessions/incremental/transitions stop the chain. `stdin` resets between segments.
 
-**Bash scripts** (`bash.ts`): `executeSingleLine` uses the same chaining via `parseChainedPipeline`.
+**Bash scripts** (`bash.ts`): `executeSingleLine` uses the same chaining via `parseChainedPipeline(text, "bash")`.
 
 ## Pipeline Execution (`useTerminal`)
 
@@ -163,9 +163,22 @@ interface ChainSegment {
    - Execute via `execute()` or `executeAsync()`
    - Accumulate `newFs` and `newCwd` across pipeline
    - Reset `stdin` between chain segments
-4. Per-segment redirection: `>` / `>>` extracted and applied per segment
+4. Per-segment redirection: `>` / `>>` extracted and applied per segment (see Redirection below)
 5. Per-segment alias expansion
 6. Final `CommandResult` from last segment passed to `computeEffects()`
+
+## Redirection (`redirection.ts`)
+
+zsh-realistic stdout redirection, shared by `useTerminal.ts`, `bash.ts`, and the headless runner (`scripts/play.ts`):
+
+- **`extractStdoutRedirect(raw)`** returns `{ command, redirects, parseError? }`. It collects **every** unquoted `>`/`>>` into `redirects: { file, append }[]` (zsh has `multios` on by default, so output is written to all targets) and strips stderr redirects (`2>`, `2>>`, `2>&1`). A `>` with no target sets `` parseError: "zsh: parse error near `\n'" `` — callers print it (exit 1) and skip the segment.
+- **`precheckRedirects(redirects, cwd, homeDir, fs)`** validates targets *before the pipeline runs* (zsh opens redirect files before exec). A directory target → `zsh: is a directory: <as-typed>`; a missing parent → `zsh: no such file or directory: <as-typed>`. On error the command never executes: no output, no trigger events, no FS change, exit 1.
+- **`applyRedirection(redirects, ...)`** writes the output to every target against the accumulating FS. Per successful target it emits `file_created`/`file_modified` and runs the `isLogTamperPath` tripwire check; a failed write (defensive — precheck normally catches it) returns the zsh error with exit 1 and emits **no** event for that target. `>>` append is newline-aware: it only inserts a separator when the existing content doesn't already end with `\n`.
+- **`VirtualFS.writeFile`** refuses to overwrite a directory (`Cannot write to '...': Is a directory`), so `echo x > some-dir` can never destroy a directory tree.
+
+## Line splitting (`src/lib/textUtils.ts`)
+
+`splitLines(content)` splits text into lines and drops the single trailing empty element a final `\n` produces (`"" → []`). Used by `sort` (which also concatenates multi-file input per-file instead of joining with `\n`), `uniq`, `grep`, `head`, and `tail` — use it in any new line-oriented command instead of bare `content.split("\n")`, which invents a phantom empty line for files with trailing newlines.
 
 ## Effect Computation (`applyResult.ts`)
 

@@ -2,6 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
+import { splitLines } from "../../../lib/textUtils";
 import { isDirectory, isFile, FSNode } from "../../filesystem/types";
 import { colorize, ansi } from "../../../lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
@@ -88,7 +89,7 @@ const grep: CommandHandler = (args, flags, ctx) => {
   let totalMatches = 0;
 
   for (const { path, content } of filesToSearch) {
-    const lines = content.split("\n");
+    const lines = splitLines(content);
     let fileMatches = 0;
     const displayPath = path;
 

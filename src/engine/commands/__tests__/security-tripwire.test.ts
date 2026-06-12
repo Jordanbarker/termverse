@@ -251,8 +251,7 @@ describe("security tripwire — redirection", () => {
     const fs = makeNexacorpFs();
     const lastResult: CommandResult = { output: "" };
     const { result } = applyRedirection(
-      "/var/log/system.log",
-      false,
+      [{ file: "/var/log/system.log", append: false }],
       lastResult,
       "/home/ren",
       "/home/ren",
@@ -268,8 +267,7 @@ describe("security tripwire — redirection", () => {
     const fs = makeNexacorpFs();
     const lastResult: CommandResult = { output: "" };
     const { result } = applyRedirection(
-      "/var/log/system.log",
-      false,
+      [{ file: "/var/log/system.log", append: false }],
       lastResult,
       "/home/ren",
       "/home/ren",
@@ -291,8 +289,7 @@ describe("security tripwire — redirection", () => {
       },
     };
     const { result } = applyRedirection(
-      "/tmp/notes.txt",
-      false,
+      [{ file: "/tmp/notes.txt", append: false }],
       lastResult,
       "/home/ren",
       "/home/ren",

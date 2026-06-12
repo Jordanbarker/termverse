@@ -83,7 +83,11 @@ function planTableRef(ref: AST.TableRef, ctx: PlannerContext): Plan.LogicalPlan 
       // Check CTE scope
       if (parts.length === 1 && ctx.cteScopes?.has(upperName)) {
         const cteQuery = ctx.cteScopes.get(upperName)!;
-        return planSelect(cteQuery, ctx);
+        return {
+          kind: "derived",
+          query: withOuterCtes(cteQuery, ctx, upperName),
+          alias: ref.alias ?? parts[0],
+        };
       }
 
       let db: string, schema: string, table: string;
@@ -98,7 +102,11 @@ function planTableRef(ref: AST.TableRef, ctx: PlannerContext): Plan.LogicalPlan 
     }
 
     case "subquery_table": {
-      return planSelect(ref.query, ctx);
+      return {
+        kind: "derived",
+        query: withOuterCtes(ref.query, ctx),
+        alias: ref.alias ?? undefined,
+      };
     }
 
     case "flatten_table": {
@@ -118,6 +126,27 @@ function planTableRef(ref: AST.TableRef, ctx: PlannerContext): Plan.LogicalPlan 
       return { kind: "join", joinType: ref.joinType, left, right, condition: ref.condition };
     }
   }
+}
+
+/**
+ * The derived query is re-planned from scratch at execution time, so the
+ * planner's CTE scope must travel with it: attach the in-scope CTEs as the
+ * query's own (unless it already defines some). `excludeName` drops the CTE's
+ * own name so a self-reference falls through to table resolution instead of
+ * recursing forever.
+ */
+function withOuterCtes(
+  query: AST.SelectStatement,
+  ctx: PlannerContext,
+  excludeName?: string,
+): AST.SelectStatement {
+  if (query.ctes || !ctx.cteScopes || ctx.cteScopes.size === 0) return query;
+  const ctes: AST.CTE[] = [];
+  for (const [name, cteQuery] of ctx.cteScopes) {
+    if (name !== excludeName) ctes.push({ name, query: cteQuery });
+  }
+  if (ctes.length === 0) return query;
+  return { ...query, ctes };
 }
 
 function hasAggregates(items: AST.SelectItem[]): boolean {

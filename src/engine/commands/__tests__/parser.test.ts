@@ -256,23 +256,27 @@ describe("parseChainedPipeline", () => {
     expect(result[0].pipeline[0].command).toBe("");
   });
 
-  it("returns syntax error for trailing &&", () => {
+  it("returns zsh parse error for trailing &&", () => {
     const result = parseChainedPipeline("cmd1 &&");
     expect(result).toHaveLength(1);
-    expect(result[0].pipeline[0].error).toContain("syntax error");
-    expect(result[0].pipeline[0].error).toContain("&&");
+    expect(result[0].pipeline[0].error).toBe("zsh: parse error near `&&'");
   });
 
-  it("returns syntax error for leading &&", () => {
+  it("returns zsh parse error for leading &&", () => {
     const result = parseChainedPipeline("&& cmd1");
     expect(result).toHaveLength(1);
-    expect(result[0].pipeline[0].error).toContain("syntax error");
+    expect(result[0].pipeline[0].error).toBe("zsh: parse error near `&&'");
   });
 
-  it("returns syntax error for consecutive operators", () => {
+  it("returns zsh parse error for consecutive operators", () => {
     const result = parseChainedPipeline("cmd1 && && cmd2");
     expect(result).toHaveLength(1);
-    expect(result[0].pipeline[0].error).toContain("syntax error");
+    expect(result[0].pipeline[0].error).toBe("zsh: parse error near `&&'");
+  });
+
+  it("uses bash wording in bash mode (scripts)", () => {
+    const result = parseChainedPipeline("cmd1 &&", "bash");
+    expect(result[0].pipeline[0].error).toBe("bash: syntax error near unexpected token `&&'");
   });
 
   it("correctly splits || as chain, not pipe", () => {

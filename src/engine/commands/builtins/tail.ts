@@ -2,6 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { skipFlagValidation } from "../flagValidation";
 import { resolvePath } from "../../../lib/pathUtils";
+import { splitLines } from "../../../lib/textUtils";
 import { isBinaryFile } from "../../filesystem/VirtualFS";
 import { colorizeCsv } from "../../../lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
@@ -31,9 +32,8 @@ const tail: CommandHandler = (args, _flags, ctx) => {
   // Read from stdin if no file args
   if (fileArgs.length === 0 && ctx.stdin !== undefined) {
     if (numLines === 0) return { output: "" };
-    const lines = ctx.stdin.split("\n");
-    const cleanLines = lines[lines.length - 1] === "" ? lines.slice(0, -1) : lines;
-    return { output: cleanLines.slice(-numLines).join("\n") };
+    const lines = splitLines(ctx.stdin);
+    return { output: lines.slice(-numLines).join("\n") };
   }
 
   if (fileArgs.length === 0) {
@@ -68,9 +68,8 @@ const tail: CommandHandler = (args, _flags, ctx) => {
       outputs.push("");
       continue;
     }
-    const lines = (result.content ?? "").split("\n");
-    const cleanLines = lines[lines.length - 1] === "" ? lines.slice(0, -1) : lines;
-    const sliced = cleanLines.slice(-numLines).join("\n");
+    const lines = splitLines(result.content ?? "");
+    const sliced = lines.slice(-numLines).join("\n");
     outputs.push(fileArg.endsWith(".csv") ? colorizeCsv(sliced) : sliced);
   }
 
