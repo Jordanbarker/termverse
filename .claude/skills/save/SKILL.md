@@ -31,7 +31,7 @@ src/hooks/useTerminal.ts                 # gameAction handler (save/load/listSav
 Full snapshot of all game state:
 ```ts
 {
-  version: number;        // SAVE_FORMAT_VERSION (currently 14)
+  version: number;        // SAVE_FORMAT_VERSION (see saveTypes.ts for current value)
   timestamp: number;      // Date.now() at save time
   label: string;          // Display label
   username, gamePhase, currentChapter, completedObjectives,
@@ -69,7 +69,7 @@ type GameAction =
 
 ## Save Slots
 
-- **auto**: Zustand auto-persist (rebuilt on every state change via `partialize`)
+- **auto**: Zustand auto-persist (rebuilt on every state change via `partialize`, written through a debounced storage — `createDebouncedStorage(1000)` — so writes land at most once per second)
 - **slot-1, slot-2, slot-3**: Manual save slots
 
 localStorage keys: `terminal-turmoil-slot-{slotId}`
@@ -111,22 +111,22 @@ Zustand auto-save key: `terminal-turmoil-save`
 ## What Gets Saved
 
 ### Store state (auto-persisted via Zustand `partialize`)
+
+**The canonical field list is the `partialize` return value in `gameStore.ts` — check it there rather than trusting this table.** Fields with non-obvious semantics:
+
 | Field | What it tracks |
 |-------|---------------|
 | `serializedComputerState` | Per-computer serialized filesystems (incl. the `.zsh_history` file), env vars, aliases, and mounts |
-| `zshHistory` | Durable per-computer `.zsh_history` mirror — survives `removeComputer`/FS rebuilds so shell history (the single source of truth) continues across day/computer transitions. Added in v14. |
+| `zshHistory` | Durable per-computer `.zsh_history` mirror — survives `removeComputer`/FS rebuilds so shell history (the single source of truth) continues across day/computer transitions |
+| `serializedSnowflake` | Snowflake warehouse state via `serializeSnowflake()`. On `merge`, deserialization failures fall back to `createInitialSnowflakeState()` rather than crashing the load |
 | `persistedTabs` / `persistedActiveTabIndex` | Tab layout and active tab position |
-| `username` | Player's chosen username |
-| `gamePhase` | `"login" \| "booting" \| "playing" \| "transitioning"` |
-| `currentChapter` | Current narrative chapter ID |
-| `completedObjectives` | Array of completed objective IDs |
-| `deliveredEmailIds` | Which emails have been triggered (prevents re-delivery) |
-| `deliveredPiperIds` | Which Piper messages have been delivered |
-| `storyFlags` | Narrative progression flags |
-| `notifiedChipTopicIds` | Chip menu item IDs the player has already been toasted about (prevents re-firing the "New Chip topic available" toast). Added in v13. |
+| `notifiedChipTopicIds` | Chip menu item IDs already toasted (prevents re-firing the "New Chip topic available" toast) |
+| `copyModeHelpHidden` | Player's copy-mode key-hint overlay preference |
+
+Plus the plain narrative/identity fields: `username`, `gamePhase`, `currentChapter`, `completedObjectives`, `deliveredEmailIds`, `deliveredPiperIds`, `storyFlags`, `hasSeenIntro`.
 
 ### SaveData (manual saves via save command)
-Contains all auto-persisted fields in their serialized form.
+Mostly mirrors the auto-persisted fields, but is a separate shape (`saveTypes.ts`): manual slots do **not** carry `hasSeenIntro`, `serializedSnowflake`, or `copyModeHelpHidden`. Loading a manual slot keeps the live Snowflake state rather than restoring a snapshot.
 
 ## Updating for Narrative Progression
 

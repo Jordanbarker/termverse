@@ -73,9 +73,15 @@ type GameEvent =
   | { type: "objective_completed"; detail: string }
   | { type: "directory_visit"; detail: string }
   | { type: "directory_created"; detail: string }
+  | { type: "directory_removed"; detail: string }
+  | { type: "file_created"; detail: string }
+  | { type: "file_modified"; detail: string }
+  | { type: "file_removed"; detail: string }
   | { type: "piper_delivered"; detail: string }
   | { type: "terminated"; detail: "log_tampering" | "leadership_destruction" | "exfiltration" };
 ```
+
+The FS-mutation events (`directory_removed`, `file_created`, `file_modified`, `file_removed`) are emitted by the engine and consumed by story-flag triggers (e.g. `cleared_erik_known_hosts` fires on `file_removed`); no email trigger currently keys off them.
 
 `after_event_detail` matches any `GameEvent` whose `type` and `detail` both equal the trigger's fields. Use it when the same event type (`terminated`, `objective_completed`, etc.) needs to fan out to multiple emails keyed off `detail`. The three home termination emails (`termination_log_tampering`, `termination_leadership_destruction`, `termination_exfiltration`) all match on the synthesized `{ type: "terminated", detail }` event fired by `runTerminationTransition` in `useComputerTransitions.ts` after a security tripwire.
 

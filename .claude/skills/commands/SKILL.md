@@ -72,6 +72,7 @@ interface CommandContext {
   setAliases?: (aliases: Record<string, string>) => void;  // Persist alias changes
   deliveredPiperIds?: string[]; // Piper deliveries already received (for `after_piper_reply` checks)
   mounts?: Mounts;              // Per-computer { [mountpath]: { device, mountpath, fstype } } — read-only; commands return changes via result.newMounts
+  tabPrefixLabel?: string;      // Human-readable tmux prefix (e.g. "Ctrl+Space") for help output
 }
 
 interface CommandResult {
@@ -94,6 +95,7 @@ interface CommandResult {
   incrementalLines?: IncrementalLine[];  // Lines to print with per-line delays (e.g. boot sequences)
   closeTabsForComputer?: ComputerId;     // Close all tabs for a computer (e.g. coder stop)
   newMounts?: Mounts;                    // Per-computer mount registry update (mount/umount); accumulator-based, mirrors newFs
+  securityViolation?: SecurityViolation; // Nexacorp tripwire hit ({kind, path, destPath?, command, descendantCount}) — routes to the forced-termination transition (see narrative skill)
 }
 
 type CommandHandler = (args: string[], flags: Record<string, boolean>, ctx: CommandContext) => CommandResult;
@@ -103,8 +105,8 @@ type AsyncCommandHandler = (args: string[], flags: Record<string, boolean>, ctx:
 ## Registry (`registry.ts`)
 
 ```ts
-register(name: string, handler: CommandHandler, description: string, helpText?: string): void
-registerAsync(name: string, handler: AsyncCommandHandler, description: string, helpText?: string): void
+register(name: string, handler: CommandHandler, description: string, helpText?: string, readsFiles?: boolean): void
+registerAsync(name: string, handler: AsyncCommandHandler, description: string, helpText?: string, readsFiles?: boolean): void
 execute(commandName: string, args: string[], flags: Record<string, boolean>, ctx: CommandContext): CommandResult
 executeAsync(commandName: string, args: string[], flags: Record<string, boolean>, ctx: CommandContext): Promise<CommandResult>
 isAsyncCommand(name: string): boolean
@@ -230,7 +232,7 @@ interface AppliedEffects {
 
 ### What `computeEffects` Does
 
-1. **Builds event list** — always adds `command_executed`; file-read commands (`cat`, `head`, `tail`, `grep`, `diff`, `wc`, `sort`, `uniq`, `file`, `pdftotext`) auto-add `file_read` events per argument
+1. **Builds event list** — always adds `command_executed`; commands registered with `readsFiles: true` (currently `cat`, `head`, `tail`, `grep`, `diff`, `wc`, `sort`, `uniq`, `file`, `less`, `source`, `pdftotext` — declared via the 5th `register()` param, grep `register(` calls ending in `, true)`) auto-add `file_read` events per argument
 2. **Processes story flag triggers** — delegates to `checkStoryFlagTriggers()` for the active computer's triggers
 3. **Checks email delivery** — calls `checkEmailDeliveries()` for each event
 4. **Detects transitions** — recognizes `nexacorp_followup` email read → `triggerTransition: true`

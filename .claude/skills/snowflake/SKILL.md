@@ -165,9 +165,9 @@ QUALIFY, VARIANT dot/bracket notation, FLATTEN, LATERAL, PIVOT/UNPIVOT, ILIKE, S
 ### Data Types
 NUMBER, FLOAT, VARCHAR, BOOLEAN, DATE, TIMESTAMP, TIME, VARIANT, OBJECT, ARRAY
 
-### Functions (~60+ total)
+### Functions
 
-Scalar functions are registered in `functions/registry.ts`. Aggregate functions (in `aggregation.ts`) and window functions (in `window_exec.ts`) bypass the scalar registry and are handled by their own executors.
+Scalar functions are registered in `functions/registry.ts`. Aggregate functions (in `aggregation.ts`) and window functions (in `window_exec.ts`) bypass the scalar registry and are handled by their own executors. **The registry is the canonical list** (well over 100 functions); the table below is a representative category overview, not exhaustive.
 
 | Category | Functions |
 |----------|-----------|
