@@ -1,6 +1,6 @@
 ---
 name: play-testing
-description: "Headless game runner for programmatic play-testing without a browser. Use this skill whenever modifying GameRunner, using the headless runner for testing, working on scripts/play.ts, or manually play-testing the game from the terminal."
+description: "Headless game runner for programmatic play-testing without a browser, plus a Playwright recipe for browser-driving the real game. Use this skill whenever modifying GameRunner, using the headless runner for testing, working on scripts/play.ts, manually play-testing the game from the terminal, or verifying tab/transition/xterm behavior in the browser."
 ---
 
 # Headless Game Runner
@@ -161,3 +161,73 @@ Two known limitations to plan around when extending the script:
 
 - **Piper replies aren't interactively driven by the headless runner.** Where a piper-reply unlock flag would normally fire from `useSessionRouter.ts` (e.g., `search_tools_unlocked` from Oscar's DM accept), set the flag manually via a `simulatePiperUnlocks(runner, "search_tools_unlocked", ...)` helper and note the simulation. This is fine for arc coverage; for piper-reply correctness, lean on the per-message vitest suites instead.
 - **`.git` doesn't live in FS builders.** It's created at runtime by `git clone` / `git init`. When testing Day 2 pipeline flows from a fresh runner, run `git clone` first; don't pre-set `dbt_project_cloned: true` (that bakes the dbt tree but no `.git`, leaving `git pull` / `checkout -b` failing). The real game persists `.git` via Zustand across days.
+
+## Browser Play-Testing (Playwright)
+
+The headless runner has **no tab model and no transition animations** — tab survival, the "+" dropdown, computer-transition behavior (`useComputerTransitions.ts`), and anything else React-side can only be verified in the real browser. This recipe was developed verifying the soft-disconnect/ssh-reattach change and is repeatable.
+
+### Setup
+
+- **Dev server**: a `next dev` instance is often already running on :3000 (a second `npm run dev` fails on `.next/dev/lock` and falls back to :3001). Check with `curl -s localhost:3000` before starting your own.
+- **Playwright**: not a repo dependency — install in a scratch dir, never in the repo:
+  ```bash
+  cd $(mktemp -d) && npm init -y && npm i playwright@1.57   # pin to the build in ~/Library/Caches/ms-playwright
+  ```
+  Match the pinned version to the cached browser build (e.g. `chromium-1200` → playwright 1.57) or it will demand a fresh ~120MB download.
+
+### Game-side facts the driver must know
+
+- A fresh browser context = fresh localStorage = **new game**, which boots into a nano tutorial file. Send `Control+x` to exit nano before expecting a shell prompt.
+- Use `cheat N` to jump checkpoints (1=day1-start … 5=day2-chapter3-marcus-dm; see `src/story/checkpoints.ts`). `cheat 3` (day2-start, on nexacorp, mid-shift flags) is the best fixture for transition testing.
+- After `cheat`, the home FS is rebuilt from seed **without** a nexacorp `known_hosts` entry, so the first `ssh nexacorp-ws01.nexacorp.internal` shows the host-key fingerprint prompt — answer `yes`. Subsequent sshes connect directly (the entry persists).
+- The player is `ren`; ssh route is `ssh nexacorp-ws01.nexacorp.internal` (see `SSH_ROUTES` in `src/engine/commands/builtins/ssh.ts`).
+- Transitions print on `setInterval` at `BOOT_LINE_INTERVAL_MS` (300ms) — use polling waits with generous (15–25s) timeouts, never fixed sleeps alone.
+
+### Driving xterm.js
+
+- **Renderer is DOM** (no canvas/webgl addons), so terminal text is readable from `.xterm-rows` innerText.
+- **Inactive tabs hide via `visibility: hidden`** (TabManager.tsx), NOT `display: none` — `offsetParent` checks don't work. Pick the active terminal with `getComputedStyle(r).visibility === 'visible'`.
+- **Typing**: real-mouse-click the visible `.xterm-rows` bounding box first (focuses xterm's hidden textarea), then `page.keyboard.type(...)` + `Enter`. After tab switches the app refocuses the active terminal itself, but the click is cheap insurance.
+- **React needs real Playwright clicks.** `el.dispatchEvent(new MouseEvent('click', {bubbles:true}))` from `page.evaluate` does NOT trigger React handlers here — use locator clicks (`page.getByRole('button', {name: '+', exact: true}).click()`).
+- **Match output against the tail, not the whole buffer.** The visible buffer includes scrollback; a regex like `/yes\/no/` will re-match an *old* fingerprint prompt forever. Anchor to the last lines (`t.trim().split('\n').pop()` or `$`-anchored multiline regex).
+
+### DOM map
+
+- Tab bar: `div.border-b.font-mono`. Tabs are buttons labeled `1:nexacorp-ws01:/srv *` (tmux style, `*` = active); the new-tab button is exact-text `+`.
+- The "+" dropdown items are buttons labeled with `promptHostname` (`maniac-iv`, `nexacorp-ws01`, `coder-ai`, …) — it offers home plus only machines with at least one open tab (TabBar.tsx), so a soft-disconnected machine never appears until you `ssh`/`coder` back in. With a single eligible machine the "+" opens a tab directly with no dropdown.
+- The objective tracker ("In Production") is also made of buttons — filter it out when enumerating.
+
+### Driver skeleton
+
+```js
+const termText = () => page.evaluate(() => {
+  const rows = [...document.querySelectorAll('.xterm-rows')];
+  const v = rows.find(r => getComputedStyle(r).visibility === 'visible') || rows[0];
+  return v ? v.innerText : '';
+});
+const type = async (s) => {
+  const box = await page.evaluate(() => {
+    const v = [...document.querySelectorAll('.xterm-rows')]
+      .find(r => getComputedStyle(r).visibility === 'visible');
+    const r = v.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await page.mouse.click(box.x, box.y);
+  await page.keyboard.type(s, { delay: 15 });
+  await page.keyboard.press('Enter');
+};
+const waitText = async (re, timeout = 20000) => {   // poll; throw with term tail on timeout
+  for (const start = Date.now(); Date.now() - start < timeout; ) {
+    const t = await termText();
+    if (re.test(t)) return t;
+    await page.waitForTimeout(300);
+  }
+  throw new Error(`timeout waiting for ${re}`);
+};
+```
+
+Capture a screenshot + tab-bar text + terminal tail after every step — screenshots are the evidence a reviewer looks at, and the tab bar text (`bar.innerText`) is the assertion surface for tab-survival claims.
+
+### Example flow (soft-disconnect verification)
+
+new game → exit nano → `cheat 3` → leave evidence (`echo x > ~/proof.txt`) → "+" → second nexacorp tab → `coder ssh ai` (devcontainer tab) → switch to tab 1 → `exit` (assert sibling tab survives in tab bar) → "+" dropdown contents at home (assert it lists only `maniac-iv` plus machines with open tabs — no bare soft-disconnected entries) → `ssh` back (answer fingerprint `yes`; assert no `Internal Systems Portal` logo = no boot sequence) → `cat ~/proof.txt` (state survived). For remote-shutdown cascade: with sibling nexacorp + devcontainer tabs open, `shutdown -h now` on nexacorp must close BOTH (connection-closure expansion in useTerminal.ts), with the active tab landing home.

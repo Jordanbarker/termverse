@@ -2,15 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { getShutdownIncrementalLines, getRemoteShutdownIncrementalLines } from "../../../lib/ascii";
-import { ComputerId, COMPUTERS } from "../../../state/types";
-
-/** Where an SSH session lands when the machine it's connected to powers off. */
-const SHUTDOWN_RETURNS_TO: Partial<Record<ComputerId, ComputerId>> = {
-  nexacorp: "home",
-  devcontainer: "nexacorp",
-  chipinfra: "nexacorp",
-  "erik-pc": "chipinfra",
-};
+import { COMPUTERS, CONNECTION_PARENT } from "../../../state/types";
 
 const shutdown: CommandHandler = (args, flags, ctx) => {
   const immediate = Boolean(flags.h && args.includes("now"));
@@ -23,13 +15,18 @@ const shutdown: CommandHandler = (args, flags, ctx) => {
   // is back up (unchanged) the next time they connect.
   const computer = ctx.activeComputer;
   if (computer && computer !== "home") {
-    const target = SHUTDOWN_RETURNS_TO[computer];
+    const target = CONNECTION_PARENT[computer];
     if (!target) return { output: "shutdown: operation not permitted\n" };
     const hostname = COMPUTERS[computer].promptHostname;
     return {
       output: "",
       incrementalLines: getRemoteShutdownIncrementalLines(hostname, !immediate),
       transitionTo: target,
+      // A rebooting box drops every SSH session to it, not just this one,
+      // plus any session chained through it (the handler expands this to the
+      // connection closure). Unlike `exit`, which only ends this session and
+      // leaves sibling tabs connected.
+      closeTabsForComputer: computer,
       // Powering off the workstation post-accusation is a logoff: fire the
       // same Day-2 wrap event as `exit` so the evening plays out identically.
       ...(computer === "nexacorp" && ctx.storyFlags?.accusation_made

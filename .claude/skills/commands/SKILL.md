@@ -93,7 +93,7 @@ interface CommandResult {
   triggerEvents?: GameEvent[];  // Events for email/story processing
   transitionTo?: ComputerId;    // Transition to another computer (devcontainer, nexacorp)
   incrementalLines?: IncrementalLine[];  // Lines to print with per-line delays (e.g. boot sequences)
-  closeTabsForComputer?: ComputerId;     // Close all tabs for a computer (e.g. coder stop)
+  closeTabsForComputer?: ComputerId;     // Close all tabs for a downed computer + machines chained through it (getConnectionClosure; coder stop, remote shutdown)
   newMounts?: Mounts;                    // Per-computer mount registry update (mount/umount); accumulator-based, mirrors newFs
   securityViolation?: SecurityViolation; // Nexacorp tripwire hit ({kind, path, destPath?, command, descendantCount}) — routes to the forced-termination transition (see narrative skill)
 }
@@ -225,7 +225,7 @@ interface AppliedEffects {
   suppressPrompt: boolean;
   transitionTo?: ComputerId;  // Computer transition (coder/exit commands)
   incrementalLines?: IncrementalLine[];  // For boot/login output animations
-  closeTabsForComputer?: ComputerId;  // Close all other tabs for this computer (e.g. coder stop)
+  closeTabsForComputer?: ComputerId;  // Close all other tabs for this computer + its connection closure; handled in BOTH executeEffects branches in useTerminal.ts (incremental and normal)
   newMounts?: Mounts;                 // Mount registry update copied through from CommandResult
 }
 ```

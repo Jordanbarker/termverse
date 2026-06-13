@@ -30,6 +30,20 @@ interface TransitionDeps {
   writePrompt: (term: Terminal) => void;
 }
 
+/**
+ * A "genuine end-of-day" exit from NexaCorp tears the workday down (home FS
+ * rebuild, work machines removed from computerState, evening deliveries).
+ * Anything else is a mid-shift logoff and gets a plain ssh-style soft
+ * disconnect that preserves tabs and work-machine state.
+ *
+ * read_end_of_day is set on Day 1 and persists into Day 2, so it alone can't
+ * distinguish a Day 2 mid-shift exit: Day 1 ends once read_end_of_day is set
+ * (while day1_shutdown is still unset); Day 2 ends with accusation_made.
+ */
+function isEndOfDayExit(flags: Record<string, string | boolean>): boolean {
+  return !!flags.accusation_made || (!!flags.read_end_of_day && !flags.day1_shutdown);
+}
+
 export function useComputerTransitions(deps: TransitionDeps) {
   const { cwdRef, activeComputerRef, writePrompt } = deps;
 
@@ -87,15 +101,35 @@ export function useComputerTransitions(deps: TransitionDeps) {
       } else {
         clearInterval(sshInterval);
 
+        // Reattach: nexacorp state survived a mid-shift soft disconnect. The
+        // workstation is already running, so no boot sequence, no logo, and no
+        // FS rebuild: files and flags are exactly as the player left them,
+        // though like any fresh ssh login the shell starts at ~, not the cwd
+        // at exit time. First-arrival side effects (chapter bump, Day 2
+        // Snowflake rebuild, seedImmediatePiper, ssh_day2 cascade) are
+        // skipped: they all belong to the build-from-seed path below, which
+        // still runs whenever the end-of-day teardown or Day 1 shutdown
+        // removed the state.
+        const pre = useGameStore.getState();
+        const existing = pre.computerState.nexacorp;
+        if (existing) {
+          const newCwd = existing.fs.cwd;
+          pre.setTabComputer(pre.activeTabId, "nexacorp", newCwd);
+          activeComputerRef.current = "nexacorp";
+          cwdRef.current = newCwd;
+          if (pre.pendingPiperNotification) {
+            term.write(`\r\n${colorize("You have new messages on Piper", ansi.yellow, ansi.bold)}`);
+            pre.setPendingPiperNotification(false);
+          }
+          useGameStore.getState().setGamePhase("playing");
+          writePrompt(term);
+          return;
+        }
+
         setTimeout(() => {
           term.clear();
           const s = useGameStore.getState();
 
-          // Close all non-active home tabs
-          const homeTabs = s.tabs.filter(
-            (t) => t.computerId === "home" && t.id !== s.activeTabId
-          );
-          for (const t of homeTabs) s.removeTab(t.id);
           if (s.currentChapter === "chapter-1") {
             s.setCurrentChapter("chapter-2");
           }
@@ -173,7 +207,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         }, BOOT_LINE_INTERVAL_MS);
       }
     }, BOOT_LINE_INTERVAL_MS);
-  }, [cwdRef, activeComputerRef, runErikpcArrival]);
+  }, [cwdRef, activeComputerRef, runErikpcArrival, writePrompt]);
 
   /**
    * Build a fresh per-computer filesystem for a Coder workspace transition.
@@ -278,25 +312,20 @@ export function useComputerTransitions(deps: TransitionDeps) {
   }, [cwdRef, activeComputerRef, writePrompt]);
 
   /**
-   * Generalized "exit back to the parent" transition. Closes other tabs on the
-   * source workspace, repurposes the active tab to `target`, restores the
-   * target's cwd, and writes a disconnect banner using the source hostname.
+   * Generalized "exit back to the parent" soft disconnect. Repurposes the
+   * active tab to `target`, restores the target's cwd, and writes a disconnect
+   * banner using the source hostname. Other tabs are untouched — each tab is
+   * its own session, and the source's computerState stays alive, so siblings
+   * keep working (and the player can reconnect to find things as they were).
    *
    * Used by:
    *   - chipinfra/devcontainer → nexacorp
    *   - erik-pc → chipinfra
+   *   - nexacorp → home (mid-shift logoff; see runExitToHome)
    */
   const runExitToParent = useCallback((term: Terminal, target: ComputerId) => {
     const store = useGameStore.getState();
     const sourceComputer = store.tabs.find((t) => t.id === store.activeTabId)?.computerId;
-
-    // Close any other tabs still pointing at the workspace we're leaving.
-    if (sourceComputer === "devcontainer" || sourceComputer === "chipinfra" || sourceComputer === "erik-pc") {
-      const otherTabs = store.tabs.filter(
-        (t) => t.computerId === sourceComputer && t.id !== store.activeTabId
-      );
-      for (const t of otherTabs) store.removeTab(t.id);
-    }
 
     // Restore target cwd from computerState (default to its conventional home dir)
     const targetEntry = store.computerState[target];
@@ -330,6 +359,17 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
   const runExitToHome = useCallback((term: Terminal) => {
     const store = useGameStore.getState();
+
+    // Mid-shift logoff: a plain ssh disconnect, exactly like exiting any other
+    // remote session. Every other tab and all work-machine state survive, so
+    // the player can keep working in sibling tabs or ssh back in to find the
+    // workstation as they left it. Only a genuine end-of-day exit (below)
+    // tears the workday down.
+    if (!isEndOfDayExit(store.storyFlags)) {
+      runExitToParent(term, "home");
+      return;
+    }
+
     store.setGamePhase("transitioning");
 
     const logoffLines = [
@@ -347,12 +387,14 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
         const s = useGameStore.getState();
 
-        // Close all other nexacorp / devcontainer / chipinfra tabs
+        // Close all other work-machine tabs (nexacorp + everything reachable
+        // only through it)
         const tabsToClose = s.tabs.filter(
           (t) =>
             (t.computerId === "nexacorp" ||
               t.computerId === "devcontainer" ||
-              t.computerId === "chipinfra") &&
+              t.computerId === "chipinfra" ||
+              t.computerId === "erik-pc") &&
             t.id !== s.activeTabId
         );
         for (const t of tabsToClose) s.removeTab(t.id);
@@ -400,10 +442,13 @@ export function useComputerTransitions(deps: TransitionDeps) {
           }
         }
 
-        // Remove non-home computers from computerState so they don't appear in "+" dropdown
+        // Discard all work-machine state: the day is over, nothing survives.
+        // (The "+" dropdown is independently filtered to open-tab machines in
+        // TabBar.tsx, so this is about state teardown, not dropdown hygiene.)
         s.removeComputer("nexacorp");
         s.removeComputer("devcontainer");
         s.removeComputer("chipinfra");
+        s.removeComputer("erik-pc");
 
         // Repurpose current tab to home
         const homeCwd = newFs.cwd;
@@ -463,17 +508,9 @@ export function useComputerTransitions(deps: TransitionDeps) {
           writePrompt(term);
         };
 
-        // Only a genuine end-of-day exit progresses the story. `read_end_of_day`
-        // is set by reading Edward's end-of-day email (Day 1) and persists into
-        // Day 2. When it is unset the player is logging off mid-shift: drop them
-        // at the home shell without setting returned_home_day1 (so `shutdown`
-        // stays locked and they can `ssh` back to finish). No evening deliveries.
-        const isEndOfDay = Boolean(s.storyFlags.read_end_of_day);
-
-        if (!isEndOfDay) {
-          useGameStore.getState().setGamePhase("playing");
-          writePrompt(term);
-        } else if (isDay2Wrap) {
+        // Mid-shift logoffs never reach this point (the soft-disconnect branch
+        // at the top returns early), so this is always a genuine end-of-day.
+        if (isDay2Wrap) {
           // Evening pause — implies hours passing between leaving work and
           // arriving home. Then a quiet grounding line before deliveries.
           term.writeln("");
@@ -488,7 +525,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         }
       }
     }, BOOT_LINE_INTERVAL_MS);
-  }, [cwdRef, activeComputerRef, writePrompt]);
+  }, [cwdRef, activeComputerRef, writePrompt, runExitToParent]);
 
   /**
    * Cosmetic home-PC reboot for a non-questline `shutdown`: power off, boot
@@ -557,6 +594,17 @@ export function useComputerTransitions(deps: TransitionDeps) {
     setTimeout(() => {
       const s = useGameStore.getState();
       const username = s.username;
+
+      // Powering off kills every terminal, and overnight no work session
+      // survives. Close all other tabs and drop any lingering work-machine
+      // state (the player can ssh back end-of-day, soft-disconnect home, and
+      // reach shutdown with work tabs still open).
+      const otherTabs = s.tabs.filter((t) => t.id !== s.activeTabId);
+      for (const t of otherTabs) s.removeTab(t.id);
+      s.removeComputer("nexacorp");
+      s.removeComputer("devcontainer");
+      s.removeComputer("chipinfra");
+      s.removeComputer("erik-pc");
 
       // Capture read email IDs before rebuilding FS
       const prevHomeFs = s.computerState.home?.fs;
@@ -678,14 +726,15 @@ export function useComputerTransitions(deps: TransitionDeps) {
         store.setStoryFlag("termination_dest_path", violation.destPath);
       }
 
-      // t=0: close sibling nexacorp/devcontainer/chipinfra tabs so the player can't
-      // Ctrl+B,N to another tab on the doomed workstation and keep working while the
+      // t=0: close sibling work-machine tabs so the player can't Ctrl+B,N to
+      // another tab on the doomed workstation and keep working while the
       // cinematic plays.
       const siblingTabs = store.tabs.filter(
         (t) =>
           (t.computerId === "nexacorp" ||
             t.computerId === "devcontainer" ||
-            t.computerId === "chipinfra") &&
+            t.computerId === "chipinfra" ||
+            t.computerId === "erik-pc") &&
           t.id !== store.activeTabId
       );
       for (const t of siblingTabs) store.removeTab(t.id);
@@ -747,6 +796,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         s.removeComputer("nexacorp");
         s.removeComputer("devcontainer");
         s.removeComputer("chipinfra");
+        s.removeComputer("erik-pc");
 
         const homeCwd = newFs.cwd;
         s.setTabComputer(s.activeTabId, "home", homeCwd);
@@ -826,7 +876,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         runSshTransition(term, "erik-pc");
         return true;
       }
-      // Exit nexacorp → home (end of day)
+      // Exit nexacorp → home (soft disconnect mid-shift, teardown end-of-day)
       if (transitionTo === "home" && sourceComputer === "nexacorp") {
         runExitToHome(term);
         return true;

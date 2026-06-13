@@ -10,7 +10,7 @@ import { VirtualFS } from "../engine/filesystem/VirtualFS";
 import { createDefaultContext } from "../engine/snowflake/session/context";
 import { SaveSlotId } from "../state/saveTypes";
 import { formatSlotName } from "../state/saveManager";
-import { COMPUTERS, ComputerId } from "../state/types";
+import { COMPUTERS, ComputerId, getConnectionClosure } from "../state/types";
 import { getComputerUsername } from "../story/player";
 import { isCommandAvailable } from "../engine/commands/availability";
 import { computeEffects, AppliedEffects } from "../engine/commands/applyResult";
@@ -246,6 +246,22 @@ export function useTerminal() {
         return true;
       }
 
+      /**
+       * Close sibling tabs when a machine goes down (coder stop, remote
+       * shutdown). Expands to the connection closure: a session chained
+       * through the dead box (e.g. erik-pc via chipinfra) dies with it.
+       * The active tab is excluded; transitionTo handles it.
+       */
+      function closeTabsForDownedComputer() {
+        if (!effects.closeTabsForComputer) return;
+        const downed = new Set(getConnectionClosure(effects.closeTabsForComputer));
+        const store = useGameStore.getState();
+        const tabsToClose = store.tabs.filter((t) => t.id !== store.activeTabId && downed.has(t.computerId));
+        for (const t of tabsToClose) {
+          store.removeTab(t.id);
+        }
+      }
+
       if (effects.clearScreen) {
         term.clear();
       }
@@ -266,6 +282,8 @@ export function useTerminal() {
           } else {
             busyRef.current = false;
             busyTabIdRef.current = null;
+            // The box is down once the broadcast/countdown lines finish.
+            closeTabsForDownedComputer();
             if (effects.gameAction?.type === "shutdown") {
               runShutdownTransition(term);
             } else if (effects.gameAction?.type === "reboot") {
@@ -289,14 +307,8 @@ export function useTerminal() {
       // Apply all state effects (FS, cwd, story flags, deliveries) before any early returns
       applyStateEffects(effects, computerId);
 
-      // Close tabs for a given computer (e.g. coder stop disconnects devcontainer sessions)
-      if (effects.closeTabsForComputer) {
-        const store = useGameStore.getState();
-        const tabsToClose = store.tabs.filter((t) => t.id !== store.activeTabId && t.computerId === effects.closeTabsForComputer);
-        for (const t of tabsToClose) {
-          store.removeTab(t.id);
-        }
-      }
+      // Close tabs for a downed computer (e.g. coder stop disconnects devcontainer sessions)
+      closeTabsForDownedComputer();
 
       // Computer transitions — source-aware dispatch (see dispatchTransition for the matrix).
       if (effects.transitionTo) {

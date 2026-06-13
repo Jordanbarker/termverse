@@ -17,3 +17,36 @@ export const COMPUTERS: Record<ComputerId, { hostname: string; promptHostname: s
 export function getComputerUsername(computer: ComputerId, playerUsername: string): string {
   return COMPUTERS[computer].username ?? playerUsername;
 }
+
+/**
+ * Connection topology: which machine each remote session was opened from.
+ * Doubles as the landing target when a remote box powers off under an SSH
+ * session (shutdown returns you to the machine you connected from).
+ */
+export const CONNECTION_PARENT: Partial<Record<ComputerId, ComputerId>> = {
+  nexacorp: "home",
+  devcontainer: "nexacorp",
+  chipinfra: "nexacorp",
+  "erik-pc": "chipinfra",
+};
+
+/**
+ * The machine plus every machine whose connection chain rides through it.
+ * A rebooting/stopped box kills not just its own SSH sessions but any session
+ * tunneled through it (e.g. nexacorp going down also drops devcontainer,
+ * chipinfra, and erik-pc).
+ */
+export function getConnectionClosure(computer: ComputerId): ComputerId[] {
+  const closure = new Set<ComputerId>([computer]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [child, parent] of Object.entries(CONNECTION_PARENT) as [ComputerId, ComputerId][]) {
+      if (closure.has(parent) && !closure.has(child)) {
+        closure.add(child);
+        grew = true;
+      }
+    }
+  }
+  return [...closure];
+}

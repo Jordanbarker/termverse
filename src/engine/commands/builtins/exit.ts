@@ -26,10 +26,12 @@ const exit: CommandHandler = (_args, _flags, ctx) => {
     };
   }
   // Any other case on NexaCorp: log off the SSH session and return to the home
-  // shell, exactly like a real `exit`. This is reversible: the player can `ssh`
-  // back in to finish the day. The day does NOT advance here: `shutdown` stays
-  // locked until `returned_home_day1` is set, which runExitToHome only does on a
-  // genuine end-of-day exit (read_end_of_day). See useComputerTransitions.ts.
+  // shell, exactly like a real `exit`. Mid-shift this is a soft disconnect:
+  // other tabs and all work-machine state survive, and `ssh` back reattaches to
+  // the workstation as it was left. Only a genuine end-of-day exit (Day 1:
+  // read_end_of_day; Day 2: accusation_made) tears the workday down and
+  // progresses the story — see isEndOfDayExit/runExitToHome in
+  // useComputerTransitions.ts.
   if (ctx.activeComputer === "nexacorp") {
     return { output: "", transitionTo: "home" };
   }

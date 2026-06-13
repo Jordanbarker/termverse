@@ -98,6 +98,7 @@ describe("shutdown", () => {
     expect(result.gameAction).toBeUndefined();
     expect(result.transitionTo).toBe("home");
     expect(result.triggerEvents).toBeUndefined();
+    expect(result.closeTabsForComputer).toBe("nexacorp");
     expect(
       result.incrementalLines?.some((l) =>
         l.text.includes("Connection to nexacorp-ws01 closed by remote host")
@@ -129,12 +130,14 @@ describe("shutdown", () => {
       const result = execute("shutdown", ["now"], { h: true }, ctx({ activeComputer: computer }));
       expect(result.transitionTo).toBe("nexacorp");
       expect(result.gameAction).toBeUndefined();
+      expect(result.closeTabsForComputer).toBe(computer);
     }
   });
 
   it("erik-pc: shutdown returns to chipinfra", () => {
     const result = execute("shutdown", ["now"], { h: true }, ctx({ activeComputer: "erik-pc" }));
     expect(result.transitionTo).toBe("chipinfra");
+    expect(result.closeTabsForComputer).toBe("erik-pc");
     expect(
       result.incrementalLines?.some((l) =>
         l.text.includes("Connection to nexacorp-lt05 closed by remote host")

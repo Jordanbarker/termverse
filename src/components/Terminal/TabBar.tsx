@@ -65,8 +65,13 @@ export default function TabBar({
     return () => document.removeEventListener("mousedown", handler);
   }, [dropdownOpen]);
 
+  // Home (the physical machine) is always offered; a remote machine is only
+  // offered while at least one tab is connected to it. Preserved-but-
+  // disconnected state (mid-shift soft disconnect) stays reachable via
+  // ssh/coder only, never one click from the "+" button.
+  const openComputerIds = new Set(tabs.map((t) => t.computerId));
   const availableComputers = (Object.keys(computerState) as ComputerId[]).filter(
-    (id) => computerState[id]
+    (id) => computerState[id] && (id === "home" || openComputerIds.has(id))
   );
   const hasMultipleComputers = availableComputers.length > 1;
 
