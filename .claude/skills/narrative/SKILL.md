@@ -39,6 +39,12 @@ A `ChipMenuItem` (in `src/engine/chip/types.ts`) can carry `notifyOnUnlock: true
 
 Use `notifyOnUnlock: true` for items that represent a meaningful narrative branch the player would otherwise miss. Leave it off for evergreen topics (`git_help`, `team`, etc.) — those would just be noise.
 
+### Chip menu items can edit files (`applyFs`)
+
+A `ChipMenuItem` can carry `applyFs?: (fs: VirtualFS) => VirtualFS`. When the player selects the item, `ChipSession.selectCurrent()` applies the mutation to its live FS; on exit the mutated FS is threaded out via `SessionResult.newFs` (the same path the transcript flush uses, applied by `routeInput` in `useSessionRouter.ts` via `setComputerFs`). This lets Chip act like a coding assistant: edit a file when asked. Write `applyFs` to be idempotent (check the file still contains the expected content; otherwise return `fs` unchanged) since used items can be re-selected via the `a` expand toggle. The edit lands when the session exits, which is fine because no other command can run while chip owns the terminal.
+
+First use: the `fix_campaign_model` item (Day 2 pipeline quest, see below) applies the COALESCE fix to `models/marts/rpt_campaign_performance.sql` on the devcontainer.
+
 ### Chip CLI writes local transcripts
 
 Like real CLI chatbots (Claude Code's `~/.claude/projects/`), the in-game `chip` CLI persists each session as a plaintext transcript on the user's NexaCorp workstation. On exit, `ChipSession` flushes a file to `~/.chip/sessions/YYYY-MM-DD-HHMMSS.log` via the `newFs` field of its exit `SessionResult` — same pattern as `SshSession` writing to `known_hosts`. Empty sessions write nothing. Currently NexaCorp-only (gated by `info.currentComputer === "nexacorp"` in `flushTranscript()`); devcontainer/chipinfra sessions don't log.
@@ -529,6 +535,10 @@ Oscar asks the player to sort/uniq `/var/log/access.log` after the system-log co
   - This item's `response` is a **dynamic function** `(fs) => string` (not a static string): it reads the live `/var/log/access.log` and renders the real top-5 of `sort | uniq -c | sort -rn | head` via `accessLogTopSummary` (`src/story/chip/accessLogSummary.ts`), so what Chip claims it ran equals what the player gets in the terminal. `ChipMenuItem.response` is typed `string | ((fs: VirtualFS) => string)`; `ChipSession.resolveResponse` calls the function with the live FS at render time. Parity with the real engine pipeline is locked by `src/story/chip/__tests__/accessLogSummary.test.ts`. The chip-service-account self-reads dominate the top while the damning SSH-key/leadership-doc reads sink to the bottom (the player must scroll), which is exactly why Chip's "nothing concerning" framing reads as either oblivious or self-serving.
 
 The chip-variant deliveries carry `excludedFlags: ["oscar_read_access_log", "oscar_access_completed"]` so they self-suppress when the player has already read the file directly or already replied. The file-read followups carry `excludedFlags: ["oscar_access_completed"]` so a chip-then-reply-then-file sequence does not produce a second reply prompt. The chip-variant deliveries are source-ordered **before** the file-read followups in `oscar.ts` so that if both fire (chip → file, no reply between), `getPendingReply`'s reverse iteration returns the file-read followup with both options — preserving the "investigate to earn the truth" rule.
+
+### Day 2 pipeline quest (terminal vs. Chip shortcut)
+
+The Day 2 `fix_pipeline_quest` (Auri) has its own Chip shortcut, the `fix_campaign_model` item in `src/story/chip/menuItems.ts` (devcontainer only, gated on `dbt_test_failed_day2` and not `fixed_campaign_model`, `notifyOnUnlock: true`). It uses `applyFs` (see "Chip menu items can edit files" above) to wrap the `conversion_rate` calculation in `models/marts/rpt_campaign_performance.sql` in `COALESCE(..., 0)` — the same exact-string edit the end-to-end test in `src/engine/dbt/__tests__/day2Quest.test.ts` pins. It does **not** advance the quest: no `triggerEvents`, no git activity, and `fixed_campaign_model` is not set. The player still runs `dbt build` (a green run fires `dbt_test_all_pass` → `fixed_campaign_model` plus the `investigated_null_data`/`created_fix_branch` cascades) and still branches/commits/pushes for real (`git_push` → `pushed_fix_branch`).
 
 ### Hidden Directives
 `find /opt/chip -name ".*"` discovers `.internal/` directory containing:

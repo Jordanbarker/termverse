@@ -2,6 +2,13 @@ import { ChipMenuItem } from "../../engine/chip/types";
 import { StoryFlags, ComputerId } from "../../state/types";
 import { accessLogTopSummary } from "./accessLogSummary";
 
+// The broken/fixed conversion_rate line in rpt_campaign_performance.sql.
+// Must match the model SQL seeded in story/filesystem/nexacorp/dbt.ts.
+const BROKEN_CONVERSION_RATE_SQL =
+  "round(sum(conversions) * 100.0 / nullif(sum(clicks), 0), 2) as conversion_rate";
+const FIXED_CONVERSION_RATE_SQL =
+  "coalesce(round(sum(conversions) * 100.0 / nullif(sum(clicks), 0), 2), 0) as conversion_rate";
+
 const ALL_ITEMS: ChipMenuItem[] = [
   {
     id: "git_help",
@@ -140,6 +147,38 @@ const ALL_ITEMS: ChipMenuItem[] = [
       "For conversion_rate, you probably want COALESCE around the\n" +
       "columns used in the calculation, so NULL clicks or\n" +
       "conversions become 0 instead of making the whole result NULL.",
+  },
+  {
+    id: "fix_campaign_model",
+    label: "Can you fix the failing conversion_rate test?",
+    notifyOnUnlock: true,
+    condition: (flags, computer) =>
+      computer === "devcontainer" &&
+      !!flags.dbt_test_failed_day2 &&
+      !flags.fixed_campaign_model,
+    applyFs: (fs) => {
+      const modelPath = `${fs.homeDir}/nexacorp-analytics/models/marts/rpt_campaign_performance.sql`;
+      const file = fs.readFile(modelPath);
+      if (!file.content || !file.content.includes(BROKEN_CONVERSION_RATE_SQL)) {
+        return fs;
+      }
+      const fixed = file.content.replace(
+        BROKEN_CONVERSION_RATE_SQL,
+        FIXED_CONVERSION_RATE_SQL
+      );
+      const result = fs.writeFile(modelPath, fixed);
+      return result.fs ?? fs;
+    },
+    response:
+      "Sure. I looked at models/marts/rpt_campaign_performance.sql and the\n" +
+      "new partner_referral_q2 rows in CAMPAIGN_METRICS: they have NULL\n" +
+      "clicks and conversions, so conversion_rate computes to NULL and the\n" +
+      "not_null test fails.\n\n" +
+      "I wrapped the calculation in COALESCE so a NULL result becomes 0:\n\n" +
+      "  - round(sum(conversions) * 100.0 / nullif(sum(clicks), 0), 2) as conversion_rate\n" +
+      "  + coalesce(round(sum(conversions) * 100.0 / nullif(sum(clicks), 0), 2), 0) as conversion_rate\n\n" +
+      "The file is updated. Run 'dbt build' to confirm the test passes,\n" +
+      "then commit the change on a fix branch and push it for review.",
   },
   {
     id: "push_branch_help",

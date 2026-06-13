@@ -9,6 +9,7 @@ import { checkStoryFlagTriggers } from "../../narrative/storyFlags";
 import { getDevcontainerStoryFlagTriggers } from "../../../story/storyFlags";
 import { REMOTE_REPOS } from "../../git/remotes";
 import { gitClone, gitPull, gitCheckout, createBranch } from "../../git/repo";
+import { getMenuItems } from "../../../story/chip/menuItems";
 
 const username = "player";
 const projectDir = `/home/${username}/nexacorp-analytics`;
@@ -128,6 +129,64 @@ describe("Day 2 Quest: Fix the Broken Pipeline", () => {
       const stripped = testResult.output.replace(/\x1b\[[0-9;]*m/g, "");
       expect(stripped).toMatch(/PASS\s+not_null_rpt_campaign_performance_conversion_rate/);
       // With the fix applied, dbt_test_all_pass should fire (no errors)
+      expect(testResult.triggerEvents).toEqual(
+        expect.arrayContaining([{ type: "command_executed", detail: "dbt_test_all_pass" }])
+      );
+    });
+  });
+
+  describe("Chip assist — fix_campaign_model menu item", () => {
+    const failingFlags = { devcontainer_visited: true, dbt_test_failed_day2: true };
+
+    it("is offered on the devcontainer while the test is failing", () => {
+      const items = getMenuItems(failingFlags, "devcontainer");
+      expect(items.some((i) => i.id === "fix_campaign_model")).toBe(true);
+    });
+
+    it("disappears once fixed_campaign_model is set", () => {
+      const items = getMenuItems(
+        { ...failingFlags, fixed_campaign_model: true },
+        "devcontainer"
+      );
+      expect(items.some((i) => i.id === "fix_campaign_model")).toBe(false);
+    });
+
+    it("is not offered on nexacorp", () => {
+      const items = getMenuItems(failingFlags, "nexacorp");
+      expect(items.some((i) => i.id === "fix_campaign_model")).toBe(false);
+    });
+
+    it("does not advance the quest itself (no triggerEvents)", () => {
+      const item = getMenuItems(failingFlags, "devcontainer").find(
+        (i) => i.id === "fix_campaign_model"
+      )!;
+      expect(item.triggerEvents).toBeUndefined();
+    });
+
+    it("applyFs edit makes the conversion_rate test pass", () => {
+      const ctx = makeCtxWithGit({ includeDay2: true, pullUpdates: true });
+
+      const item = getMenuItems(failingFlags, "devcontainer").find(
+        (i) => i.id === "fix_campaign_model"
+      )!;
+      expect(item.applyFs).toBeDefined();
+
+      const fixedFs = item.applyFs!(ctx.fs);
+      // The edit must actually change the model file
+      const modelPath = `${projectDir}/models/marts/rpt_campaign_performance.sql`;
+      expect(fixedFs.readFile(modelPath).content).toContain(
+        "coalesce(round(sum(conversions) * 100.0 / nullif(sum(clicks), 0), 2), 0) as conversion_rate"
+      );
+      // Re-applying is a safe no-op (broken line no longer present)
+      expect(item.applyFs!(fixedFs)).toBe(fixedFs);
+
+      const fixedCtx: typeof ctx = { ...ctx, fs: fixedFs };
+      runBuild(fixedCtx);
+      const latestState = fixedCtx.getSnowflakeState();
+      const testResult = runTests({ ...fixedCtx, snowflakeState: latestState });
+
+      const stripped = testResult.output.replace(/\x1b\[[0-9;]*m/g, "");
+      expect(stripped).toMatch(/PASS\s+not_null_rpt_campaign_performance_conversion_rate/);
       expect(testResult.triggerEvents).toEqual(
         expect.arrayContaining([{ type: "command_executed", detail: "dbt_test_all_pass" }])
       );

@@ -39,6 +39,7 @@ export class ChipSession implements ISession {
   private onUsedTopicsChange?: (topics: string[]) => void;
 
   private transcript: ChipExchange[] = [];
+  private fsModified = false;
   private sessionStart: Date;
   private getGameNow: () => Date;
 
@@ -175,12 +176,23 @@ export class ChipSession implements ISession {
     this.terminal.write(clear + "\x1b[?25h");
     return {
       type: "exit",
-      newFs: this.flushTranscript(),
+      newFs: this.resolveExitFs(),
       triggerEvents:
         this.collectedEvents.length > 0
           ? this.collectedEvents
           : undefined,
     };
+  }
+
+  /**
+   * FS to thread out on exit: the transcript flush builds on the (possibly
+   * applyFs-mutated) this.fs, so prefer it; otherwise return the mutated FS
+   * directly. Undefined when nothing changed.
+   */
+  private resolveExitFs(): VirtualFS | undefined {
+    const withTranscript = this.flushTranscript();
+    if (withTranscript) return withTranscript;
+    return this.fsModified ? this.fs : undefined;
   }
 
   private flushTranscript(): VirtualFS | undefined {
@@ -210,6 +222,11 @@ export class ChipSession implements ISession {
     // Mark as used
     this.usedItemIds.add(item.id);
     this.onUsedTopicsChange?.([...this.usedItemIds]);
+
+    if (item.applyFs) {
+      this.fs = item.applyFs(this.fs);
+      this.fsModified = true;
+    }
 
     const responseText = this.resolveResponse(item);
     this.transcript.push({ timestamp: this.getGameNow(), role: "user", text: item.label });

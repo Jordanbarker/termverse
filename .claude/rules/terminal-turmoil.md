@@ -43,7 +43,7 @@ src/
 ├── engine/
 │   ├── filesystem/         # VirtualFS class, types, serialization, builders (__tests__/)
 │   ├── commands/           # Parser, registry, builtin commands, applyResult, availability (__tests__/)
-│   ├── chip/               # Chip interactive CLI (ChipSession, render, transcript, types) — writes plaintext transcripts to ~/.chip/sessions/ on exit (NexaCorp only) (__tests__/)
+│   ├── chip/               # Chip interactive CLI (ChipSession, render, transcript, types) — writes plaintext transcripts to ~/.chip/sessions/ on exit (NexaCorp only); menu items can also apply FS mutations via ChipMenuItem.applyFs, threaded out via SessionResult.newFs on exit (__tests__/)
 │   ├── editor/             # Nano text editor (EditorSession, keymap, render) (__tests__/)
 │   ├── pager/              # less pager session (LessSession, keymap, render)
 │   ├── ssh/                # SSH client session (SshSession, sshConfig)

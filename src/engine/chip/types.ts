@@ -11,6 +11,13 @@ export interface ChipMenuItem {
    * running the same command (e.g. the access.log review).
    */
   response: string | ((fs: VirtualFS) => string);
+  /**
+   * Optional filesystem mutation applied when the item is selected. Lets Chip
+   * act like a coding assistant (edit a file when asked). The mutated FS is
+   * threaded out via SessionResult.newFs on exit, same mechanism as the
+   * transcript flush.
+   */
+  applyFs?: (fs: VirtualFS) => VirtualFS;
   triggerEvents?: GameEvent[];
   condition?: (flags: StoryFlags, computer: ComputerId) => boolean;
   notifyOnUnlock?: boolean;
