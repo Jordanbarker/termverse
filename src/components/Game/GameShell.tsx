@@ -6,6 +6,7 @@ import AssistantOverlay from "../Assistant/AssistantOverlay";
 import ObjectiveTracker from "../HUD/ObjectiveTracker";
 import Toast from "../HUD/Toast";
 import { useGameStore } from "../../state/gameStore";
+import { useBeforeUnloadGuard } from "../../hooks/useBeforeUnloadGuard";
 
 // Dynamic import: xterm.js requires window
 const TabManager = dynamic(() => import("../Terminal/TabManager"), {
@@ -19,6 +20,7 @@ const TabManager = dynamic(() => import("../Terminal/TabManager"), {
 
 export default function GameShell() {
   const gamePhase = useGameStore((s) => s.gamePhase);
+  useBeforeUnloadGuard(gamePhase === "playing");
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0a0e14] overflow-hidden">
