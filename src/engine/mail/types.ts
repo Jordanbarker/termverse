@@ -1,11 +1,6 @@
-export interface Email {
-  id: string;
-  from: string;
-  to: string;
-  date: string;
-  subject: string;
-  body: string;
-}
+// Email now lives in @tt/core (pure message record). Re-exported for back-compat.
+export type { Email } from "@tt/core";
+import type { Email } from "@tt/core";
 
 export interface ReplyOption {
   label: string;

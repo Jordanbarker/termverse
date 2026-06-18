@@ -43,8 +43,5 @@ export interface PiperChannel {
   computer?: ComputerId;
 }
 
-export interface PiperSessionInfo {
-  storyFlags: StoryFlags;
-  deliveredPiperIds: string[];
-  computerId?: ComputerId;
-}
+// PiperSessionInfo (the command->session contract) now lives in @tt/core.
+export type { PiperSessionInfo } from "@tt/core";

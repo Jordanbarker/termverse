@@ -1,12 +1,7 @@
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { Mounts } from "@tt/core/filesystem/mounts";
-import { PromptSessionInfo } from "../prompt/types";
-import { ChipSessionInfo } from "../chip/types";
-import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "@tt/core/pager/types";
-import type { StoryFlags } from "../../state/types";
-import type { MachineId } from "@tt/core/machine";
-import { GameEvent } from "../mail/delivery";
+import type { MachineId, StoryFlags, GameEvent, PromptSessionInfo, ChipSessionInfo, PiperSessionInfo } from "@tt/core";
 import { SecurityViolation, SecurityPolicy } from "./security";
 import { DeviceProvider } from "./devices";
 import { GameClock } from "./clock";

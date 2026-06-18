@@ -23,10 +23,8 @@ export interface ChipMenuItem {
   notifyOnUnlock?: boolean;
 }
 
-export interface ChipSessionInfo {
-  storyFlags: StoryFlags;
-  currentComputer: ComputerId;
-}
+// ChipSessionInfo (the command->session contract) now lives in @tt/core.
+export type { ChipSessionInfo } from "@tt/core";
 
 export interface ChipExchange {
   timestamp: Date;

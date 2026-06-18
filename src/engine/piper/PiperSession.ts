@@ -1,6 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import { ISession, SessionResult } from "@tt/core/session/types";
 import { PiperSessionInfo, PiperReplyOption } from "./types";
+import type { ComputerId } from "../../state/types";
 import {
   checkPiperDeliveries,
   getConversationHistory,
@@ -98,8 +99,8 @@ export class PiperSession implements ISession {
     this.username = username;
   }
 
-  private get computerId() {
-    return this.info.computerId ?? "nexacorp";
+  private get computerId(): ComputerId {
+    return (this.info.computerId ?? "nexacorp") as ComputerId;
   }
 
   canClose(): boolean {

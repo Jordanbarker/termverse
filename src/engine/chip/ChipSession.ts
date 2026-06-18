@@ -2,6 +2,7 @@ import { Terminal } from "@xterm/xterm";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { ISession, SessionResult } from "@tt/core/session/types";
 import { ChipSessionInfo, ChipMenuItem, ChipExchange } from "./types";
+import type { ComputerId } from "../../state/types";
 import { getMenuItems } from "../../story/chip/menuItems";
 import { renderTranscript, transcriptFilename } from "./transcript";
 import {
@@ -63,7 +64,7 @@ export class ChipSession implements ISession {
     this.info = info;
     this.sessionStart = sessionStart;
     this.getGameNow = getGameNow;
-    this.menuItems = getMenuItems(info.storyFlags, info.currentComputer);
+    this.menuItems = getMenuItems(info.storyFlags, info.currentComputer as ComputerId);
     this.onUsedTopicsChange = onUsedTopicsChange;
 
     const saved = info.storyFlags.used_chip_topics;
@@ -240,7 +241,7 @@ export class ChipSession implements ISession {
     // Refresh menu items
     const usedStr = [...this.usedItemIds].join(",");
     this.info.storyFlags = { ...this.info.storyFlags, used_chip_topics: usedStr };
-    this.menuItems = getMenuItems(this.info.storyFlags, this.info.currentComputer);
+    this.menuItems = getMenuItems(this.info.storyFlags, this.info.currentComputer as ComputerId);
 
     // Write clear + user message immediately
     const clear = this.buildClearSequence();
