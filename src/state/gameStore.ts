@@ -34,6 +34,7 @@ import {
   collapsePane,
   prunePanesByComputer,
   setSplitRatio,
+  nudgeSplitRatio,
   focusDirectionTarget,
   nextLeafId,
   rebuildWindow,
@@ -129,6 +130,7 @@ interface GameStore {
   focusDirection: (dir: "L" | "R" | "U" | "D") => void;
   cyclePane: () => void;
   resizePane: (splitId: string, ratio: number) => void;
+  nudgeSplitRatio: (splitId: string, delta: number) => void;
   setPaneCwd: (paneId: string, cwd: string) => void;
   setPaneComputer: (paneId: string, computerId: ComputerId, cwd: string) => void;
   // Convenience for transitions/command execution (operate on the active pane)
@@ -390,6 +392,10 @@ export const useGameStore = create<GameStore>()(
       resizePane: (splitId, ratio) =>
         set((state) => ({
           windows: state.windows.map((w) => ({ ...w, root: setSplitRatio(w.root, splitId, ratio) })),
+        })),
+      nudgeSplitRatio: (splitId, delta) =>
+        set((state) => ({
+          windows: state.windows.map((w) => ({ ...w, root: nudgeSplitRatio(w.root, splitId, delta) })),
         })),
       setPaneCwd: (paneId, cwd) =>
         set((state) => ({

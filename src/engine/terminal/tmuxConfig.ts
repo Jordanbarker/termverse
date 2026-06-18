@@ -203,3 +203,66 @@ export function parseTmuxTheme(conf: string | undefined): TabBarTheme {
   }
   return theme;
 }
+
+/** Pane direction shared by `select-pane`/`resize-pane` (matches `focusDirectionTarget`). */
+export type PaneDir = "L" | "R" | "U" | "D";
+
+/** A parsed pane keybinding from a `bind`/`bind-key` line. */
+export type PaneBinding =
+  | { kind: "focus"; dir: PaneDir }
+  | { kind: "resize"; dir: PaneDir; cells: number; repeat: boolean };
+
+/** Single-character key -> the pane action it triggers after the prefix. */
+export type TmuxBindings = Record<string, PaneBinding>;
+
+/** Cells moved per `resize-pane` step when the bind omits an amount. */
+export const DEFAULT_RESIZE_CELLS = 5;
+
+const DIR_FLAGS: Record<string, PaneDir> = { L: "L", R: "R", U: "U", D: "D" };
+
+/**
+ * Parse pane keybindings from `~/.tmux.conf`. Recognizes
+ * `bind[-key] [-r] <key> select-pane -L|-R|-U|-D` and
+ * `bind[-key] [-r] <key> resize-pane -L|-R|-U|-D [N]`. Only single-character keys
+ * are supported; any other bind (multi-char key, send-keys, unknown command) is
+ * ignored. As elsewhere, later lines win for a given key and comments are stripped.
+ */
+export function parseTmuxBindings(conf: string | undefined): TmuxBindings {
+  const bindings: TmuxBindings = {};
+  if (!conf) return bindings;
+
+  for (const rawLine of conf.split("\n")) {
+    const line = stripInlineComment(rawLine).trim();
+    if (!line || line.startsWith("#")) continue;
+
+    // bind | bind-key, optional -r (and other ignorable flags), key, command...
+    const match = line.match(/^bind(?:-key)?\s+(.+)$/i);
+    if (!match) continue;
+
+    const tokens = match[1].trim().split(/\s+/);
+    let repeat = false;
+    let i = 0;
+    // consume leading flags; only -r is meaningful, others (e.g. -n) are skipped
+    while (i < tokens.length && tokens[i].startsWith("-")) {
+      if (tokens[i] === "-r") repeat = true;
+      i++;
+    }
+
+    const key = tokens[i++];
+    const command = tokens[i++];
+    if (!key || key.length !== 1 || !command) continue;
+
+    const dirFlag = tokens[i]; // e.g. "-L"
+    const dir = dirFlag?.startsWith("-") ? DIR_FLAGS[dirFlag.slice(1).toUpperCase()] : undefined;
+    if (!dir) continue;
+
+    if (command === "select-pane") {
+      bindings[key] = { kind: "focus", dir };
+    } else if (command === "resize-pane") {
+      const amount = Number(tokens[i + 1]);
+      const cells = Number.isFinite(amount) && amount > 0 ? amount : DEFAULT_RESIZE_CELLS;
+      bindings[key] = { kind: "resize", dir, cells, repeat };
+    }
+  }
+  return bindings;
+}

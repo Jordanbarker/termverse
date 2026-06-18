@@ -7,11 +7,11 @@ import "@xterm/xterm/css/xterm.css";
 import TabBar from "./TabBar";
 import PaneDividers from "./PaneDividers";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../../state/gameStore";
-import { allLeaves, paneRects } from "../../state/paneTypes";
+import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "../../state/paneTypes";
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "../../lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
-import { parseTmuxPrefix, parseTmuxTheme } from "../../engine/terminal/tmuxConfig";
+import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "../../engine/terminal/tmuxConfig";
 import { ANSI_COLORS } from "../../engine/terminal/ansiPalette";
 import { CopyModeController } from "../../engine/terminal/copyMode";
 import { sessionUsesAltScreen } from "../../engine/session/types";
@@ -93,6 +93,8 @@ export default function TabManager() {
   });
   const tabPrefix = useMemo(() => parseTmuxPrefix(homeTmuxConf), [homeTmuxConf]);
   const tabTheme = useMemo(() => parseTmuxTheme(homeTmuxConf), [homeTmuxConf]);
+  // Vim-style pane nav/resize binds (`bind h select-pane -L`, `bind -r H resize-pane -L 5`).
+  const tabBindings = useMemo(() => parseTmuxBindings(homeTmuxConf), [homeTmuxConf]);
 
   const activeWindow = windows.find((w) => w.id === activeWindowId);
 
@@ -137,6 +139,16 @@ export default function TabManager() {
   // Keep the live prefix char available inside the xterm onData closures.
   const prefixCharRef = useRef(tabPrefix.char);
   prefixCharRef.current = tabPrefix.char;
+
+  // Live pane bindings (parsed from ~/.tmux.conf) for the onData closures.
+  const bindingsRef = useRef(tabBindings);
+  bindingsRef.current = tabBindings;
+
+  // tmux `-r` repeat: after a repeatable resize bind, keep accepting the same
+  // keys without re-pressing the prefix until this window (repeat-time) lapses.
+  const repeatModeRef = useRef(false);
+  const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const REPEAT_MS = 500;
 
   // tmux confirm-before-kill: the close prompt shown in the status bar.
   const [closeConfirm, setCloseConfirm] = useState<string | null>(null);
@@ -204,6 +216,57 @@ export default function TabManager() {
         store.setActiveWindow(store.windows[winIdx].id);
       }
     }
+  }, []);
+
+  // Resize the divider nearest the focused pane by a cell-sized step. tmux moves
+  // borders in grid cells; our model is ratio-based, so convert cells -> ratio
+  // delta at the layout layer using the pane's live cell size and the split's box.
+  const applyResize = useCallback((b: Extract<PaneBinding, { kind: "resize" }>) => {
+    const store = useGameStore.getState();
+    if (!store.storyFlags.tabs_unlocked) return;
+    const win = store.windows.find((w) => w.id === store.activeWindowId);
+    if (!win) return;
+    const orientation = b.dir === "L" || b.dir === "R" ? "h" : "v";
+    const splitId = nearestResizableSplit(win.root, win.activePaneId, orientation);
+    if (!splitId) return; // no divider in this direction (e.g. -L in a stacked layout)
+    const inst = paneInstancesRef.current.get(win.activePaneId);
+    const wrapper = wrapperRef.current;
+    const box = nodeBox(win.root, splitId);
+    if (!inst || !wrapper || !box) return;
+    const horizontal = orientation === "h";
+    const cellPx = horizontal
+      ? inst.containerEl.clientWidth / inst.term.cols
+      : inst.containerEl.clientHeight / inst.term.rows;
+    const splitBoxPx = horizontal ? box.w * wrapper.clientWidth : box.h * wrapper.clientHeight;
+    if (!(cellPx > 0) || !(splitBoxPx > 0)) return;
+    const deltaRatio = (b.cells * cellPx) / splitBoxPx;
+    // Move the divider toward the arrow: R/D grow child `a` (ratio up), L/U shrink it.
+    store.nudgeSplitRatio(splitId, b.dir === "R" || b.dir === "D" ? deltaRatio : -deltaRatio);
+  }, []);
+
+  const clearRepeat = useCallback(() => {
+    repeatModeRef.current = false;
+    if (repeatTimerRef.current != null) {
+      clearTimeout(repeatTimerRef.current);
+      repeatTimerRef.current = null;
+    }
+    setPrefixActive(false);
+  }, []);
+
+  const armRepeat = useCallback(() => {
+    repeatModeRef.current = true;
+    setPrefixActive(true); // keep the bar "hot" so the repeat window is visible
+    if (repeatTimerRef.current != null) clearTimeout(repeatTimerRef.current);
+    repeatTimerRef.current = setTimeout(() => {
+      repeatModeRef.current = false;
+      repeatTimerRef.current = null;
+      setPrefixActive(false);
+    }, REPEAT_MS);
+  }, []);
+
+  // Clear any pending repeat timer on unmount.
+  useEffect(() => () => {
+    if (repeatTimerRef.current != null) clearTimeout(repeatTimerRef.current);
   }, []);
 
   const createPaneInstance = useCallback((paneId: string, containerEl: HTMLDivElement): PaneInstance => {
@@ -296,6 +359,19 @@ export default function TabManager() {
         return;
       }
 
+      // tmux `-r` repeat: while the repeat window is open, a repeatable resize key
+      // re-fires (and re-arms) without the prefix. Any other key ends repeat mode
+      // and is processed normally below.
+      if (repeatModeRef.current) {
+        const b = bindingsRef.current[data];
+        if (b && b.kind === "resize" && b.repeat) {
+          applyResize(b);
+          armRepeat();
+          return;
+        }
+        clearRepeat();
+      }
+
       // Prefix mode — consume the next key as a tab/pane action
       if (ctrlBPrefixRef.current) {
         ctrlBPrefixRef.current = false;
@@ -315,6 +391,17 @@ export default function TabManager() {
         if (!useGameStore.getState().storyFlags.tabs_unlocked) {
           // Locked and not a copy-mode entry — pass the key through to the shell.
           handleInputRef.current(term, data);
+          return;
+        }
+        // Vim-style binds from ~/.tmux.conf (case-sensitive: `h` nav vs `H` resize).
+        const binding = bindingsRef.current[data];
+        if (binding) {
+          if (binding.kind === "focus") {
+            useGameStore.getState().focusDirection(binding.dir);
+          } else {
+            applyResize(binding);
+            if (binding.repeat) armRepeat();
+          }
           return;
         }
         // Directional pane focus (prefix + arrow). Arrows arrive as CSI sequences.
@@ -341,7 +428,7 @@ export default function TabManager() {
     });
 
     return { term, fitAddon, containerEl, onDataDisposable, copyMode, lastW: 0, lastH: 0 };
-  }, [handleCtrlBAction]);
+  }, [handleCtrlBAction, applyResize, armRepeat, clearRepeat]);
 
   // Mount/unmount pane instances when the set of panes changes (split/close/window add)
   useEffect(() => {

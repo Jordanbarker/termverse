@@ -93,8 +93,21 @@ set mouse
     ".tmux.conf": file(".tmux.conf", `# ~/.tmux.conf
 # Prefix key for terminal tabs. Press the prefix, then:
 #   C = new tab   X = close tab   N/P = next/prev   1-5 = jump to tab
+#   | = split left/right   - = split top/bottom   o = cycle pane
 # Options: C-Space (default)   C-b (tmux default)   C-a (screen-style)
 set -g prefix C-Space
+
+# Pane navigation (vim-style): prefix then h/j/k/l (arrow keys also work).
+bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R
+
+# Pane resize (repeatable -r: hold the prefix once, then tap H/J/K/L).
+bind -r H resize-pane -L 5
+bind -r J resize-pane -D 5
+bind -r K resize-pane -U 5
+bind -r L resize-pane -R 5
 
 # Status bar - seamless dark look (blends into the terminal). Edit freely;
 # colors may be named (green, yellow, ...) or hex (#0a0e14).

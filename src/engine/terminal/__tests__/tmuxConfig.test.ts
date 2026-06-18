@@ -6,6 +6,8 @@ import {
   parseTmuxTheme,
   resolveTmuxColor,
   DEFAULT_TAB_BAR_THEME,
+  parseTmuxBindings,
+  DEFAULT_RESIZE_CELLS,
 } from "../tmuxConfig";
 import { ANSI_COLORS } from "../ansiPalette";
 
@@ -172,5 +174,66 @@ describe("parseTmuxTheme", () => {
     const theme = parseTmuxTheme(`set -g status-style "bg=#0a0e14,fg=green" # bar`);
     expect(theme.statusBg).toBe("#0a0e14");
     expect(theme.statusFg).toBe(ANSI_COLORS.green);
+  });
+});
+
+describe("parseTmuxBindings", () => {
+  it("returns empty for missing/binding-less config", () => {
+    expect(parseTmuxBindings(undefined)).toEqual({});
+    expect(parseTmuxBindings(DEFAULT_CONF)).toEqual({});
+  });
+
+  it("parses vim-style select-pane focus binds", () => {
+    const b = parseTmuxBindings(`bind h select-pane -L
+bind j select-pane -D
+bind k select-pane -U
+bind l select-pane -R`);
+    expect(b.h).toEqual({ kind: "focus", dir: "L" });
+    expect(b.j).toEqual({ kind: "focus", dir: "D" });
+    expect(b.k).toEqual({ kind: "focus", dir: "U" });
+    expect(b.l).toEqual({ kind: "focus", dir: "R" });
+  });
+
+  it("parses resize-pane with an explicit cell amount", () => {
+    expect(parseTmuxBindings(`bind H resize-pane -L 5`).H).toEqual({
+      kind: "resize",
+      dir: "L",
+      cells: 5,
+      repeat: false,
+    });
+  });
+
+  it("marks -r binds as repeatable", () => {
+    const b = parseTmuxBindings(`bind -r H resize-pane -L 5`);
+    expect(b.H).toEqual({ kind: "resize", dir: "L", cells: 5, repeat: true });
+  });
+
+  it("falls back to the default cell amount when omitted", () => {
+    expect(parseTmuxBindings(`bind -r J resize-pane -D`).J).toEqual({
+      kind: "resize",
+      dir: "D",
+      cells: DEFAULT_RESIZE_CELLS,
+      repeat: true,
+    });
+  });
+
+  it("accepts the bind-key alias and strips inline comments", () => {
+    const b = parseTmuxBindings(`bind-key l select-pane -R  # move right`);
+    expect(b.l).toEqual({ kind: "focus", dir: "R" });
+  });
+
+  it("ignores unknown commands, multi-char keys, and comments", () => {
+    const b = parseTmuxBindings(`# a comment
+bind C new-window
+bind Left select-pane -L
+bind r source-file ~/.tmux.conf
+bind x kill-pane`);
+    expect(b).toEqual({});
+  });
+
+  it("lets a later bind override an earlier one for the same key", () => {
+    const b = parseTmuxBindings(`bind h select-pane -L
+bind h select-pane -R`);
+    expect(b.h).toEqual({ kind: "focus", dir: "R" });
   });
 });

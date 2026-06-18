@@ -10,6 +10,9 @@ import {
   collapsePane,
   prunePanesByComputer,
   setSplitRatio,
+  nudgeSplitRatio,
+  nearestResizableSplit,
+  nodeBox,
   paneRects,
   focusDirectionTarget,
   nextLeafId,
@@ -120,6 +123,71 @@ describe("setSplitRatio", () => {
     expect(tiny.ratio).toBeLessThan(0.5);
     const huge = setSplitRatio(split.root, splitId, 5) as Extract<PaneNode, { kind: "split" }>;
     expect(huge.ratio).toBeLessThan(1);
+  });
+});
+
+describe("nudgeSplitRatio", () => {
+  it("adds a delta to the split's ratio, clamped", () => {
+    const w = makeWindow("home", "/a");
+    const split = splitNode(w.root, firstLeaf(w.root).id, "h", () => makeLeaf("home", "/b"))!;
+    const splitId = (split.root as Extract<PaneNode, { kind: "split" }>).id;
+    const bigger = nudgeSplitRatio(split.root, splitId, 0.2) as Extract<PaneNode, { kind: "split" }>;
+    expect(bigger.ratio).toBeCloseTo(0.7);
+    const clamped = nudgeSplitRatio(split.root, splitId, 1) as Extract<PaneNode, { kind: "split" }>;
+    expect(clamped.ratio).toBeCloseTo(0.9);
+  });
+
+  it("leaves the tree unchanged for an unknown / non-split id", () => {
+    const w = makeWindow("home", "/a");
+    expect(nudgeSplitRatio(w.root, "nope", 0.2)).toBe(w.root);
+    expect(nudgeSplitRatio(w.root, firstLeaf(w.root).id, 0.2)).toBe(w.root);
+  });
+});
+
+describe("nearestResizableSplit", () => {
+  it("returns the matching-orientation ancestor split", () => {
+    const w = makeWindow("home", "/a");
+    const left = firstLeaf(w.root).id;
+    const split = splitNode(w.root, left, "h", () => makeLeaf("home", "/b"))!;
+    const splitId = (split.root as Extract<PaneNode, { kind: "split" }>).id;
+    expect(nearestResizableSplit(split.root, left, "h")).toBe(splitId);
+  });
+
+  it("walks past the wrong-orientation parent to a matching grandparent", () => {
+    const w = makeWindow("home", "/a");
+    const first = firstLeaf(w.root).id;
+    // outer h-split; then split the new (right) pane vertically
+    const r1 = splitNode(w.root, first, "h", () => makeLeaf("home", "/b"))!;
+    const r2 = splitNode(r1.root, r1.newPaneId, "v", () => makeLeaf("home", "/c"))!;
+    const outerH = (r2.root as Extract<PaneNode, { kind: "split" }>).id;
+    // from a pane inside the v-split, an L/R resize must skip the v-split up to the h-split
+    expect(nearestResizableSplit(r2.root, r2.newPaneId, "h")).toBe(outerH);
+  });
+
+  it("returns undefined when no ancestor matches the orientation", () => {
+    const w = makeWindow("home", "/a");
+    const first = firstLeaf(w.root).id;
+    const split = splitNode(w.root, first, "h", () => makeLeaf("home", "/b"))!;
+    expect(nearestResizableSplit(split.root, first, "v")).toBeUndefined();
+  });
+});
+
+describe("nodeBox", () => {
+  it("returns the fractional box of a split node", () => {
+    const w = makeWindow("home", "/a");
+    const split = splitNode(w.root, firstLeaf(w.root).id, "h", () => makeLeaf("home", "/b"))!;
+    const splitId = (split.root as Extract<PaneNode, { kind: "split" }>).id;
+    expect(nodeBox(split.root, splitId)).toEqual({ id: splitId, x: 0, y: 0, w: 1, h: 1 });
+  });
+
+  it("returns the sub-box of a nested leaf and undefined for unknown ids", () => {
+    const w = makeWindow("home", "/a");
+    const first = firstLeaf(w.root).id;
+    const split = splitNode(w.root, first, "h", () => makeLeaf("home", "/b"))!;
+    const box = nodeBox(split.root, split.newPaneId)!;
+    expect(box.x).toBeCloseTo(0.5);
+    expect(box.w).toBeCloseTo(0.5);
+    expect(nodeBox(split.root, "nope")).toBeUndefined();
   });
 });
 

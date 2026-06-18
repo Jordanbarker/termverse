@@ -207,6 +207,41 @@ export function setSplitRatio(root: PaneNode, splitId: string, ratio: number): P
   return update(root);
 }
 
+/** Return a copy of the tree with `delta` added to split `splitId`'s ratio (clamped). */
+export function nudgeSplitRatio(root: PaneNode, splitId: string, delta: number): PaneNode {
+  const split = findNode(root, splitId);
+  if (!split || split.kind !== "split") return root;
+  return setSplitRatio(root, splitId, split.ratio + delta);
+}
+
+/** Find any node (leaf or split) by id, or undefined. */
+function findNode(node: PaneNode, id: string): PaneNode | undefined {
+  if (node.id === id) return node;
+  if (node.kind === "leaf") return undefined;
+  return findNode(node.a, id) ?? findNode(node.b, id);
+}
+
+/**
+ * Id of the nearest ancestor split of `paneId` whose direction matches
+ * `orientation` ("h" for L/R resizes, "v" for U/D). Returns undefined when the
+ * pane has no such ancestor (e.g. resizing left in a purely stacked layout).
+ */
+export function nearestResizableSplit(
+  root: PaneNode,
+  paneId: string,
+  orientation: SplitDirection,
+): string | undefined {
+  let found: string | undefined;
+  const walk = (node: PaneNode): boolean => {
+    if (node.kind === "leaf") return node.id === paneId;
+    const inSubtree = walk(node.a) || walk(node.b);
+    if (inSubtree && found === undefined && node.direction === orientation) found = node.id;
+    return inSubtree;
+  };
+  walk(root);
+  return found;
+}
+
 // --- geometry ------------------------------------------------------------
 
 /** Compute each leaf's rectangle within the given box (any units). */
@@ -224,6 +259,25 @@ export function paneRects(node: PaneNode, x = 0, y = 0, w = 1, h = 1): PaneRect[
     ...paneRects(node.a, x, y, w, ha),
     ...paneRects(node.b, x, y + ha, w, h - ha),
   ];
+}
+
+/** Fractional (0-1) bounding box of any node (leaf or split), or undefined. */
+export function nodeBox(
+  node: PaneNode,
+  id: string,
+  x = 0,
+  y = 0,
+  w = 1,
+  h = 1,
+): PaneRect | undefined {
+  if (node.id === id) return { id, x, y, w, h };
+  if (node.kind === "leaf") return undefined;
+  if (node.direction === "h") {
+    const wa = w * node.ratio;
+    return nodeBox(node.a, id, x, y, wa, h) ?? nodeBox(node.b, id, x + wa, y, w - wa, h);
+  }
+  const ha = h * node.ratio;
+  return nodeBox(node.a, id, x, y, w, ha) ?? nodeBox(node.b, id, x, y + ha, w, h - ha);
 }
 
 /**
