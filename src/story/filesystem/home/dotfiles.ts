@@ -48,18 +48,9 @@ alias apply='python3 ~/scripts/auto_apply.py'
 # Added 2026-02-10
 alias research='cat ~/scripts/data/glassdoor_reviews.json'
 `),
-    ".zsh_history": file(".zsh_history", `sudo apt install build-essential git curl wget
-ssh-keygen -t ed25519 -C "ren@home"
-git clone https://github.com/ren/dotfiles.git
-cp dotfiles/.zshrc ~/
-cp dotfiles/.nanorc ~/
-pip install selenium beautifulsoup4 requests
-python3 -c "import selenium; print(selenium.__version__)"
-systemctl --user enable --now backup.timer
-ls
+    ".zsh_history": file(".zsh_history", `ls
 cat Desktop/job_search_notes.txt
 cat scripts/.env
-pip install -e scripts/
 python3 scripts/auto_apply.py --status
 mail
 cat scripts/data/glassdoor_reviews.json
@@ -69,7 +60,6 @@ cat .private/journal.txt
 python3 scripts/auto_apply.py --dry-run
 mail
 ls Downloads/
-dpkg -i Downloads/zoom_amd64.deb
 ls -la
 cat Downloads/resume_final_v3.pdf
 cd scripts
