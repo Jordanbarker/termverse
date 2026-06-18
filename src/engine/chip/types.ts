@@ -1,6 +1,6 @@
 import { GameEvent } from "../mail/delivery";
 import { StoryFlags, ComputerId } from "../../state/types";
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 export interface ChipMenuItem {
   id: string;

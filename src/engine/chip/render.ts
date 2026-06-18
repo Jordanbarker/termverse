@@ -1,4 +1,4 @@
-import { colorize, ansi } from "../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { ChipMenuItem } from "./types";
 
 const VERSION = "v0.1.63";

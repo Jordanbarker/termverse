@@ -4,14 +4,14 @@ import { AsyncCommandHandler, CommandContext, CommandResult } from "../types";
 import { parsePipeline, parseInput, parseChainedPipeline } from "../parser";
 import { execute, executeAsync, isAsyncCommand } from "../registry";
 import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../redirection";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { GameEvent } from "../../mail/delivery";
 import { isCommandAvailable } from "../availability";
 import { getAvailableCommands } from "../registry";
 import { COMMAND_PATHS } from "./which";
-import { stripAnsi } from "../../../lib/ansi";
+import { stripAnsi } from "@tt/core/lib/ansi";
 
 const MAX_SUBSTITUTION_DEPTH = 5;
 

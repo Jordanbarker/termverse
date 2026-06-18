@@ -1,5 +1,5 @@
 import { ansi, colorize } from "./ansi";
-import { IncrementalLine } from "../engine/commands/types";
+import { IncrementalLine } from "../incrementalLine";
 
 const HOME_LAST_LOGINS: Record<number, string> = {
   1: "Last login: Sun Feb 22 14:32:07 EST 2026 on tty1",

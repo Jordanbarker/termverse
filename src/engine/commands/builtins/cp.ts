@@ -1,9 +1,9 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isFile, isDirectory, DirectoryNode } from "../../filesystem/types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isFile, isDirectory, DirectoryNode } from "@tt/core/filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";
 
 function copyDir(

@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { formatSize } from "../../../lib/formatSize";
-import { FSNode, isFile, isDirectory } from "../../filesystem/types";
+import { formatSize } from "@tt/core/lib/formatSize";
+import { FSNode, isFile, isDirectory } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 function sumFileBytes(node: FSNode): number {

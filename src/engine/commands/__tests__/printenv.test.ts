@@ -5,11 +5,11 @@ import { getDefaultEnv, parseEnvAssignments, initEnvForComputer } from "../../..
 import "../builtins";
 import { execute } from "../registry";
 import { CommandContext } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 function createMinimalFS(zshrcContent?: string): VirtualFS {
-  const children: Record<string, import("../../filesystem/types").FSNode> = {};
+  const children: Record<string, import("@tt/core/filesystem/types").FSNode> = {};
   if (zshrcContent !== undefined) {
     children[".zshrc"] = {
       type: "file",

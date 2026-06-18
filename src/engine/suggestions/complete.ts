@@ -1,4 +1,4 @@
-import { resolvePath } from "../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { splitOnChainOperators } from "../commands/parser";
 import {
   SuggestionContext,

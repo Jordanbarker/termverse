@@ -1,6 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 const cd: CommandHandler = (args, _flags, ctx) => {

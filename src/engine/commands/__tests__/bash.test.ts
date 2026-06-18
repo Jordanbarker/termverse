@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { createGameClock } from "../../../story/clock";
 import { executeAsync, isAsyncCommand } from "../registry";
 import { CommandContext } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 // Import builtins to trigger registration
 import "../builtins";

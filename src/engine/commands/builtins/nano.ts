@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolvePath, parentPath } from "../../../lib/pathUtils";
-import { isFile, isDirectory } from "../../filesystem/types";
+import { resolvePath, parentPath } from "@tt/core/lib/pathUtils";
+import { isFile, isDirectory } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 const nano: CommandHandler = (args, _flags, ctx) => {

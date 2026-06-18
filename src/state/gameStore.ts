@@ -1,15 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createDebouncedStorage } from "./debouncedStorage";
-import { VirtualFS } from "../engine/filesystem/VirtualFS";
-import { Mounts } from "../engine/filesystem/mounts";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import { createNexacorpFilesystem } from "../story/filesystem/nexacorp";
 import { createHomeFilesystem } from "../story/filesystem/home";
 import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
 import { createChipinfraFilesystem } from "../story/filesystem/chipinfra";
 import { createErikpcFilesystem } from "../story/filesystem/erikpc";
 import { getComputerUsername } from "../story/player";
-import { serializeFS, deserializeFS, SerializedFS } from "../engine/filesystem/serialization";
+import { serializeFS, deserializeFS, SerializedFS } from "@tt/core/filesystem/serialization";
 import { createSaveData, saveToSlot, loadFromSlot } from "./saveManager";
 import { SaveSlotId } from "./saveTypes";
 import { GamePhase, ComputerId, StoryFlags, PLAYER } from "./types";

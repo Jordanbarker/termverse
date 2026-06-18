@@ -1,6 +1,6 @@
 import { GitCommit, RemoteRepoDef } from "./types";
 import { shortHash } from "./repo";
-import { DirectoryNode } from "../filesystem/types";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { buildDbtProject } from "../../story/filesystem/nexacorp";
 
 /**

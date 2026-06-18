@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore, buildFs, getActiveLeaf } from "../state/gameStore";
-import { VirtualFS } from "../engine/filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
 import { createChipinfraFilesystem } from "../story/filesystem/chipinfra";
 import { createHomeFilesystem } from "../story/filesystem/home";
@@ -12,15 +12,15 @@ import { seedImmediatePiper, deliverPiperAndCascade } from "../engine/piper/deli
 import { gitClone } from "../engine/git/repo";
 import { syncToVirtualFS } from "../engine/snowflake/bridge/fs_bridge";
 import { createInitialSnowflakeState } from "../engine/snowflake/seed/initial_data";
-import { colorize, ansi } from "../lib/ansi";
-import { nexacorpLogo, getSshConnectionSequence, getBootSequence, getHomeBootSequence, getCoderConnectionSequence, getCoderBanner, getHomeWelcome, UNLOCK_BOX, getUpdateNotification, getEndgameCreditsBlock } from "../lib/ascii";
+import { colorize, ansi } from "@tt/core/lib/ansi";
+import { nexacorpLogo, getSshConnectionSequence, getBootSequence, getHomeBootSequence, getCoderConnectionSequence, getCoderBanner, getHomeWelcome, UNLOCK_BOX, getUpdateNotification, getEndgameCreditsBlock } from "@tt/core/lib/ascii";
 import {
   BOOT_LINE_INTERVAL_MS,
   SECURITY_ALERT_LINE_INTERVAL_MS,
   SECURITY_DISCONNECT_PAUSE_MS,
   TERMINATION_PRE_BLACKOUT_MS,
   TERMINATION_BLACKOUT_MS,
-} from "../lib/timing";
+} from "@tt/core/lib/timing";
 import { ComputerId, COMPUTERS } from "../state/types";
 import { SecurityViolation, getTerminationAlertLines } from "../story/security";
 

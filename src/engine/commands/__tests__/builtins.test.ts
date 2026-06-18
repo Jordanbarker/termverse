@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { execute, executeAsync } from "../registry";
 import { CommandContext } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "../builtins/helpTexts";
-import { stripAnsi } from "../../../lib/ansi";
+import { stripAnsi } from "@tt/core/lib/ansi";
 import { createInitialSnowflakeState } from "../../snowflake/seed/initial_data";
 import { createDefaultContext } from "../../snowflake/session/context";
 

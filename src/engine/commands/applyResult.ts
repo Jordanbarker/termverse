@@ -1,12 +1,12 @@
 import { CommandResult, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo } from "./types";
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { Mounts } from "../filesystem/mounts";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import { GameEvent } from "../mail/delivery";
-import { resolvePath } from "../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
-import { LessSessionInfo } from "../pager/types";
+import { LessSessionInfo } from "@tt/core/pager/types";
 import { StoryFlags } from "../../state/types";
 import { MachineId } from "@tt/core/machine";
 import { SecurityViolation } from "./security";

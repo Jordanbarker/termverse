@@ -1,10 +1,10 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { splitLines } from "../../../lib/textUtils";
-import { isDirectory, isFile, FSNode } from "../../filesystem/types";
-import { colorize, ansi } from "../../../lib/ansi";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { splitLines } from "@tt/core/lib/textUtils";
+import { isDirectory, isFile, FSNode } from "@tt/core/filesystem/types";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
 
 function walkFiles(

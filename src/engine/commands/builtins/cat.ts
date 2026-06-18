@@ -1,11 +1,11 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { colorizeCsv } from "../../../lib/ansi";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { colorizeCsv } from "@tt/core/lib/ansi";
 import { highlightSql } from "../../../lib/sqlHighlight";
-import { highlightPython } from "../../../lib/pythonHighlight";
-import { isBinaryFile } from "../../filesystem/VirtualFS";
+import { highlightPython } from "@tt/core/lib/pythonHighlight";
+import { isBinaryFile } from "@tt/core/filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";
 
 function numberLines(text: string, startCounter: { value: number }): string {

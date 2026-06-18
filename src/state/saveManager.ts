@@ -1,6 +1,6 @@
-import { serializeFS, SerializedFS } from "../engine/filesystem/serialization";
-import { VirtualFS } from "../engine/filesystem/VirtualFS";
-import { Mounts } from "../engine/filesystem/mounts";
+import { serializeFS, SerializedFS } from "@tt/core/filesystem/serialization";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import {
   SaveData,
   SaveSlotId,

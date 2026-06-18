@@ -1,10 +1,10 @@
 import { Terminal } from "@xterm/xterm";
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { ISession, SessionResult } from "../session/types";
 import { isBackspace, CTRL_C } from "@tt/core/terminal/keyCodes";
-import { colorize, ansi } from "../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import type { MachineId } from "@tt/core/machine";
-import type { GameEvent } from "../mail/delivery";
+import type { GameEvent } from "@tt/core";
 
 const FAKE_FINGERPRINT = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8";
 

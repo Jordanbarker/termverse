@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { skipFlagValidation } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isDirectory, isFile, FSNode } from "../../filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isDirectory, isFile, FSNode } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 function globToRegex(glob: string): RegExp {

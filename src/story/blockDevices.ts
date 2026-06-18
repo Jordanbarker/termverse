@@ -1,4 +1,4 @@
-import { file } from "../engine/filesystem/builders";
+import { file } from "@tt/core/filesystem/builders";
 import type { ComputerId } from "../state/types";
 import { BlockDevice, DeviceProvider } from "../engine/commands/devices";
 

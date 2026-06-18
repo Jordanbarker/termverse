@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { accessLogTopSummary } from "../accessLogSummary";
 import { getMenuItems } from "../menuItems";
 import { createNexacorpFilesystem } from "../../filesystem/nexacorp";
-import { VirtualFS } from "../../../engine/filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { execute } from "../../../engine/commands/registry";
 import { CommandContext } from "../../../engine/commands/types";
 import "../../../engine/commands/builtins";

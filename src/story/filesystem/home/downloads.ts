@@ -1,6 +1,6 @@
-import { DirectoryNode } from "../../../engine/filesystem/types";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { PLAYER } from "../../../state/types";
-import { file, binaryFile, dir } from "../../../engine/filesystem/builders";
+import { file, binaryFile, dir } from "@tt/core/filesystem/builders";
 
 export function buildDownloadsDir(): DirectoryNode {
   return dir("Downloads", {

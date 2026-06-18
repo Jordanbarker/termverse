@@ -1,9 +1,9 @@
 import { CommandHandler, CommandResult } from "../types";
 import { register } from "../registry";
 import { skipFlagValidation } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isDirectory, FSNode } from "../../filesystem/types";
-import { colorize, ansi } from "../../../lib/ansi";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isDirectory, FSNode } from "@tt/core/filesystem/types";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
 
 function buildTree(

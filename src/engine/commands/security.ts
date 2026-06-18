@@ -10,7 +10,7 @@
  *
  * The turmoil app supplies its NexaCorp policy from src/story/security.ts.
  */
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import type { MachineId } from "@tt/core/machine";
 
 export type SecurityViolationKind = "log_tampering" | "leadership_destruction" | "exfiltration";

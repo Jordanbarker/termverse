@@ -1,21 +1,14 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { getEmailDefinitions } from "./emails";
 import { deliverEmail, deliverEmailAsRead, getMailEntries } from "./mailUtils";
 import { ComputerId, PLAYER, StoryFlags } from "../../state/types";
 import { matchesCommonTrigger } from "../narrative/triggerMatcher";
 
-export type GameEvent =
-  | { type: "command_executed"; detail: string }
-  | { type: "file_read"; detail: string }
-  | { type: "objective_completed"; detail: string }
-  | { type: "directory_visit"; detail: string }
-  | { type: "directory_created"; detail: string }
-  | { type: "directory_removed"; detail: string }
-  | { type: "file_created"; detail: string }
-  | { type: "file_modified"; detail: string }
-  | { type: "file_removed"; detail: string }
-  | { type: "piper_delivered"; detail: string }
-  | { type: "terminated"; detail: "log_tampering" | "leadership_destruction" | "exfiltration" };
+// GameEvent now lives in @tt/core (story-agnostic engine vocabulary). Re-exported
+// here so the existing `import { GameEvent } from ".../mail/delivery"` call sites
+// stay valid; rewire them to @tt/core opportunistically.
+export type { GameEvent } from "@tt/core";
+import type { GameEvent } from "@tt/core";
 
 export function checkEmailDeliveries(
   fs: VirtualFS,

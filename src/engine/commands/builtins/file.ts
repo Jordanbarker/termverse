@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isDirectory, isFile } from "../../filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isDirectory, isFile } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 function guessFileType(name: string, content: string): string {

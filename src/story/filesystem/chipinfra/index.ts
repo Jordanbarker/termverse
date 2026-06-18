@@ -1,5 +1,5 @@
-import { DirectoryNode } from "../../../engine/filesystem/types";
-import { dir } from "../../../engine/filesystem/builders";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { dir } from "@tt/core/filesystem/builders";
 import { StoryFlags } from "../../../state/types";
 import { LogOptions } from "../logs";
 import { buildHomeDirectory } from "./home";

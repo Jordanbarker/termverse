@@ -1,9 +1,9 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { HELP_TEXTS } from "./helpTexts";
-import { Mount, normalizeMountKey } from "../../filesystem/mounts";
-import { dir } from "../../filesystem/builders";
-import { basename } from "../../../lib/pathUtils";
+import { Mount, normalizeMountKey } from "@tt/core/filesystem/mounts";
+import { dir } from "@tt/core/filesystem/builders";
+import { basename } from "@tt/core/lib/pathUtils";
 
 function findMount(arg: string, ctx: { mounts?: Record<string, Mount>; cwd: string; homeDir: string }): { key: string; mount: Mount } | null {
   const mounts = ctx.mounts ?? {};

@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register, getPrimaryName, getAliasesFor } from "../registry";
 import { isCommandAvailable } from "../availability";
-import { colorize, ansi } from "../../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
 
 const man: CommandHandler = (args, _flags, ctx) => {

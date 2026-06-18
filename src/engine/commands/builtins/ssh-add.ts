@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 interface AgentKey {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { CommandContext } from "../types";
 // Registers the turmoil gating policy (side effect) so unavailable commands
 // produce the colleague hint / not-found behavior these tests assert.

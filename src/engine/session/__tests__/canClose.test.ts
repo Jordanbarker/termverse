@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { Terminal } from "@xterm/xterm";
-import { EditorSession } from "../../editor/EditorSession";
+import { EditorSession } from "@tt/core/editor/EditorSession";
 import { SnowSqlSession } from "../../snowflake/session/SnowSqlSession";
 import { PiperSession } from "../../piper/PiperSession";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { createInitialSnowflakeState } from "../../snowflake/seed/initial_data";
 import { createDefaultContext } from "../../snowflake/session/context";
-import { ISession } from "../types";
+import { ISession } from "@tt/core/session/types";
 
 function createMinimalFS(): VirtualFS {
   const root: DirectoryNode = {

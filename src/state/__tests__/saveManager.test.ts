@@ -10,9 +10,9 @@ import {
 import { SAVE_FORMAT_VERSION } from "../saveTypes";
 import { makeWindow, SavedPaneNode } from "../paneTypes";
 import { ComputerId } from "../types";
-import { VirtualFS } from "../../engine/filesystem/VirtualFS";
-import { DirectoryNode } from "../../engine/filesystem/types";
-import { deserializeFS } from "../../engine/filesystem/serialization";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { deserializeFS } from "@tt/core/filesystem/serialization";
 
 /** A single-pane window for a given computer/cwd. */
 const win = (computerId: ComputerId, cwd: string) => makeWindow(computerId, cwd);

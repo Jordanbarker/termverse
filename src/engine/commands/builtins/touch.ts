@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 const touch: CommandHandler = (args, _flags, ctx) => {
   if (args.length === 0) {

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execute } from "../registry";
 import { CommandContext } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story/blockDevices";
-import { Mounts } from "../../filesystem/mounts";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import type { ComputerId } from "../../../state/types";
 
 import "../builtins/lsblk";

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { processDeliveries } from "../processDeliveries";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { GameEvent } from "../../mail/delivery";
 
 function createMinimalFS(username = "player"): VirtualFS {

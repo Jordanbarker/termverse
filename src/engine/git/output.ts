@@ -1,6 +1,6 @@
-import { colorize, ansi } from "../../lib/ansi";
-import { computeDiff, formatDiffLines } from "../../lib/diff";
-import { pad2 } from "../../lib/format";
+import { colorize, ansi } from "@tt/core/lib/ansi";
+import { computeDiff, formatDiffLines } from "@tt/core/lib/diff";
+import { pad2 } from "@tt/core/lib/format";
 import { GitCommit } from "./types";
 import { StatusResult, DiffFile } from "./repo";
 

@@ -1,4 +1,4 @@
-import { colorize, ansi } from "../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { highlightSql } from "../../lib/sqlHighlight";
 import { ModelRunResult, DbtTestResult, DbtRunSummary, DbtDebugInfo } from "./types";
 

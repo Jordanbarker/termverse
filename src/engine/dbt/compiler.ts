@@ -1,5 +1,5 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { isFile, isDirectory } from "../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { isFile, isDirectory } from "@tt/core/filesystem/types";
 
 export type SourceMap = Map<string, string>; // source('schema', 'table') → fully qualified
 export type MacroDef = { args: string[]; body: string };

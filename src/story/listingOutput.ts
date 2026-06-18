@@ -3,7 +3,7 @@
  * list. These read turmoil save slots + checkpoint definitions, so they live in
  * the story layer and are injected into computeEffects via ApplyContext.
  */
-import { colorize, ansi } from "../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { listSaveSlots, formatSlotName } from "../state/saveManager";
 import { CHECKPOINTS } from "./checkpoints";
 

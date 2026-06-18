@@ -1,5 +1,5 @@
 import { ChipExchange } from "./types";
-import { pad2 } from "../../lib/format";
+import { pad2 } from "@tt/core/lib/format";
 import { usernameFromHomeDir } from "../mail/mailUtils";
 
 export function transcriptFilename(d: Date): string {

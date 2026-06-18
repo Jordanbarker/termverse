@@ -3,10 +3,10 @@ import { SnowflakeState } from "../state";
 import { SessionContext } from "./context";
 import { execute } from "../executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "../formatter/table_formatter";
-import { colorize, ansi } from "../../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { isBackspace, isPrintable, CTRL_A, CTRL_C, CTRL_D, CTRL_E, CTRL_K, CTRL_U, CTRL_BACKSPACE } from "@tt/core/terminal/keyCodes";
 import { findPrevWordBoundary, findNextWordBoundary } from "@tt/core/terminal/wordBoundary";
-import { ISession, SessionResult } from "../../session/types";
+import { ISession, SessionResult } from "@tt/core/session/types";
 import { GameEvent } from "../../mail/delivery";
 
 /**
@@ -132,7 +132,7 @@ export class SnowSqlSession implements ISession {
 
       if (code === CTRL_D && this.inputBuffer.length === 0) {
         this.terminal.write("\r\n");
-        return { type: "exit", newState: this.state, triggerEvents: this.pendingEvents.length ? this.pendingEvents : undefined };
+        return { type: "exit", triggerEvents: this.pendingEvents.length ? this.pendingEvents : undefined };
       }
 
       if (char === "\r" || char === "\n") {
@@ -141,7 +141,7 @@ export class SnowSqlSession implements ISession {
         const meta = trimmed.replace(/;+$/, "").toLowerCase();
 
         if (meta === "quit" || meta === "exit") {
-          return { type: "exit", newState: this.state, triggerEvents: this.pendingEvents.length ? this.pendingEvents : undefined };
+          return { type: "exit", triggerEvents: this.pendingEvents.length ? this.pendingEvents : undefined };
         }
 
         if (meta === "settings") {

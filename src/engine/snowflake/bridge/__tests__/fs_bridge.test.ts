@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { syncToVirtualFS } from "../fs_bridge";
 import { SnowflakeState } from "../../state";
-import { VirtualFS } from "../../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 function makeEmptyFS(): VirtualFS {
   const root: DirectoryNode = {

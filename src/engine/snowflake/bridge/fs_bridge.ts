@@ -1,5 +1,5 @@
 import { SnowflakeState } from "../state";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 /**
  * Sync SnowflakeState metadata to VirtualFS under /opt/snowflake/.

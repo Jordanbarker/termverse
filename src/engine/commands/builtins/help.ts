@@ -1,6 +1,6 @@
 import { CommandHandler } from "../types";
 import { register, getAvailableCommands } from "../registry";
-import { colorize, ansi } from "../../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 
 const META_COMMANDS = new Set(["save", "load", "newgame", "cheat"]);
 const HIDDEN_COMMANDS = new Set(["help", "true", "false"]);

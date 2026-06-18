@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { getCompletions } from "../complete";
 import { SuggestionContext } from "../suggest";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 function createTestFS(): VirtualFS {
   const root: DirectoryNode = {

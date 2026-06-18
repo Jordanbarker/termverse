@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { checkEmailDeliveries, GameEvent } from "../delivery";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createNexacorpFilesystem } from "../../../story/filesystem/nexacorp";
 import { createHomeFilesystem } from "../../../story/filesystem/home";
 import { StoryFlags } from "../../../state/types";

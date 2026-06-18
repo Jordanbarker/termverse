@@ -1,5 +1,5 @@
-import { DirectoryNode } from "../../engine/filesystem/types";
-import { file, dir } from "../../engine/filesystem/builders";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { file, dir } from "@tt/core/filesystem/builders";
 
 /**
  * Erik's NexaCorp-issued Linux work laptop (`nexacorp-lt05`). Lives on the corp

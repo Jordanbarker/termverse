@@ -7,7 +7,7 @@
  * Absent => the machine has no enumerable devices (df falls back to a generic
  * root device path).
  */
-import { FSNode } from "../filesystem/types";
+import { FSNode } from "@tt/core/filesystem/types";
 
 export interface BlockDevice {
   name: string;

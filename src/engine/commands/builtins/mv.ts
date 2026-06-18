@@ -2,8 +2,8 @@ import { CommandHandler } from "../types";
 import { GameEvent } from "../../mail/delivery";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { basename, resolvePath } from "../../../lib/pathUtils";
-import { DirectoryNode, FSNode, isFile, isDirectory } from "../../filesystem/types";
+import { basename, resolvePath } from "@tt/core/lib/pathUtils";
+import { DirectoryNode, FSNode, isFile, isDirectory } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 function buildMoveEvents(srcNode: FSNode, srcPath: string, destPath: string): GameEvent[] {

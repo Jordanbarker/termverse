@@ -1,6 +1,6 @@
 import { Terminal } from "@xterm/xterm";
 import { ISession, SessionResult } from "../session/types";
-import { stripAnsi } from "../../lib/ansi";
+import { stripAnsi } from "@tt/core/lib/ansi";
 import { parsePagerInput, PagerAction } from "./keymap";
 import { render } from "./render";
 import { LessSessionInfo } from "./types";

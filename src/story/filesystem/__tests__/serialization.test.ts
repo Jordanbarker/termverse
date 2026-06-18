@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { serializeFS, deserializeFS, SerializedFS } from "../serialization";
-import { VirtualFS } from "../VirtualFS";
-import { createNexacorpFilesystem } from "../../../story/filesystem/nexacorp";
-import { DirectoryNode } from "../types";
+import { serializeFS, deserializeFS, SerializedFS } from "@tt/core/filesystem/serialization";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { createNexacorpFilesystem } from "../nexacorp";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 function makeSimpleFS(): VirtualFS {
   const root: DirectoryNode = {

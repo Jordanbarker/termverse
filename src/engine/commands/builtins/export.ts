@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { GameEvent } from "../../mail/delivery";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 const ERIK_AGENT_SOCKET = "/tmp/ssh-mZ4xPq/agent.18472";

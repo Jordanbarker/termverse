@@ -9,7 +9,7 @@ import {
   DEVCONTAINER_ONLY,
   HOME_ONLY,
 } from "./commandGates";
-import { colorize, ansi } from "../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 
 /** Per-command hint shown when a NexaCorp command is gated. */
 const NEXACORP_GATE_HINTS: Record<string, string> = {

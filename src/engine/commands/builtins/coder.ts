@@ -1,6 +1,6 @@
 import { CommandHandler, IncrementalLine } from "../types";
 import { register } from "../registry";
-import { colorize, ansi } from "../../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import type { ComputerId } from "../../../state/types";
 
 interface WorkspaceSpec {

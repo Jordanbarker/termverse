@@ -1,10 +1,10 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { skipFlagValidation } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { splitLines } from "../../../lib/textUtils";
-import { isBinaryFile } from "../../filesystem/VirtualFS";
-import { colorizeCsv } from "../../../lib/ansi";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { splitLines } from "@tt/core/lib/textUtils";
+import { isBinaryFile } from "@tt/core/filesystem/VirtualFS";
+import { colorizeCsv } from "@tt/core/lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
 
 const tail: CommandHandler = (args, _flags, ctx) => {

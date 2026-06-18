@@ -1,10 +1,10 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isDirectory, isFile, FSNode } from "../../filesystem/types";
-import { colorize, ansi } from "../../../lib/ansi";
-import { formatSize } from "../../../lib/formatSize";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isDirectory, isFile, FSNode } from "@tt/core/filesystem/types";
+import { colorize, ansi } from "@tt/core/lib/ansi";
+import { formatSize } from "@tt/core/lib/formatSize";
 import { HELP_TEXTS } from "./helpTexts";
 
 function getSize(entry: FSNode): number {

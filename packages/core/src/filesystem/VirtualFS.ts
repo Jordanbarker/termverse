@@ -1,5 +1,5 @@
 import { FSNode, DirectoryNode, FileNode, isDirectory, isFile } from "./types";
-import { normalizePath, resolvePath, parentPath, basename } from "../../lib/pathUtils";
+import { normalizePath, resolvePath, parentPath, basename } from "@tt/core/lib/pathUtils";
 
 /**
  * Returns true if the given FSNode is a binary file.

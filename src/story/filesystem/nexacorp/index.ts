@@ -1,9 +1,9 @@
-import { DirectoryNode, FileNode } from "../../../engine/filesystem/types";
+import { DirectoryNode, FileNode } from "@tt/core/filesystem/types";
 import { getNexacorpEmailDefinitions } from "../../emails/nexacorp";
 import { formatEmailContent, slugify } from "../../../engine/mail/mailUtils";
 import { StoryFlags } from "../../../state/types";
 import { generateSystemLog, generateSystemLogBak, generateAccessLog, generateAuthLog, generateAuthLogBak, generateChipActivityLog, LogOptions } from "../logs";
-import { file, dir } from "../../../engine/filesystem/builders";
+import { file, dir } from "@tt/core/filesystem/builders";
 import { buildHomeDirectory } from "./home";
 import { buildOptDirectory } from "./chip";
 import { buildSrvDirectory } from "./srv";

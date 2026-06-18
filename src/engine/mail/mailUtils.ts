@@ -1,5 +1,5 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { isDirectory, isFile } from "../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { isDirectory, isFile } from "@tt/core/filesystem/types";
 import { Email } from "./types";
 import { PLAYER } from "../../state/types";
 

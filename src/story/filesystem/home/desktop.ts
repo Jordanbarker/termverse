@@ -1,6 +1,6 @@
-import { DirectoryNode, FileNode } from "../../../engine/filesystem/types";
+import { DirectoryNode, FileNode } from "@tt/core/filesystem/types";
 import { PLAYER } from "../../../state/types";
-import { file, dir } from "../../../engine/filesystem/builders";
+import { file, dir } from "@tt/core/filesystem/builders";
 
 export function buildDesktopFiles(): Record<string, DirectoryNode | FileNode> {
   return {

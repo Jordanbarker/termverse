@@ -1,11 +1,11 @@
 import { Terminal } from "@xterm/xterm";
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { EditorState, EditorConfig, PromptState } from "./types";
 import { parseEditorInput, EditorAction } from "./keymap";
 import { renderEditor } from "./render";
 import { ISession, SessionResult } from "../session/types";
 import { findPrevWordBoundary, findNextWordBoundary } from "@tt/core/terminal/wordBoundary";
-import { GameEvent } from "../mail/delivery";
+import { GameEvent } from "@tt/core";
 
 export interface EditorTrigger {
   triggerRow: number;

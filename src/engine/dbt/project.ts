@@ -1,5 +1,5 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { isFile, isDirectory } from "../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { isFile, isDirectory } from "@tt/core/filesystem/types";
 import { DbtProjectConfig, DbtResource } from "./types";
 import { MaterializationMap } from "./compiler";
 

@@ -2,7 +2,7 @@ import { EmailDelivery, ReplyOption } from "../../engine/mail/types";
 import { PLAYER } from "../player";
 import { StoryFlags } from "../../state/types";
 import { getMarcusDebrief } from "../marcusDebrief";
-import { parentPath } from "../../lib/pathUtils";
+import { parentPath } from "@tt/core/lib/pathUtils";
 
 interface TerminationContext {
   command: string;

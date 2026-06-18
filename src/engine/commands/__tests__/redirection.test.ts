@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { extractStdoutRedirect, precheckRedirects, applyRedirection } from "../redirection";
 import { CommandResult } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode, isDirectory, isFile } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode, isDirectory, isFile } from "@tt/core/filesystem/types";
 
 function file(name: string, content = "x", permissions = "rw-r--r--") {
   return { type: "file" as const, name, content, permissions, hidden: false };

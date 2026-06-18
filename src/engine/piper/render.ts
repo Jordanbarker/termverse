@@ -1,4 +1,4 @@
-import { colorize, ansi } from "../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { PiperMessage, PiperReplyOption } from "./types";
 
 export function renderPiperHeader(title: string, width: number, description?: string): string {

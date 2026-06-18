@@ -2,10 +2,10 @@ import { CommandHandler } from "../types";
 import { GameEvent } from "../../mail/delivery";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { FSNode, isDirectory } from "../../filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { FSNode, isDirectory } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { SecurityViolation } from "../security";
 
 function collectRemoveEvents(node: FSNode, path: string): GameEvent[] {

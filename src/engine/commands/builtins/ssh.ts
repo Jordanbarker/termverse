@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolveSshTarget } from "../../ssh/sshConfig";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolveSshTarget } from "@tt/core/ssh/sshConfig";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { ComputerId } from "../../../state/types";
 
 interface SshRoute {

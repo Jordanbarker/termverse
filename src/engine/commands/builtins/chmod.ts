@@ -1,9 +1,9 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isDirectory, FSNode } from "../../filesystem/types";
-import { collectDescendantPaths } from "../../filesystem/walk";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isDirectory, FSNode } from "@tt/core/filesystem/types";
+import { collectDescendantPaths } from "@tt/core/filesystem/walk";
 import { HELP_TEXTS } from "./helpTexts";
 import { chmodIsRestrictive, SecurityViolation } from "../security";
 

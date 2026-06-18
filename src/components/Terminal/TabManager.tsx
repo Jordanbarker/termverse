@@ -9,13 +9,13 @@ import PaneDividers from "./PaneDividers";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../../state/gameStore";
 import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "../../state/paneTypes";
 import { useTerminal } from "../../hooks/useTerminal";
-import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "../../lib/ascii";
+import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "@tt/core/lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
 import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "@tt/core/terminal/tmuxConfig";
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
 import { CopyModeController } from "@tt/core/terminal/copyMode";
-import { sessionUsesAltScreen } from "../../engine/session/types";
-import { copyToClipboard } from "../../lib/clipboard";
+import { sessionUsesAltScreen } from "@tt/core/session/types";
+import { copyToClipboard } from "@tt/core/lib/clipboard";
 import { ComputerId } from "../../state/types";
 
 const XTERM_THEME = {

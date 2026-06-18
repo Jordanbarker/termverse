@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { EditorSession } from "../EditorSession";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 // Minimal mock Terminal — only needs write(), rows, cols
 function mockTerminal(rows = 24, cols = 80) {
@@ -13,7 +13,7 @@ function mockTerminal(rows = 24, cols = 80) {
 }
 
 function makeFS(files: Record<string, string>): VirtualFS {
-  const children: Record<string, DirectoryNode | import("../../filesystem/types").FileNode> = {};
+  const children: Record<string, DirectoryNode | import("@tt/core/filesystem/types").FileNode> = {};
   for (const [name, content] of Object.entries(files)) {
     children[name] = {
       type: "file" as const,

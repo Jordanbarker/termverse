@@ -1,4 +1,4 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { checkEmailDeliveries, GameEvent } from "../mail/delivery";
 import { checkPiperDeliveries } from "../piper/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";

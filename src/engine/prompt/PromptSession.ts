@@ -1,10 +1,10 @@
 import { Terminal } from "@xterm/xterm";
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { PromptSessionInfo } from "./types";
 import { getSentDir } from "../mail/mailUtils";
-import { colorize, ansi } from "../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { isBackspace, CTRL_C } from "@tt/core/terminal/keyCodes";
-import { ISession, SessionResult } from "../session/types";
+import { ISession, SessionResult } from "@tt/core/session/types";
 
 export class PromptSession implements ISession {
   private terminal: Terminal;

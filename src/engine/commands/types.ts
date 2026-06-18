@@ -1,9 +1,9 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { Mounts } from "../filesystem/mounts";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
-import { LessSessionInfo } from "../pager/types";
+import { LessSessionInfo } from "@tt/core/pager/types";
 import type { StoryFlags } from "../../state/types";
 import type { MachineId } from "@tt/core/machine";
 import { GameEvent } from "../mail/delivery";
@@ -124,10 +124,10 @@ export interface CommandResult {
   securityViolation?: SecurityViolation;
 }
 
-export interface IncrementalLine {
-  text: string;
-  delayMs: number;
-}
+// IncrementalLine now lives in @tt/core. Re-exported so existing call sites that
+// import it from this module stay valid; rewire to @tt/core opportunistically.
+export type { IncrementalLine } from "@tt/core";
+import type { IncrementalLine } from "@tt/core";
 
 export type ChainOperator = '&&' | '||' | ';';
 

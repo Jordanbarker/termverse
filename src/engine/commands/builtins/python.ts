@@ -1,9 +1,9 @@
 import { registerAsync, registerAlias } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { AsyncCommandHandler, CommandResult } from "../types";
-import { getPyodide } from "../../python/pyodideLoader";
-import { resolvePath } from "../../../lib/pathUtils";
-import { colorize, ansi } from "../../../lib/ansi";
+import { getPyodide } from "@tt/core/python/pyodideLoader";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { HELP_TEXTS } from "./helpTexts";
 
 const pythonHandler: AsyncCommandHandler = async (args, flags, ctx) => {

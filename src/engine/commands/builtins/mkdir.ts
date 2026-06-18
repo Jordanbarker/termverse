@@ -1,9 +1,9 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath, parentPath } from "../../../lib/pathUtils";
+import { resolvePath, parentPath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
-import { VirtualFS } from "../../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 const mkdir: CommandHandler = (args, flags, ctx) => {
   if (args.length === 0) {

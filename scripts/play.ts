@@ -23,7 +23,7 @@ import { execute, executeAsync, isAsyncCommand } from "../src/engine/commands/re
 import "../src/engine/commands/builtins"; // side-effect: registers all commands
 import { computeEffects, SessionToStart } from "../src/engine/commands/applyResult";
 import { CommandResult, ChainSegment, ParsedCommand } from "../src/engine/commands/types";
-import { VirtualFS } from "../src/engine/filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
 import { createNexacorpFilesystem } from "../src/story/filesystem/nexacorp";
 import { createDevcontainerFilesystem } from "../src/story/filesystem/devcontainer";
@@ -31,17 +31,17 @@ import { createChipinfraFilesystem } from "../src/story/filesystem/chipinfra";
 import { createErikpcFilesystem } from "../src/story/filesystem/erikpc";
 import { getComputerUsername } from "../src/story/player";
 import { initEnvForComputer, initAliasesForComputer } from "../src/story/env";
-import { Mounts } from "../src/engine/filesystem/mounts";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import { SnowflakeState } from "../src/engine/snowflake/state";
 import { createInitialSnowflakeState } from "../src/engine/snowflake/seed/initial_data";
 import { createDefaultContext, SessionContext } from "../src/engine/snowflake/session/context";
 import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
-import { resolvePath } from "../src/lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { extractStdoutRedirect, applyRedirection, precheckRedirects } from "../src/engine/commands/redirection";
 import { PromptSessionInfo } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
-import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
+import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
 import { parseZshHistory } from "../packages/core/src/terminal/zshHistory";
 import { execSync } from "child_process";
 

@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { execute } from "../registry";
 import { parseInput } from "../parser";
 import { CommandContext } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
-import { dir, file } from "../../filesystem/builders";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { dir, file } from "@tt/core/filesystem/builders";
 import "../builtins";
 
 function createTestFS(opts: { socketDir?: string; markerOwner?: string } = {}): VirtualFS {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { ChipSession } from "../ChipSession";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
-import { SessionResult } from "../../session/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { SessionResult } from "@tt/core/session/types";
 
 function createTestFS(): VirtualFS {
   const root: DirectoryNode = {

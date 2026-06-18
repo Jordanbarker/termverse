@@ -14,8 +14,8 @@ import {
   getSentDir,
 } from "../mailUtils";
 import { Email } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 function createMailFS(): VirtualFS {
   const root: DirectoryNode = {

@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { execute } from "../registry";
 import { CommandContext } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode, isDirectory } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode, isDirectory } from "@tt/core/filesystem/types";
 import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story/blockDevices";
-import { Mounts } from "../../filesystem/mounts";
-import { dir, file } from "../../filesystem/builders";
+import { Mounts } from "@tt/core/filesystem/mounts";
+import { dir, file } from "@tt/core/filesystem/builders";
 
 import "../builtins/mount";
 import "../builtins/umount";

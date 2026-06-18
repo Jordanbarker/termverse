@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { execute } from "../registry";
 import { CommandContext, CommandResult } from "../types";
-import { VirtualFS } from "../../filesystem/VirtualFS";
-import { DirectoryNode } from "../../filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 import { applyRedirection } from "../redirection";
 import { NEXACORP_SECURITY_POLICY } from "../../../story/security";
 import { getHomeEmailDefinitions } from "../../../story/emails/home";

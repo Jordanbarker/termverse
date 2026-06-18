@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { createNexacorpFilesystem } from "../../../story/filesystem/nexacorp";
-import { createDevcontainerFilesystem } from "../../../story/filesystem/devcontainer";
-import { VirtualFS } from "../VirtualFS";
+import { createNexacorpFilesystem } from "../nexacorp";
+import { createDevcontainerFilesystem } from "../devcontainer";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 const USERNAME = "testplayer";
 

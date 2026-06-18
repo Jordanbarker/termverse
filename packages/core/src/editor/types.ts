@@ -1,4 +1,4 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 export interface CursorPosition {
   row: number;

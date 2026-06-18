@@ -1,22 +1,22 @@
 import { useCallback, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore, getActivePaneId } from "../state/gameStore";
-import { VirtualFS } from "../engine/filesystem/VirtualFS";
-import { EditorSession } from "../engine/editor/EditorSession";
-import { PythonReplSession } from "../engine/python/PythonReplSession";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { EditorSession } from "@tt/core/editor/EditorSession";
+import { PythonReplSession } from "@tt/core/python/PythonReplSession";
 import { SnowSqlSession } from "../engine/snowflake/session/SnowSqlSession";
 import { createDefaultContext } from "../engine/snowflake/session/context";
 import { createGameClock } from "../story/clock";
 import { checkEmailDeliveries } from "../engine/mail/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../engine/narrative/storyFlags";
-import { colorize, ansi } from "../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { PromptSession } from "../engine/prompt/PromptSession";
-import { SshSession } from "../engine/ssh/SshSession";
+import { SshSession } from "@tt/core/ssh/SshSession";
 import { ChipSession } from "../engine/chip/ChipSession";
 import { PiperSession } from "../engine/piper/PiperSession";
-import { LessSession } from "../engine/pager/LessSession";
+import { LessSession } from "@tt/core/pager/LessSession";
 import { deliverPiperAndCascade } from "../engine/piper/delivery";
-import { ISession, sessionUsesAltScreen } from "../engine/session/types";
+import { ISession, sessionUsesAltScreen } from "@tt/core/session/types";
 import { SessionToStart } from "../engine/commands/applyResult";
 import { ComputerId } from "../state/types";
 import { isCommandAvailable } from "../engine/commands/availability";
@@ -285,9 +285,8 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       }
 
       if (type === "snow-sql") {
-        if (result.newState) {
-          useGameStore.getState().setSnowflakeState(result.newState);
-        }
+        // Snowflake state is pushed live via onStateChange on every executeSql,
+        // so the store already holds the final state at exit (no newState seam).
         useGameStore.getState().setActiveSnowSession(null);
       }
 

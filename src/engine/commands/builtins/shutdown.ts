@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { getShutdownIncrementalLines, getRemoteShutdownIncrementalLines } from "../../../lib/ascii";
+import { getShutdownIncrementalLines, getRemoteShutdownIncrementalLines } from "@tt/core/lib/ascii";
 import { COMPUTERS, CONNECTION_PARENT, ComputerId } from "../../../state/types";
 
 const shutdown: CommandHandler = (args, flags, ctx) => {

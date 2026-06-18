@@ -1,8 +1,8 @@
-import { DirectoryNode, FileNode } from "../../../engine/filesystem/types";
+import { DirectoryNode, FileNode } from "@tt/core/filesystem/types";
 import { getHomeEmailDefinitions } from "../../emails/home";
 import { formatEmailContent, slugify } from "../../../engine/mail/mailUtils";
 import { PLAYER } from "../../../state/types";
-import { file, dir } from "../../../engine/filesystem/builders";
+import { file, dir } from "@tt/core/filesystem/builders";
 
 export function buildHomeMailFiles(
   username: string

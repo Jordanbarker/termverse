@@ -3,10 +3,10 @@ import { Terminal } from "@xterm/xterm";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../state/gameStore";
 import { parseInput, parseChainedPipeline, expandAliases } from "../engine/commands/parser";
 import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "../engine/commands/registry";
-import { resolvePath } from "../lib/pathUtils";
-import { colorize, ansi, stripAnsi } from "../lib/ansi";
-import { expandZshPrompt } from "../lib/promptExpand";
-import { VirtualFS } from "../engine/filesystem/VirtualFS";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
+import { expandZshPrompt } from "@tt/core/lib/promptExpand";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createDefaultContext } from "../engine/snowflake/session/context";
 import { SaveSlotId } from "../state/saveTypes";
 import { formatSlotName } from "../state/saveManager";
@@ -29,7 +29,7 @@ import { CommandContext } from "../engine/commands/types";
 import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
 import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "@tt/core/terminal/keyCodes";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
-import { Mounts } from "../engine/filesystem/mounts";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../engine/commands/redirection";
 
 // ---------------------------------------------------------------------------

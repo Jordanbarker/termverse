@@ -1,6 +1,6 @@
 import { ResultSet, StatusMessage } from "./result_types";
 import { Value } from "../types";
-import { colorize, ansi } from "../../../lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 
 const MAX_COL_WIDTH = 40;
 

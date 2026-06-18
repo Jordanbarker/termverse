@@ -2,8 +2,8 @@ import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } fr
 import { isCommandAvailable, unavailableCommandMessage } from "./availability";
 import { StoryFlags } from "../../state/types";
 import { MachineId } from "@tt/core/machine";
-import { resolvePath } from "../../lib/pathUtils";
-import { colorize, ansi } from "../../lib/ansi";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { getKnownFlags, shouldValidateFlags, rejectUnknownFlags } from "./flagValidation";
 
 /** Check if a command string looks like a path (starts with ./ or /). */

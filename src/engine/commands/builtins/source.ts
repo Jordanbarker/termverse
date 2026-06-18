@@ -1,6 +1,6 @@
 import { CommandHandler } from "../types";
 import { register, registerAlias } from "../registry";
-import { resolvePath } from "../../../lib/pathUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";
 import { GameEvent } from "../../mail/delivery";
 import { HELP_TEXTS } from "./helpTexts";

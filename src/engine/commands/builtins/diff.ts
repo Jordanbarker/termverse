@@ -1,10 +1,10 @@
 import { CommandHandler, CommandContext, CommandResult } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { colorize, ansi } from "../../../lib/ansi";
-import { computeDiff, DiffEntry } from "../../../lib/diff";
-import { isDirectory, FSNode } from "../../filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { colorize, ansi } from "@tt/core/lib/ansi";
+import { computeDiff, DiffEntry } from "@tt/core/lib/diff";
+import { isDirectory, FSNode } from "@tt/core/filesystem/types";
 import { GameEvent } from "../../mail/delivery";
 import { HELP_TEXTS } from "./helpTexts";
 

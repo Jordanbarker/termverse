@@ -1,5 +1,5 @@
 import { Terminal } from "@xterm/xterm";
-import { ISession, SessionResult } from "../session/types";
+import { ISession, SessionResult } from "@tt/core/session/types";
 import { PiperSessionInfo, PiperReplyOption } from "./types";
 import {
   checkPiperDeliveries,
@@ -22,7 +22,7 @@ import {
 import { CTRL_C } from "@tt/core/terminal/keyCodes";
 import { GameEvent } from "../mail/delivery";
 import { checkStoryFlagTriggers, getTriggersForComputer } from "../narrative/storyFlags";
-import { PIPER_TYPING_DELAY_MS } from "../../lib/timing";
+import { PIPER_TYPING_DELAY_MS } from "@tt/core/lib/timing";
 
 type View = "channels" | "conversation";
 

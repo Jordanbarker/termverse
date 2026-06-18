@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { colorize, ansi } from "../../../lib/ansi";
-import { pad2 } from "../../../lib/format";
+import { colorize, ansi } from "@tt/core/lib/ansi";
+import { pad2 } from "@tt/core/lib/format";
 import { HELP_TEXTS } from "./helpTexts";
 import {
   getMailDir,

@@ -1,5 +1,5 @@
 import { Terminal } from "@xterm/xterm";
-import { ansi, stripAnsi } from "../../lib/ansi";
+import { ansi, stripAnsi } from "@tt/core/lib/ansi";
 
 export interface PagerRenderState {
   lines: string[];

@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { splitLines } from "../../../lib/textUtils";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { splitLines } from "@tt/core/lib/textUtils";
 import { HELP_TEXTS } from "./helpTexts";
 
 const sort: CommandHandler = (args, flags, ctx) => {

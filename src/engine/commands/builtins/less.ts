@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isBinaryFile } from "../../filesystem/VirtualFS";
-import { isDirectory } from "../../filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isBinaryFile } from "@tt/core/filesystem/VirtualFS";
+import { isDirectory } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 const less: CommandHandler = (args, _flags, ctx) => {

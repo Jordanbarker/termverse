@@ -1,6 +1,6 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { isDirectory, isFile } from "../filesystem/types";
-import { normalizePath } from "../../lib/pathUtils";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { isDirectory, isFile } from "@tt/core/filesystem/types";
+import { normalizePath } from "@tt/core/lib/pathUtils";
 import { GitCommit, GitIndex, GitRepo, GitStashEntry } from "./types";
 
 // ── Helpers ──────────────────────────────────────────────────────────

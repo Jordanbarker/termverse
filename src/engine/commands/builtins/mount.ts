@@ -1,10 +1,10 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { HELP_TEXTS } from "./helpTexts";
-import { Mount, normalizeMountKey } from "../../filesystem/mounts";
-import { dir } from "../../filesystem/builders";
-import { isDirectory } from "../../filesystem/types";
-import { basename } from "../../../lib/pathUtils";
+import { Mount, normalizeMountKey } from "@tt/core/filesystem/mounts";
+import { dir } from "@tt/core/filesystem/builders";
+import { isDirectory } from "@tt/core/filesystem/types";
+import { basename } from "@tt/core/lib/pathUtils";
 
 const mount: CommandHandler = (args, _flags, ctx) => {
   const mounts = ctx.mounts ?? {};

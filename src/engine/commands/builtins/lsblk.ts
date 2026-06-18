@@ -3,7 +3,7 @@ import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
 import { BlockDevice } from "../devices";
-import { Mount } from "../../filesystem/mounts";
+import { Mount } from "@tt/core/filesystem/mounts";
 
 interface Row {
   device: BlockDevice;

@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
-import { resolvePath } from "../../../lib/pathUtils";
-import { isFile } from "../../filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { isFile } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 const pdftotext: CommandHandler = (args, _flags, ctx) => {

@@ -1,6 +1,6 @@
 import { Terminal } from "@xterm/xterm";
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { ISession, SessionResult } from "../session/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { ISession, SessionResult } from "@tt/core/session/types";
 import { ChipSessionInfo, ChipMenuItem, ChipExchange } from "./types";
 import { getMenuItems } from "../../story/chip/menuItems";
 import { renderTranscript, transcriptFilename } from "./transcript";
@@ -20,7 +20,7 @@ import {
   CHIP_CHAT_LINE_INTERVAL_MS,
   CHIP_COMMAND_LINE_INTERVAL_MS,
   CHIP_MENU_LINE_INTERVAL_MS,
-} from "../../lib/timing";
+} from "@tt/core/lib/timing";
 
 export class ChipSession implements ISession {
   private terminal: Terminal;

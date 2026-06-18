@@ -1,6 +1,6 @@
-import { VirtualFS } from "../engine/filesystem/VirtualFS";
-import { collectDescendantPaths } from "../engine/filesystem/walk";
-import { colorize, ansi } from "../lib/ansi";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { collectDescendantPaths } from "@tt/core/filesystem/walk";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import {
   SecurityViolation,
   SecurityViolationKind,

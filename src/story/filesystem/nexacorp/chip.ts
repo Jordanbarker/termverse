@@ -1,5 +1,5 @@
-import { DirectoryNode } from "../../../engine/filesystem/types";
-import { file, dir } from "../../../engine/filesystem/builders";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { file, dir } from "@tt/core/filesystem/builders";
 
 /**
  * /opt/chip/ on NexaCorp ws01 — the THIN CLIENT side.

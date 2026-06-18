@@ -1,5 +1,5 @@
-import { DirectoryNode } from "../../../engine/filesystem/types";
-import { file, dir, binaryFile } from "../../../engine/filesystem/builders";
+import { DirectoryNode } from "@tt/core/filesystem/types";
+import { file, dir, binaryFile } from "@tt/core/filesystem/builders";
 
 export function buildSrvDirectory(overBudget: boolean): DirectoryNode {
   return dir("srv", {

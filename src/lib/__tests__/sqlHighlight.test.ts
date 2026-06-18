@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ansi } from "../ansi";
+import { ansi } from "@tt/core/lib/ansi";
 import { highlightSql } from "../sqlHighlight";
 
 /** Strip ANSI codes for plain-text comparison. */

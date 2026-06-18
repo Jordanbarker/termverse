@@ -1,5 +1,5 @@
-import { SerializedFS } from "../engine/filesystem/serialization";
-import { Mounts } from "../engine/filesystem/mounts";
+import { SerializedFS } from "@tt/core/filesystem/serialization";
+import { Mounts } from "@tt/core/filesystem/mounts";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
 import { SavedWindowState } from "./paneTypes";
 

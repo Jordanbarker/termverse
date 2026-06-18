@@ -1,8 +1,8 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolvePath } from "../../../lib/pathUtils";
-import { formatSize } from "../../../lib/formatSize";
+import { resolvePath } from "@tt/core/lib/pathUtils";
+import { formatSize } from "@tt/core/lib/formatSize";
 import { HELP_TEXTS } from "./helpTexts";
 
 function countStats(content: string): { lines: number; words: number; chars: number } {

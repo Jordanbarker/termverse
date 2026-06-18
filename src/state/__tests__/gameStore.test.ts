@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useGameStore, getActiveLeaf, getActivePaneId, getActiveWindow } from "../gameStore";
 import { allLeaves, findSplit, PaneNode } from "../paneTypes";
-import { VirtualFS } from "../../engine/filesystem/VirtualFS";
-import { DirectoryNode } from "../../engine/filesystem/types";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { DirectoryNode } from "@tt/core/filesystem/types";
 
 function createMinimalFS(username = "player"): VirtualFS {
   const root: DirectoryNode = {

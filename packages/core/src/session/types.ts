@@ -1,12 +1,10 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { GameEvent } from "../mail/delivery";
-import { SnowflakeState } from "../snowflake/state";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { GameEvent } from "@tt/core";
 import type { MachineId } from "@tt/core/machine";
 
 export interface SessionResult {
   type: "continue" | "exit";
   newFs?: VirtualFS;
-  newState?: SnowflakeState;
   output?: string;
   triggerEvents?: GameEvent[];
   /** When set, the router should run a computer transition to this target after the session exits. */

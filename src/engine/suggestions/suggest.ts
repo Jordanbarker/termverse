@@ -1,6 +1,6 @@
-import { VirtualFS } from "../filesystem/VirtualFS";
-import { isDirectory } from "../filesystem/types";
-import { resolvePath } from "../../lib/pathUtils";
+import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { isDirectory } from "@tt/core/filesystem/types";
+import { resolvePath } from "@tt/core/lib/pathUtils";
 import { splitOnChainOperators } from "../commands/parser";
 
 const HISTORY_SCAN_DEPTH = 100;
