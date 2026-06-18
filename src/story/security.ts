@@ -1,20 +1,18 @@
-import { ComputerId } from "../state/types";
 import { VirtualFS } from "../engine/filesystem/VirtualFS";
 import { collectDescendantPaths } from "../engine/filesystem/walk";
 import { colorize, ansi } from "../lib/ansi";
+import {
+  SecurityViolation,
+  SecurityViolationKind,
+  SecurityOpContext,
+  SecurityPolicy,
+  chmodIsRestrictive,
+} from "../engine/commands/security";
 
-export type SecurityViolationKind = "log_tampering" | "leadership_destruction" | "exfiltration";
-
-export interface SecurityViolation {
-  kind: SecurityViolationKind;
-  path: string;
-  /** Populated only for cp/mv exfiltration so the corp-sec alert can name both endpoints. */
-  destPath?: string;
-  /** Short reconstruction of the offending command line, e.g. `rm -rf /srv/leadership/`. */
-  command: string;
-  /** Number of paths the offending op walked over (covers rm/chmod/cp/mv recursion). */
-  descendantCount: number;
-}
+// Re-export the core security types/helpers so existing app-side importers
+// (hooks, builtins, tests) can keep importing them from story/security.
+export type { SecurityViolation, SecurityViolationKind, SecurityOpContext, SecurityPolicy };
+export { chmodIsRestrictive };
 
 export const LEADERSHIP_PREFIX = "/srv/leadership/";
 const LEADERSHIP_ROOT = "/srv/leadership";
@@ -33,27 +31,6 @@ export function isPlayerHomePath(p: string, homeDir: string): boolean {
 }
 
 /**
- * Returns true iff `newPerms` removes any r or w bit that was set in `oldPerms`,
- * for any class (owner/group/other). Adding permissions or changing only x bits
- * does not count as restrictive.
- */
-export function chmodIsRestrictive(oldPerms: string, newPerms: string): boolean {
-  if (oldPerms.length !== 9 || newPerms.length !== 9) return false;
-  // Positions: 0=ur, 1=uw, 2=ux, 3=gr, 4=gw, 5=gx, 6=or, 7=ow, 8=ox.
-  // We only care about r/w removal.
-  const rwIndices = [0, 1, 3, 4, 6, 7];
-  return rwIndices.some((i) => oldPerms[i] !== "-" && newPerms[i] === "-");
-}
-
-interface OpContext {
-  computerId: ComputerId;
-  homeDir: string;
-  destPath?: string;
-  /** Short command summary recorded on any violation (e.g. `rm -rf /srv/leadership/`). */
-  command: string;
-}
-
-/**
  * Walk descendants of `rootPath` and decide whether the op trips a tripwire.
  * Scoped to `computerId === "nexacorp"` defensively — other computers may
  * incidentally have files matching the protected patterns.
@@ -62,7 +39,7 @@ export function opTouchesProtectedPath(
   fs: VirtualFS,
   rootPath: string,
   opKind: "rm" | "cp" | "mv",
-  ctx: OpContext
+  ctx: SecurityOpContext
 ): SecurityViolation | null {
   if (ctx.computerId !== "nexacorp") return null;
 
@@ -164,3 +141,15 @@ export function getTerminationAlertLines(violation: SecurityViolation, pid: numb
     }
   }
 }
+
+/**
+ * The turmoil security policy, injected into CommandContext.security when the
+ * player is on the NexaCorp workstation. Bundles the protected-path rules above
+ * behind the engine's story-agnostic SecurityPolicy interface.
+ */
+export const NEXACORP_SECURITY_POLICY: SecurityPolicy = {
+  checkPathOp: (fs, rootPath, opKind, ctx) => opTouchesProtectedPath(fs, rootPath, opKind, ctx),
+  classifyChmodTarget: (p) =>
+    isLogTamperPath(p) ? "log_tampering" : isLeadershipPath(p) ? "leadership_destruction" : null,
+  isLogTamperPath,
+};

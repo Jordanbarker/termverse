@@ -17,7 +17,6 @@ import { ReplyOption } from "../../mail/types";
 import { PromptOption, PromptSessionInfo } from "../../prompt/types";
 import { GameEvent } from "../../mail/delivery";
 import { PLAYER } from "../../../state/types";
-import { gameNowFor } from "../../snowflake/session/gameClock";
 
 const RFC_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const RFC_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -132,7 +131,7 @@ const mail: CommandHandler = (args, flags, ctx) => {
   if (flags["s"] && args.length >= 2) {
     const subject = args[0];
     const recipient = args[1];
-    const now = gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, computer);
+    const now = ctx.clock?.now() ?? new Date();
     const content = [
       `From: ${username}@${fromDomain}`,
       `To: ${recipient}`,
@@ -185,7 +184,7 @@ const mail: CommandHandler = (args, flags, ctx) => {
 
     if (replyOptions && !hasReplyInSent(newFs, username, entry.parsed.subject)) {
       output += formatReplyOptions(replyOptions);
-      const gameNowMs = gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, computer).getTime();
+      const gameNowMs = (ctx.clock?.now() ?? new Date()).getTime();
       promptSession = buildPromptSession(replyOptions, entry, username, computer, gameNowMs);
     }
 

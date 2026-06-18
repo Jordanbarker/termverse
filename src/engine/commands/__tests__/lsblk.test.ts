@@ -3,7 +3,7 @@ import { execute } from "../registry";
 import { CommandContext } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
-import { BLOCK_DEVICES, BlockDevice } from "../../../story/blockDevices";
+import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story/blockDevices";
 import { Mounts } from "../../filesystem/mounts";
 import type { ComputerId } from "../../../state/types";
 
@@ -27,14 +27,17 @@ function emptyFs(): VirtualFS {
 
 function ctx(opts: { mounts?: Mounts; storyFlags?: Record<string, string | boolean>; fs?: VirtualFS; activeComputer?: ComputerId } = {}): CommandContext {
   const fs = opts.fs ?? emptyFs();
+  const computer = opts.activeComputer ?? "home";
+  const storyFlags = { accepted_usb_drive: true, ...opts.storyFlags };
   return {
     fs,
     cwd: fs.cwd,
     homeDir: fs.homeDir,
     username: "player",
-    activeComputer: opts.activeComputer ?? "home",
-    storyFlags: { accepted_usb_drive: true, ...opts.storyFlags },
+    activeComputer: computer,
+    storyFlags,
     mounts: opts.mounts ?? {},
+    devices: createDeviceProvider(computer, storyFlags),
   };
 }
 

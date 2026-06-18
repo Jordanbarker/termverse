@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
 import { CommandContext } from "../types";
+// Registers the turmoil gating policy (side effect) so unavailable commands
+// produce the colleague hint / not-found behavior these tests assert.
+import "../../../story/availabilityPolicy";
 
 // We must test the registry in isolation, so we use dynamic imports
 // to get a fresh module for each test. But the registry uses module-level

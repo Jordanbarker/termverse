@@ -6,7 +6,7 @@ import { resolvePath } from "../../../lib/pathUtils";
 import { FSNode, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "../../filesystem/VirtualFS";
-import { opTouchesProtectedPath, SecurityViolation } from "../../../story/security";
+import { SecurityViolation } from "../security";
 
 function collectRemoveEvents(node: FSNode, path: string): GameEvent[] {
   const out: GameEvent[] = [];
@@ -48,7 +48,7 @@ const rm: CommandHandler = (args, flags, ctx) => {
 
     if (!securityViolation) {
       const flagStr = recursive ? (force ? "-rf " : "-r ") : force ? "-f " : "";
-      const v = opTouchesProtectedPath(currentFs, absPath, "rm", {
+      const v = ctx.security?.checkPathOp(currentFs, absPath, "rm", {
         computerId: ctx.activeComputer,
         homeDir: ctx.homeDir,
         command: `rm ${flagStr}${arg}`,

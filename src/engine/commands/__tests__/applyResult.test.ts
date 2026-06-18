@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { computeEffects, ApplyContext } from "../applyResult";
+import { processDeliveries } from "../processDeliveries";
+import { renderSavesList, renderCheckpointsList } from "../../../story/listingOutput";
 import { CommandResult } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
@@ -45,6 +47,11 @@ function createApplyCtx(overrides?: Partial<ApplyContext>): ApplyContext {
     deliveredPiperIds: [],
     storyFlags: {},
     fs: createMinimalFS(),
+    // Match the runtime wiring in useTerminal so delivery + listing behavior
+    // is exercised; individual tests can override.
+    processDeliveries,
+    renderSavesList,
+    renderCheckpointsList,
     ...overrides,
   };
 }

@@ -1,37 +1,45 @@
 import { ComputerId, StoryFlags } from "../../state/types";
-import { HOME_COMMANDS, NEXACORP_GATED, HOME_GATED, DEVCONTAINER_COMMANDS, NEXACORP_ONLY, DEVCONTAINER_ONLY, HOME_ONLY } from "../../story/commandGates";
 
-// Re-export for convenience
-export { HOME_COMMANDS, NEXACORP_GATED, HOME_GATED, DEVCONTAINER_COMMANDS, NEXACORP_ONLY, DEVCONTAINER_ONLY, HOME_ONLY };
+/**
+ * Command-availability seam (core, story-agnostic).
+ *
+ * Which commands are usable on which machine (and behind which flags) is a
+ * per-game decision. The app registers an AvailabilityPolicy; the engine only
+ * consults it. The default policy allows every registered command everywhere,
+ * so a game that does not gate anything needs no policy at all.
+ *
+ * terminal-turmoil registers its policy from src/story/availabilityPolicy.ts.
+ */
+export interface AvailabilityPolicy {
+  /** Is `commandName` usable on `computer` given the current flags? */
+  isAvailable(commandName: string, computer: ComputerId, flags?: StoryFlags): boolean;
+  /**
+   * Message shown when an unavailable command is run. Return null to use the
+   * generic "command not found". The engine applies exitCode 127 either way.
+   */
+  unavailableMessage?(commandName: string, computer: ComputerId): string | null;
+}
+
+const ALLOW_ALL: AvailabilityPolicy = { isAvailable: () => true };
+
+let activePolicy: AvailabilityPolicy = ALLOW_ALL;
+
+/** Register the active availability policy (call once at app startup). */
+export function setAvailabilityPolicy(policy: AvailabilityPolicy): void {
+  activePolicy = policy;
+}
+
+/** Restore the default allow-all policy (used by tests for isolation). */
+export function resetAvailabilityPolicy(): void {
+  activePolicy = ALLOW_ALL;
+}
 
 /** Returns true if the command is available on the given computer. */
 export function isCommandAvailable(commandName: string, computer: ComputerId, storyFlags?: StoryFlags): boolean {
-  if (computer === "devcontainer" || computer === "chipinfra") {
-    return DEVCONTAINER_COMMANDS.has(commandName);
-  }
-  if (computer === "nexacorp") {
-    if (DEVCONTAINER_ONLY.has(commandName)) return false;
-    if (HOME_ONLY.has(commandName)) return false;
-    const requiredFlag = NEXACORP_GATED[commandName];
-    if (requiredFlag && !storyFlags?.[requiredFlag]) return false;
-    return true;
-  }
-  // erik-pc is reached via SSH from chipinfra — `exit` returns there.
-  if (computer === "erik-pc" && commandName === "exit") return true;
-  if (DEVCONTAINER_ONLY.has(commandName)) return false;
-  const homeFlag = HOME_GATED[commandName];
-  if (homeFlag) {
-    // Erik's work laptop is fully set up — the player's home-PC tutorial
-    // unlocks don't apply there (skipping Olive's optional challenge must not
-    // make basics like echo/whoami "command not found" on Erik's machine)
-    if (computer === "erik-pc") return true;
-    if (!storyFlags?.[homeFlag]) return false;
-    return true;
-  }
-  if (HOME_COMMANDS.has(commandName)) return true;
-  // Commands unlocked at NexaCorp carry over to home PC (except NexaCorp-only commands)
-  if (NEXACORP_ONLY.has(commandName)) return false;
-  const nexaFlag = NEXACORP_GATED[commandName];
-  if (nexaFlag && storyFlags?.[nexaFlag]) return true;
-  return false;
+  return activePolicy.isAvailable(commandName, computer, storyFlags);
+}
+
+/** App-defined message for an unavailable command, or null for the generic one. */
+export function unavailableCommandMessage(commandName: string, computer: ComputerId): string | null {
+  return activePolicy.unavailableMessage?.(commandName, computer) ?? null;
 }

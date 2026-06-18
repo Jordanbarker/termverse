@@ -3,7 +3,7 @@ import { VirtualFS } from "../filesystem/VirtualFS";
 import { isDirectory } from "../filesystem/types";
 import { resolvePath } from "../../lib/pathUtils";
 import { ComputerId } from "../../state/types";
-import { isLogTamperPath } from "../../story/security";
+import { SecurityPolicy } from "./security";
 
 export interface RedirectTarget {
   file: string;
@@ -127,6 +127,7 @@ export function applyRedirection(
   homeDir: string,
   currentFs: VirtualFS,
   computerId: ComputerId,
+  security?: SecurityPolicy,
 ): { result: CommandResult; fs: VirtualFS } {
   let fs = currentFs;
   const mergedEvents = [...(lastResult.triggerEvents ?? [])];
@@ -171,7 +172,7 @@ export function applyRedirection(
 
     securityViolation =
       securityViolation ??
-      (computerId === "nexacorp" && isLogTamperPath(absPath)
+      (computerId === "nexacorp" && security?.isLogTamperPath(absPath)
         ? {
             kind: "log_tampering" as const,
             path: absPath,

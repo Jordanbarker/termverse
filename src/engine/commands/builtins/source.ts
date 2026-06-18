@@ -1,7 +1,7 @@
 import { CommandHandler } from "../types";
 import { register, registerAlias } from "../registry";
 import { resolvePath } from "../../../lib/pathUtils";
-import { parseEnvAssignments, parseAliases } from "../../../story/env";
+import { parseEnvAssignments, parseAliases } from "../../terminal/envParse";
 import { GameEvent } from "../../mail/delivery";
 import { HELP_TEXTS } from "./helpTexts";
 

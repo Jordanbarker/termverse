@@ -22,10 +22,22 @@ import { DBT_DEFAULT_LINE_DELAY_MS, jitterDelay } from "../../lib/timing";
 import { parseSourceMap, parseMacros, compileSql, extractRefs } from "./compiler";
 import { executeModel, executeTest, queryModel, getModelRowCount } from "./executor";
 import { createDefaultContext } from "../snowflake/session/context";
-import { gameNowFor, gameTsFor } from "../snowflake/session/gameClock";
 import { execute as executeSql } from "../snowflake/executor/executor";
 import { isFile, isDirectory } from "../filesystem/types";
 import { SnowflakeState } from "../snowflake/state";
+
+/** In-game "now" as a Date, falling back to the real clock when none is injected. */
+function clockNow(ctx: CommandContext): Date {
+  return ctx.clock?.now() ?? new Date();
+}
+
+/** In-game "now" as "HH:MM:SS" for dbt log prefixes, with a real-clock fallback. */
+function clockTs(ctx: CommandContext): string {
+  if (ctx.clock) return ctx.clock.ts();
+  const d = new Date();
+  const p = (n: number) => n.toString().padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
 
 function loadProject(ctx: CommandContext): { projectRoot: string } | { error: string } {
   const projectRoot = findDbtProject(ctx.fs, ctx.cwd);
@@ -159,7 +171,7 @@ export function runModels(ctx: CommandContext, selectModel?: string): CommandRes
   const testCount = allResources.filter((r) => r.type === "test").length;
   const sourceCount = allResources.filter((r) => r.type === "source").length;
   const seedCount = allResources.filter((r) => r.type === "seed").length;
-  const dbtTs = gameTsFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer);
+  const dbtTs = clockTs(ctx);
   const lines: IncrementalLine[] = [{ text: formatRunHeader(dbtTs, modelsToDisplay.length, testCount, sourceCount, seedCount), delayMs: DBT_DEFAULT_LINE_DELAY_MS }];
 
   let pass = 0;
@@ -168,7 +180,7 @@ export function runModels(ctx: CommandContext, selectModel?: string): CommandRes
   let runningState = ctx.snowflakeState;
   const sessionCtx = createDefaultContext(
     ctx.username,
-    gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+    clockNow(ctx),
   );
   const ephemeralSqlMap = new Map<string, string>();
   const failedModels = new Set<string>();
@@ -283,9 +295,9 @@ export function runTests(ctx: CommandContext): CommandResult {
 
   const sessionCtx = createDefaultContext(
     ctx.username,
-    gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+    clockNow(ctx),
   );
-  const dbtTs = gameTsFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer);
+  const dbtTs = clockTs(ctx);
   const allResources = discoverResources(ctx.fs, project.projectRoot, config);
   const testResources = allResources.filter((r) => r.type === "test");
 
@@ -513,7 +525,7 @@ export function debugProject(ctx: CommandContext): CommandResult {
     target: "prod",
   };
 
-  const dbtTs = gameTsFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer);
+  const dbtTs = clockTs(ctx);
   return { output: formatDebug(dbtTs, info) };
 }
 
@@ -554,7 +566,7 @@ export function compileModel(ctx: CommandContext, modelName?: string): CommandRe
   const targetPath = compiledDir + "/" + modelName + ".sql";
   const writeResult = fs.writeFile(targetPath, sql);
 
-  const dbtTs = gameTsFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer);
+  const dbtTs = clockTs(ctx);
   return {
     output: formatCompiledSql(dbtTs, modelName, sql),
     newFs: writeResult.fs,
@@ -588,9 +600,9 @@ export function showModel(ctx: CommandContext, modelName?: string): CommandResul
 
   const sessionCtx = createDefaultContext(
     ctx.username,
-    gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+    clockNow(ctx),
   );
-  const dbtTs = gameTsFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer);
+  const dbtTs = clockTs(ctx);
   const SHOW_LIMIT = 5;
 
   // Try to query the materialized table/view

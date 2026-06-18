@@ -1,5 +1,5 @@
 import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "./types";
-import { isCommandAvailable, DEVCONTAINER_ONLY } from "./availability";
+import { isCommandAvailable, unavailableCommandMessage } from "./availability";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { resolvePath } from "../../lib/pathUtils";
 import { colorize, ansi } from "../../lib/ansi";
@@ -9,11 +9,6 @@ import { getKnownFlags, shouldValidateFlags, rejectUnknownFlags } from "./flagVa
 function isPathCommand(name: string): boolean {
   return name.startsWith("./") || name.startsWith("/");
 }
-
-const NEXACORP_GATE_HINTS: Record<string, string> = {
-  coder: "Read your email and check with Auri/Oscar to get set up.",
-  piper: "Read your welcome email; it has instructions for getting started.",
-};
 
 const commands = new Map<string, { handler: CommandHandler; description: string; helpText?: string; readsFiles?: boolean }>();
 const asyncCommands = new Map<string, { handler: AsyncCommandHandler; description: string; helpText?: string; readsFiles?: boolean }>();
@@ -77,13 +72,8 @@ export function execute(
   ctx: CommandContext
 ): CommandResult {
   if (!isCommandAvailable(commandName, ctx.activeComputer, ctx.storyFlags)) {
-    // Dev-container-only tools are never installed on the workstation, so the
-    // "colleagues will help you get set up" hint would be a false promise
-    if (ctx.activeComputer === "nexacorp" && !DEVCONTAINER_ONLY.has(commandName)) {
-      const hint = NEXACORP_GATE_HINTS[commandName] ?? "Check your mail and Piper messages; your colleagues will help you get set up.";
-      return { output: colorize(`${commandName}: not yet available. ${hint}`, ansi.yellow), exitCode: 127 };
-    }
-    return { output: commandNotFound(commandName), exitCode: 127 };
+    const msg = unavailableCommandMessage(commandName, ctx.activeComputer);
+    return { output: msg ?? commandNotFound(commandName), exitCode: 127 };
   }
   const entry = commands.get(commandName);
   if (!entry) {

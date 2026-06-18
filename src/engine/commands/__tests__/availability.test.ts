@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { isCommandAvailable, HOME_COMMANDS } from "../availability";
+import { isCommandAvailable } from "../availability";
+import { HOME_COMMANDS } from "../../../story/commandGates";
+// Registers TURMOIL_AVAILABILITY_POLICY as a side effect so isCommandAvailable
+// reflects the turmoil gates rather than the engine's allow-all default.
+import "../../../story/availabilityPolicy";
 
 describe("isCommandAvailable", () => {
   describe("home computer", () => {

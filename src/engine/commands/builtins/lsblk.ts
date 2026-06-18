@@ -2,7 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
-import { BlockDevice, getVisibleDevices } from "../../../story/blockDevices";
+import { BlockDevice } from "../devices";
 import { Mount } from "../../filesystem/mounts";
 
 interface Row {
@@ -42,7 +42,7 @@ function formatMountpoints(device: BlockDevice, mounts: Record<string, Mount>): 
 
 const lsblk: CommandHandler = (_args, flags, ctx) => {
   const showFstype = !!flags["f"];
-  const devices = getVisibleDevices(ctx.activeComputer, ctx.storyFlags);
+  const devices = ctx.devices?.visibleDevices() ?? [];
   const rows = buildRows(devices);
   const mounts = ctx.mounts ?? {};
 

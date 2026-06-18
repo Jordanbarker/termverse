@@ -5,7 +5,6 @@ import { resolvePath } from "../../../lib/pathUtils";
 import { isFile, isDirectory, DirectoryNode } from "../../filesystem/types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";
-import { opTouchesProtectedPath } from "../../../story/security";
 
 function copyDir(
   fs: VirtualFS,
@@ -76,7 +75,7 @@ const cp: CommandHandler = (args, flags, ctx) => {
     if (destNode && isDirectory(destNode)) {
       destPath = destPath + "/" + srcNode.name;
     }
-    const securityViolation = opTouchesProtectedPath(ctx.fs, srcPath, "cp", {
+    const securityViolation = ctx.security?.checkPathOp(ctx.fs, srcPath, "cp", {
       computerId: ctx.activeComputer,
       homeDir: ctx.homeDir,
       destPath,
@@ -105,7 +104,7 @@ const cp: CommandHandler = (args, flags, ctx) => {
     destPath = destPath + "/" + srcNode.name;
   }
 
-  const securityViolation = opTouchesProtectedPath(ctx.fs, srcPath, "cp", {
+  const securityViolation = ctx.security?.checkPathOp(ctx.fs, srcPath, "cp", {
     computerId: ctx.activeComputer,
     homeDir: ctx.homeDir,
     destPath,

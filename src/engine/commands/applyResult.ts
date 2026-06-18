@@ -8,12 +8,24 @@ import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
 import { ComputerId, StoryFlags } from "../../state/types";
-import { SecurityViolation } from "../../story/security";
-import { colorize, ansi } from "../../lib/ansi";
-import { listSaveSlots, formatSlotName } from "../../state/saveManager";
+import { SecurityViolation } from "./security";
 import { commandReadsFiles } from "./registry";
-import { processDeliveries } from "./processDeliveries";
-import { CHECKPOINTS } from "../../story/checkpoints";
+import type { DeliveryResult } from "./processDeliveries";
+
+/**
+ * Delivery-cascade processor, injected by the app. Given the events a command
+ * produced, returns story-flag/email/piper deliveries. Absent => no deliveries
+ * (a game with no narrative delivery system).
+ */
+export type ProcessDeliveriesFn = (
+  events: GameEvent[],
+  computerFs: VirtualFS,
+  computerId: ComputerId,
+  deliveredEmailIds: string[],
+  deliveredPiperIds: string[],
+  username: string,
+  storyFlags: StoryFlags,
+) => DeliveryResult;
 
 export type SessionToStart =
   | { type: "editor"; info: EditorSessionInfo }
@@ -65,6 +77,12 @@ export interface ApplyContext {
   fs: VirtualFS;
   /** Whether the target computer already exists in computerState (for subsequent transitions) */
   targetComputerExists?: boolean;
+  /** App-injected delivery cascade. Absent => no deliveries are processed. */
+  processDeliveries?: ProcessDeliveriesFn;
+  /** App-injected renderer for the `listSaves` game action output. */
+  renderSavesList?: () => string;
+  /** App-injected renderer for the `listCheckpoints` game action output. */
+  renderCheckpointsList?: () => string;
 }
 
 /**
@@ -154,9 +172,9 @@ export function computeEffects(
     effects.gameAction = result.gameAction;
 
     if (result.gameAction.type === "listSaves") {
-      effects.output += computeListSavesOutput();
+      effects.output += applyCtx.renderSavesList?.() ?? "";
     } else if (result.gameAction.type === "listCheckpoints") {
-      effects.output += computeListCheckpointsOutput();
+      effects.output += applyCtx.renderCheckpointsList?.() ?? "";
     } else if (result.gameAction.type === "loadCheckpoint") {
       effects.suppressPrompt = true;
     } else if (result.gameAction.type === "newGame") {
@@ -192,25 +210,28 @@ export function computeEffects(
 
   effects.events = events;
 
-  // Process deliveries (story flags, emails, piper) via extracted pure function
-  const deliveryResult = processDeliveries(
-    events,
-    currentFs,
-    applyCtx.activeComputer,
-    applyCtx.deliveredEmailIds,
-    applyCtx.deliveredPiperIds,
-    applyCtx.username,
-    applyCtx.storyFlags
-  );
+  // Process deliveries (story flags, emails, piper) via the app-injected
+  // cascade. Absent => no deliveries (a game with no narrative delivery system).
+  if (applyCtx.processDeliveries) {
+    const deliveryResult = applyCtx.processDeliveries(
+      events,
+      currentFs,
+      applyCtx.activeComputer,
+      applyCtx.deliveredEmailIds,
+      applyCtx.deliveredPiperIds,
+      applyCtx.username,
+      applyCtx.storyFlags
+    );
 
-  if (deliveryResult.fs !== currentFs) {
-    effects.newFs = deliveryResult.fs;
+    if (deliveryResult.fs !== currentFs) {
+      effects.newFs = deliveryResult.fs;
+    }
+    effects.storyFlagUpdates.push(...deliveryResult.storyFlagUpdates);
+    effects.newDeliveredEmailIds.push(...deliveryResult.newDeliveredEmailIds);
+    effects.emailNotifications += deliveryResult.emailNotifications;
+    effects.newDeliveredPiperIds.push(...deliveryResult.newDeliveredPiperIds);
+    effects.piperNotifications += deliveryResult.piperNotifications;
   }
-  effects.storyFlagUpdates.push(...deliveryResult.storyFlagUpdates);
-  effects.newDeliveredEmailIds.push(...deliveryResult.newDeliveredEmailIds);
-  effects.emailNotifications += deliveryResult.emailNotifications;
-  effects.newDeliveredPiperIds.push(...deliveryResult.newDeliveredPiperIds);
-  effects.piperNotifications += deliveryResult.piperNotifications;
 
   // Pass through incremental lines
   if (result.incrementalLines) {
@@ -223,48 +244,4 @@ export function computeEffects(
   }
 
   return effects;
-}
-
-function computeListSavesOutput(): string {
-  const slots = listSaveSlots();
-  const lines = [
-    colorize("Save Slots:", ansi.bold + ansi.cyan),
-    "",
-  ];
-  for (const slot of slots) {
-    const label = formatSlotName(slot.slotId);
-    if (slot.empty) {
-      const indicator = colorize("○", ansi.dim);
-      lines.push(`  ${indicator} ${colorize(label.padEnd(10), ansi.bold)}  ${colorize("(empty)", ansi.dim)}`);
-    } else {
-      const indicator = colorize("●", ansi.cyan);
-      const chapterNum = slot.currentChapter.replace("chapter-", "");
-      const chapterLabel = colorize(`Ch. ${chapterNum}`, ansi.dim);
-      const date = new Date(slot.timestamp).toLocaleString(undefined, {
-        dateStyle: "short",
-        timeStyle: "short",
-      });
-      lines.push(`  ${indicator} ${colorize(label.padEnd(10), ansi.bold)}  ${slot.label}  ${chapterLabel}  ${colorize(date, ansi.dim)}`);
-    }
-  }
-  lines.push("");
-  lines.push(`Use ${colorize("save 1|2|3", ansi.cyan)} or ${colorize("load 1|2|3|auto", ansi.cyan)}`);
-  return lines.join("\n");
-}
-
-function computeListCheckpointsOutput(): string {
-  const lines = [
-    colorize("Checkpoints:", ansi.bold + ansi.cyan),
-    "",
-  ];
-  for (let i = 0; i < CHECKPOINTS.length; i++) {
-    const cp = CHECKPOINTS[i];
-    const num = colorize(`${i + 1}.`, ansi.cyan);
-    const name = colorize(cp.id.padEnd(12), ansi.bold);
-    const desc = colorize(cp.description, ansi.dim);
-    lines.push(`  ${num} ${name} ${desc}`);
-  }
-  lines.push("");
-  lines.push(`Use ${colorize("cheat 1|2|3", ansi.cyan)} to load a checkpoint`);
-  return lines.join("\n");
 }

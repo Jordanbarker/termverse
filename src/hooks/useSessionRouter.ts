@@ -6,7 +6,7 @@ import { EditorSession } from "../engine/editor/EditorSession";
 import { PythonReplSession } from "../engine/python/PythonReplSession";
 import { SnowSqlSession } from "../engine/snowflake/session/SnowSqlSession";
 import { createDefaultContext } from "../engine/snowflake/session/context";
-import { gameNowFor } from "../engine/snowflake/session/gameClock";
+import { createGameClock } from "../story/clock";
 import { checkEmailDeliveries } from "../engine/mail/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../engine/narrative/storyFlags";
 import { colorize, ansi } from "../lib/ansi";
@@ -397,7 +397,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           () => useGameStore.getState().setActiveSnowSession(null),
           () => {
             const s = useGameStore.getState();
-            return gameNowFor(s.deliveredPiperIds, s.username, computerId);
+            return createGameClock(s.deliveredPiperIds, s.username, computerId).now();
           }
         );
         sessionMapRef.current.set(targetPaneId, { session: snowSqlSession, type: "snow-sql" });
@@ -453,11 +453,11 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       } else if (session.type === "chip") {
         const store = useGameStore.getState();
         const currentFs = store.computerState[computerId]!.fs;
-        const sessionStart = gameNowFor(
+        const sessionStart = createGameClock(
           store.deliveredPiperIds,
           store.username,
           computerId,
-        );
+        ).now();
         const chipSession = new ChipSession(
           term,
           currentFs,
@@ -466,7 +466,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           sessionStart,
           () => {
             const s = useGameStore.getState();
-            return gameNowFor(s.deliveredPiperIds, s.username, computerId);
+            return createGameClock(s.deliveredPiperIds, s.username, computerId).now();
           },
           (topics) => {
             const value = topics.join(",");

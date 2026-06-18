@@ -3,6 +3,10 @@ import { execute } from "../registry";
 import { CommandContext } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
+// Registers the turmoil gating policy (side effect) so unavailable commands
+// produce the not-found / colleague-hint behavior these tests assert.
+import "../../../story/availabilityPolicy";
+import { createGameClock } from "../../../story/clock";
 import { HELP_TEXTS } from "../builtins/helpTexts";
 import { parsePipeline, parseChainedPipeline } from "../parser";
 
@@ -161,7 +165,9 @@ const ALL_UNLOCKED = {
 
 function ctx(fs?: VirtualFS, overrides?: Partial<CommandContext>): CommandContext {
   const f = fs ?? createTestFS();
-  return { fs: f, cwd: f.cwd, homeDir: f.homeDir, username: "ren", activeComputer: "nexacorp", storyFlags: ALL_UNLOCKED, ...overrides };
+  const merged: CommandContext = { fs: f, cwd: f.cwd, homeDir: f.homeDir, username: "ren", activeComputer: "nexacorp", storyFlags: ALL_UNLOCKED, ...overrides };
+  // Mirror the runtime: inject the in-game clock so `date` is deterministic.
+  return { clock: createGameClock(merged.deliveredPiperIds ?? [], merged.username, merged.activeComputer), ...merged };
 }
 
 // --- grep ---

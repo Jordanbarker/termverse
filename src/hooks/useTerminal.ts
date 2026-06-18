@@ -11,9 +11,16 @@ import { createDefaultContext } from "../engine/snowflake/session/context";
 import { SaveSlotId } from "../state/saveTypes";
 import { formatSlotName } from "../state/saveManager";
 import { COMPUTERS, ComputerId, getConnectionClosure } from "../state/types";
-import { getComputerUsername } from "../story/player";
+import { getComputerUsername, PLAYER } from "../story/player";
+import { NEXACORP_SECURITY_POLICY } from "../story/security";
+import { createDeviceProvider } from "../story/blockDevices";
+import { createGameClock } from "../story/clock";
+// Registers the turmoil command-availability policy (side-effect import).
+import "../story/availabilityPolicy";
 import { isCommandAvailable } from "../engine/commands/availability";
 import { computeEffects, AppliedEffects } from "../engine/commands/applyResult";
+import { processDeliveries } from "../engine/commands/processDeliveries";
+import { renderSavesList, renderCheckpointsList } from "../story/listingOutput";
 import { CHECKPOINTS } from "../story/checkpoints";
 import { useSessionRouter } from "./useSessionRouter";
 import { useCommandLine } from "./useCommandLine";
@@ -39,6 +46,16 @@ function enqueueCommand(computerId: ComputerId, fn: () => void | Promise<void>):
   computerQueues[computerId] = next;
   return next;
 }
+
+// Email domain used in `git commit` author lines, per machine. App-side because
+// these are NexaCorp-specific; the engine just consumes the finished string.
+const GIT_AUTHOR_EMAIL_DOMAIN: Record<ComputerId, string> = {
+  home: "maniac-iv.local",
+  nexacorp: "nexacorp.com",
+  devcontainer: "nexacorp.com",
+  chipinfra: "nexacorp.com",
+  "erik-pc": "nexacorp.com",
+};
 
 /** Build a CommandContext from the provided FS/cwd and store state. */
 function buildCommandContext(
@@ -72,6 +89,12 @@ function buildCommandContext(
     setSnowflakeState: store.setSnowflakeState,
     deliveredPiperIds: store.deliveredPiperIds,
     mounts,
+    // NexaCorp is the only machine with security tripwires; other machines get
+    // no policy, so no operation is ever flagged there.
+    security: computerId === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined,
+    devices: createDeviceProvider(computerId, store.storyFlags),
+    gitAuthor: `${PLAYER.displayName} <${store.username}@${GIT_AUTHOR_EMAIL_DOMAIN[computerId]}>`,
+    clock: createGameClock(store.deliveredPiperIds, store.username, computerId),
     tabPrefixLabel: (() => {
       const homeFs = store.computerState.home?.fs;
       const conf = homeFs ? homeFs.readFile(`${homeFs.homeDir}/.tmux.conf`).content : undefined;
@@ -527,6 +550,9 @@ export function useTerminal() {
               storyFlags: latestStore.storyFlags,
               fs: runningFs,
               targetComputerExists: targetComputer ? !!latestStore.computerState[targetComputer] : undefined,
+              processDeliveries,
+              renderSavesList,
+              renderCheckpointsList,
             });
 
             if (!isFinal) {
@@ -680,7 +706,7 @@ export function useTerminal() {
             }
 
             if (redirects.length > 0 && lastResult) {
-              const redir = applyRedirection(redirects, lastResult, cwdRef.current, homeDir, runningFs, computerId);
+              const redir = applyRedirection(redirects, lastResult, cwdRef.current, homeDir, runningFs, computerId, computerId === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined);
               lastResult = redir.result;
               runningFs = redir.fs;
             }

@@ -5,7 +5,6 @@ import { setKnownFlags } from "../flagValidation";
 import { basename, resolvePath } from "../../../lib/pathUtils";
 import { DirectoryNode, FSNode, isFile, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
-import { opTouchesProtectedPath } from "../../../story/security";
 
 function buildMoveEvents(srcNode: FSNode, srcPath: string, destPath: string): GameEvent[] {
   const events: GameEvent[] = [];
@@ -91,7 +90,7 @@ const mv: CommandHandler = (args, _flags, ctx) => {
     }
   }
 
-  const securityViolation = opTouchesProtectedPath(ctx.fs, srcPath, "mv", {
+  const securityViolation = ctx.security?.checkPathOp(ctx.fs, srcPath, "mv", {
     computerId: ctx.activeComputer,
     homeDir: ctx.homeDir,
     destPath,

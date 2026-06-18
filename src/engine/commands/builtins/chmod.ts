@@ -5,12 +5,7 @@ import { resolvePath } from "../../../lib/pathUtils";
 import { isDirectory, FSNode } from "../../filesystem/types";
 import { collectDescendantPaths } from "../../filesystem/walk";
 import { HELP_TEXTS } from "./helpTexts";
-import {
-  chmodIsRestrictive,
-  isLeadershipPath,
-  isLogTamperPath,
-  SecurityViolation,
-} from "../../../story/security";
+import { chmodIsRestrictive, SecurityViolation } from "../security";
 
 const PERM_MAP: Record<string, string> = {
   "0": "---", "1": "--x", "2": "-w-", "3": "-wx",
@@ -98,7 +93,7 @@ const chmod: CommandHandler = (args, flags, ctx) => {
   let currentFs = ctx.fs;
   const errors: string[] = [];
   let securityViolation: SecurityViolation | undefined;
-  const checkTripwire = ctx.activeComputer === "nexacorp";
+  const security = ctx.security;
 
   for (const target of targets) {
     const absPath = resolvePath(target, ctx.cwd, ctx.homeDir);
@@ -116,11 +111,10 @@ const chmod: CommandHandler = (args, flags, ctx) => {
       const currentPerms = defaultPermsForNode(node);
       const newPerms = octalPerms ?? applySymbolic(currentPerms, symbolicClauses!);
 
-      if (checkTripwire && !securityViolation && chmodIsRestrictive(currentPerms, newPerms)) {
-        if (isLogTamperPath(p)) {
-          securityViolation = { kind: "log_tampering", path: p, command: commandStr, descendantCount: paths.length };
-        } else if (isLeadershipPath(p)) {
-          securityViolation = { kind: "leadership_destruction", path: p, command: commandStr, descendantCount: paths.length };
+      if (security && !securityViolation && chmodIsRestrictive(currentPerms, newPerms)) {
+        const kind = security.classifyChmodTarget(p);
+        if (kind) {
+          securityViolation = { kind, path: p, command: commandStr, descendantCount: paths.length };
         }
       }
 

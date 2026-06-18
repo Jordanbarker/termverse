@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { createGameClock } from "../../../story/clock";
 import { executeAsync, isAsyncCommand } from "../registry";
 import { CommandContext } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
@@ -107,7 +108,7 @@ function createTestFS(): VirtualFS {
 
 function ctx(fs?: VirtualFS, overrides?: Partial<CommandContext>): CommandContext {
   const f = fs ?? createTestFS();
-  return {
+  const merged: CommandContext = {
     fs: f,
     cwd: f.cwd,
     homeDir: f.homeDir,
@@ -116,6 +117,8 @@ function ctx(fs?: VirtualFS, overrides?: Partial<CommandContext>): CommandContex
     storyFlags: {},
     ...overrides,
   };
+  // Mirror the runtime: inject the in-game clock so `date` is deterministic.
+  return { clock: createGameClock(merged.deliveredPiperIds ?? [], merged.username, merged.activeComputer), ...merged };
 }
 
 describe("bash command", () => {

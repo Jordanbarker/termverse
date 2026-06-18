@@ -11,19 +11,8 @@ import {
   type BranchListMode,
 } from "../../git/repo";
 import { formatStatus, formatLog, formatDiff, formatBranches } from "../../git/output";
-import { gameNowFor } from "../../snowflake/session/gameClock";
-import { PLAYER } from "../../../story/player";
-import type { ComputerId } from "../../../state/types";
 
 const NOT_A_REPO = "fatal: not a git repository (or any of the parent directories): .git";
-
-const AUTHOR_EMAIL_DOMAIN: Record<ComputerId, string> = {
-  home: "maniac-iv.local",
-  nexacorp: "nexacorp.com",
-  devcontainer: "nexacorp.com",
-  chipinfra: "nexacorp.com",
-  "erik-pc": "nexacorp.com",
-};
 
 /** Parse raw args, handling value flags like -m, -b, -u */
 function parseGitArgs(rawArgs: string[]): { positional: string[]; flags: Record<string, string | boolean> } {
@@ -97,7 +86,7 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
   const subcommand = positional[0];
   const subArgs = positional.slice(1);
   const plain = !!ctx.isPiped;
-  const author = `${PLAYER.displayName} <${ctx.username}@${AUTHOR_EMAIL_DOMAIN[ctx.activeComputer]}>`;
+  const author = ctx.gitAuthor ?? `${ctx.username} <${ctx.username}@localhost>`;
 
   // `git --help`, `git status --help`, etc. — return top-level help.
   if (flags["help"]) {
@@ -163,7 +152,7 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
       }
       const amend = !!flags["amend"];
       const autoStage = !!flags["a"];
-      const timestamp = gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer).getTime();
+      const timestamp = (ctx.clock?.now() ?? new Date()).getTime();
       const result = gitCommit(ctx.fs, root, message ?? "", author, amend, autoStage, timestamp);
       if (result.error) return { output: result.error, exitCode: 1 };
       return { output: result.output, newFs: result.fs };

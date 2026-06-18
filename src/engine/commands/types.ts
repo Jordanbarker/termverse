@@ -6,7 +6,9 @@ import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
 import type { ComputerId, StoryFlags } from "../../state/types";
 import { GameEvent } from "../mail/delivery";
-import { SecurityViolation } from "../../story/security";
+import { SecurityViolation, SecurityPolicy } from "./security";
+import { DeviceProvider } from "./devices";
+import { GameClock } from "./clock";
 import { SnowflakeState } from "../snowflake/state";
 import { SessionContext } from "../snowflake/session/context";
 
@@ -42,6 +44,26 @@ export interface CommandContext {
   mounts?: Mounts;
   /** Current terminal-tab prefix label (e.g. "Ctrl+Space"), from ~/.tmux.conf. */
   tabPrefixLabel?: string;
+  /**
+   * Per-game security rules (protected paths / tripwires). Injected by the app;
+   * absent => no operation is ever flagged as a violation.
+   */
+  security?: SecurityPolicy;
+  /**
+   * Machine-scoped block devices for df/lsblk/mount. Injected by the app;
+   * absent => the machine exposes no enumerable devices.
+   */
+  devices?: DeviceProvider;
+  /**
+   * Author string for `git commit` (e.g. "Name <name@host>"). Injected by the
+   * app; absent => git falls back to a generic `username <username@localhost>`.
+   */
+  gitAuthor?: string;
+  /**
+   * In-game clock for date/git/dbt/snow timestamps. Injected by the app;
+   * absent => callers fall back to the real wall clock.
+   */
+  clock?: GameClock;
 }
 
 export interface EditorSessionInfo {

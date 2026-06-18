@@ -4,6 +4,7 @@ import { CommandContext, CommandResult } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode } from "../../filesystem/types";
 import { applyRedirection } from "../redirection";
+import { NEXACORP_SECURITY_POLICY } from "../../../story/security";
 import { getHomeEmailDefinitions } from "../../../story/emails/home";
 
 import "../builtins/rm";
@@ -78,6 +79,8 @@ function ctxOn(computer: "nexacorp" | "home" | "chipinfra", fs: VirtualFS): Comm
     username: "ren",
     activeComputer: computer,
     storyFlags: ALL_UNLOCKED,
+    // The runtime injects the security policy only on NexaCorp; mirror that here.
+    security: computer === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined,
   };
 }
 
@@ -257,6 +260,7 @@ describe("security tripwire — redirection", () => {
       "/home/ren",
       fs,
       "nexacorp",
+      NEXACORP_SECURITY_POLICY,
     );
     expect(result.securityViolation?.kind).toBe("log_tampering");
     expect(result.securityViolation?.command).toBe("> /var/log/system.log");
@@ -295,6 +299,7 @@ describe("security tripwire — redirection", () => {
       "/home/ren",
       fs,
       "nexacorp",
+      NEXACORP_SECURITY_POLICY,
     );
     expect(result.securityViolation?.kind).toBe("leadership_destruction");
   });

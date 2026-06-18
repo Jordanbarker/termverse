@@ -3,7 +3,7 @@ import { execute } from "../registry";
 import { CommandContext } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { DirectoryNode, isDirectory } from "../../filesystem/types";
-import { BLOCK_DEVICES, BlockDevice } from "../../../story/blockDevices";
+import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story/blockDevices";
 import { Mounts } from "../../filesystem/mounts";
 import { dir, file } from "../../filesystem/builders";
 
@@ -55,16 +55,18 @@ function fsWithMnt(): VirtualFS {
 }
 
 function ctx(fs: VirtualFS, mounts: Mounts = {}): CommandContext {
+  // mount/umount are gated behind accepted_usb_drive (see commandGates.ts).
+  // These tests exercise the command behavior, not the gate, so set it.
+  const storyFlags = { accepted_usb_drive: true };
   return {
     fs,
     cwd: fs.cwd,
     homeDir: fs.homeDir,
     username: "player",
     activeComputer: "home",
-    // mount/umount are gated behind accepted_usb_drive (see commandGates.ts).
-    // These tests exercise the command behavior, not the gate, so set it.
-    storyFlags: { accepted_usb_drive: true },
+    storyFlags,
     mounts,
+    devices: createDeviceProvider("home", storyFlags),
   };
 }
 

@@ -1,7 +1,6 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { HELP_TEXTS } from "./helpTexts";
-import { findDevice } from "../../../story/blockDevices";
 import { Mount, normalizeMountKey } from "../../filesystem/mounts";
 import { dir } from "../../filesystem/builders";
 import { isDirectory } from "../../filesystem/types";
@@ -22,7 +21,7 @@ const mount: CommandHandler = (args, _flags, ctx) => {
   }
 
   const [deviceArg, pathArg] = args;
-  const device = findDevice(ctx.activeComputer, deviceArg, ctx.storyFlags);
+  const device = ctx.devices?.findDevice(deviceArg);
   if (!device) {
     return { output: `mount: ${deviceArg}: no such device`, exitCode: 1 };
   }

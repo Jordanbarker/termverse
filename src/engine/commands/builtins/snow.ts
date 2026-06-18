@@ -4,7 +4,6 @@ import { CommandResult, CommandContext } from "../types";
 import { HELP_TEXTS } from "./helpTexts";
 import { execute } from "../../snowflake/executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "../../snowflake/formatter/table_formatter";
-import { gameNowFor } from "../../snowflake/session/gameClock";
 
 register(
   "snow",
@@ -44,7 +43,7 @@ register(
 
       const sessionCtx = {
         ...ctx.snowflakeContext,
-        gameNow: gameNowFor(ctx.deliveredPiperIds ?? [], ctx.username, ctx.activeComputer),
+        gameNow: ctx.clock?.now() ?? new Date(),
       };
 
       const start = performance.now();

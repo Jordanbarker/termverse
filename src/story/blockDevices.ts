@@ -1,24 +1,10 @@
-import { FSNode } from "../engine/filesystem/types";
 import { file } from "../engine/filesystem/builders";
 import type { ComputerId } from "../state/types";
-import type { StoryFlagName } from "./storyFlags";
+import { BlockDevice, DeviceProvider } from "../engine/commands/devices";
 
-export interface BlockDevice {
-  name: string;
-  devicePath: string;
-  major: number;
-  minor: number;
-  removable: boolean;
-  size: string;
-  readOnly: boolean;
-  type: "disk" | "part" | "loop" | "rom";
-  fstype?: string;
-  parent?: string;
-  /** Static baseline mountpoint (e.g. the root `/`). Shown by lsblk without a dynamic mount. */
-  mountpoint?: string;
-  visibleFlag?: StoryFlagName;
-  getContents?: () => Record<string, FSNode>;
-}
+// BlockDevice/DeviceProvider live in core now; re-export so existing importers
+// (builtins, tests) can keep importing them from story/blockDevices.
+export type { BlockDevice, DeviceProvider };
 
 /** Partition node name for a disk: nvme0n1 -> nvme0n1p1 ; sda -> sda1 ; vda -> vda1 */
 function partitionName(disk: string): string {
@@ -116,4 +102,19 @@ export function findDevice(
   return getVisibleDevices(computer, storyFlags).find(
     (d) => d.devicePath === devicePathOrName || d.name === devicePathOrName
   );
+}
+
+/**
+ * Build a machine-scoped DeviceProvider for CommandContext.devices. Methods
+ * read BLOCK_DEVICES lazily so flag changes (and test mutations) are reflected.
+ */
+export function createDeviceProvider(
+  computer: ComputerId,
+  storyFlags?: Record<string, string | boolean>
+): DeviceProvider {
+  return {
+    visibleDevices: () => getVisibleDevices(computer, storyFlags),
+    rootDevice: () => getRootDevice(computer),
+    findDevice: (devicePathOrName) => findDevice(computer, devicePathOrName, storyFlags),
+  };
 }

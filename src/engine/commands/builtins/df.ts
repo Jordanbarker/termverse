@@ -4,8 +4,6 @@ import { setKnownFlags } from "../flagValidation";
 import { formatSize } from "../../../lib/formatSize";
 import { FSNode, isFile, isDirectory } from "../../filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
-import { getRootDevice } from "../../../story/blockDevices";
-import type { ComputerId } from "../../../state/types";
 
 function sumFileBytes(node: FSNode): number {
   if (isFile(node)) return node.content.length;
@@ -39,7 +37,7 @@ const df: CommandHandler = (_args, flags, ctx) => {
 
   const fmt = (n: number) => formatSize(n, humanReadable);
 
-  const device = getRootDevice(computer as ComputerId)?.devicePath ?? "/dev/sda1";
+  const device = ctx.devices?.rootDevice()?.devicePath ?? "/dev/sda1";
 
   const header = "Filesystem      Size  Used Avail Use% Mounted on";
   const row = [
