@@ -3,7 +3,7 @@ import { Mounts } from "../engine/filesystem/mounts";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
 import { SavedWindowState } from "./paneTypes";
 
-export const SAVE_FORMAT_VERSION = 15;
+export const SAVE_FORMAT_VERSION = 16;
 
 export type SaveSlotId = "auto" | "slot-1" | "slot-2" | "slot-3";
 

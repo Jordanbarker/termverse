@@ -40,6 +40,8 @@ export interface WindowState {
   root: PaneNode;
   /** The focused leaf within this window (restored when the window is reactivated). */
   activePaneId: string;
+  /** Custom window name (tmux rename-window). Unset => label is derived from the active pane. */
+  name?: string;
 }
 
 /** A leaf's computed rectangle (normalized or pixel space, caller's choice). */
@@ -343,6 +345,8 @@ export type SavedPaneNode =
 export interface SavedWindowState {
   root: SavedPaneNode;
   activePaneIndex: number;
+  /** Custom window name (omitted when the window has no name). */
+  name?: string;
 }
 
 function serializeNode(node: PaneNode): SavedPaneNode {
@@ -353,7 +357,7 @@ function serializeNode(node: PaneNode): SavedPaneNode {
 export function serializeWindow(w: WindowState): SavedWindowState {
   const leaves = allLeaves(w.root);
   const idx = leaves.findIndex((l) => l.id === w.activePaneId);
-  return { root: serializeNode(w.root), activePaneIndex: idx >= 0 ? idx : 0 };
+  return { root: serializeNode(w.root), activePaneIndex: idx >= 0 ? idx : 0, ...(w.name ? { name: w.name } : {}) };
 }
 
 function rebuildNode(s: SavedPaneNode): PaneNode {
@@ -366,5 +370,5 @@ export function rebuildWindow(s: SavedWindowState): WindowState {
   const root = rebuildNode(s.root);
   const leaves = allLeaves(root);
   const idx = Math.min(Math.max(0, s.activePaneIndex), leaves.length - 1);
-  return { id: nextWindowId(), root, activePaneId: leaves[idx].id };
+  return { id: nextWindowId(), root, activePaneId: leaves[idx].id, ...(s.name ? { name: s.name } : {}) };
 }

@@ -109,6 +109,14 @@ describe("window actions", () => {
     expect(useGameStore.getState().activeWindowId).toBe(id2);
   });
 
+  it("renameWindow sets a custom name; empty/whitespace clears it", () => {
+    const id = useGameStore.getState().windows[0].id;
+    useGameStore.getState().renameWindow(id, "  deploy  ");
+    expect(useGameStore.getState().windows[0].name).toBe("deploy"); // trimmed
+    useGameStore.getState().renameWindow(id, "   ");
+    expect(useGameStore.getState().windows[0].name).toBeUndefined();
+  });
+
   it("removeWindow does not remove the last window", () => {
     const state = useGameStore.getState();
     state.removeWindow(state.windows[0].id);

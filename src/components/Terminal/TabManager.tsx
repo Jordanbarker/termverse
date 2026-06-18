@@ -155,6 +155,12 @@ export default function TabManager() {
   const closeConfirmRef = useRef(false); // synchronous flag read inside onData
   const paneToCloseRef = useRef<string | null>(null); // which pane the confirm targets
 
+  // tmux rename-window: inline text prompt shown in the status bar.
+  const [renamePrompt, setRenamePrompt] = useState<string | null>(null);
+  const renameActiveRef = useRef(false); // synchronous gate read inside onData
+  const renameBufferRef = useRef(""); // accumulated typed name
+  const renameTargetRef = useRef<string | null>(null); // window id being renamed
+
   // Track pane IDs we've seen to tell restored panes (show prompt) from brand-new ones
   const knownPaneIdsRef = useRef<Set<string>>(new Set());
 
@@ -199,6 +205,13 @@ export default function TabManager() {
         setCloseConfirm(`kill-pane?${note} (y/n)`);
         closeConfirmRef.current = true;
       }
+    } else if (normalized === "r") {
+      // Rename the active window — tmux rename-window (inline text prompt).
+      const win = store.windows.find((w) => w.id === store.activeWindowId);
+      renameTargetRef.current = store.activeWindowId;
+      renameBufferRef.current = win?.name ?? "";
+      renameActiveRef.current = true;
+      setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
     } else if (normalized === "n") {
       // Next window
       const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
@@ -343,6 +356,34 @@ export default function TabManager() {
 
     const onDataDisposable = term.onData((data) => {
       if (gamePhaseRef.current !== "playing") return;
+
+      // tmux rename-window: the inline prompt consumes keys until Enter/Esc.
+      if (renameActiveRef.current) {
+        if (data === "\r" || data === "\n") {
+          // Commit the new name.
+          const target = renameTargetRef.current;
+          if (target) useGameStore.getState().renameWindow(target, renameBufferRef.current);
+        } else if (data === "\x1b" || data === "\x03") {
+          // Esc / Ctrl+C — cancel without applying.
+        } else if (data === "\x7f" || data === "\b") {
+          // Backspace — drop the last char and keep editing.
+          renameBufferRef.current = renameBufferRef.current.slice(0, -1);
+          setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
+          return;
+        } else if (data.length === 1 && data >= " ") {
+          // Printable character (single byte; skips CSI/arrow escape sequences).
+          renameBufferRef.current += data;
+          setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
+          return;
+        } else {
+          return; // ignore other control/escape sequences
+        }
+        renameActiveRef.current = false;
+        renameTargetRef.current = null;
+        renameBufferRef.current = "";
+        setRenamePrompt(null);
+        return;
+      }
 
       // tmux confirm-before-kill: the next key answers the close prompt.
       if (closeConfirmRef.current) {
@@ -634,6 +675,7 @@ export default function TabManager() {
           onSelectWindow={handleSelectWindow}
           prefixActive={prefixActive}
           closeConfirm={closeConfirm}
+          renamePrompt={renamePrompt}
           theme={tabTheme}
         />
       )}

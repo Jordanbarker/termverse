@@ -17,6 +17,8 @@ import {
   focusDirectionTarget,
   nextLeafId,
   resetPaneIdCounters,
+  serializeWindow,
+  rebuildWindow,
   PaneNode,
 } from "../paneTypes";
 
@@ -238,5 +240,22 @@ describe("findLeaf / findSplit", () => {
     expect(findLeaf(split.root, "nope")).toBeUndefined();
     const splitId = (split.root as Extract<PaneNode, { kind: "split" }>).id;
     expect(findSplit(split.root, splitId)?.id).toBe(splitId);
+  });
+});
+
+describe("serializeWindow / rebuildWindow", () => {
+  it("preserves a custom window name across save/rebuild (ids regenerate)", () => {
+    const w = { ...makeWindow("home", "/a"), name: "deploy" };
+    const saved = serializeWindow(w);
+    expect(saved.name).toBe("deploy");
+    const rebuilt = rebuildWindow(saved);
+    expect(rebuilt.name).toBe("deploy");
+    expect(rebuilt.id).not.toBe(w.id); // fresh id
+  });
+
+  it("omits name when the window has none", () => {
+    const saved = serializeWindow(makeWindow("home", "/a"));
+    expect(saved.name).toBeUndefined();
+    expect(rebuildWindow(saved).name).toBeUndefined();
   });
 });

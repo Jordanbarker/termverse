@@ -123,6 +123,7 @@ interface GameStore {
   addWindow: (computerId: ComputerId, cwd: string) => string;
   removeWindow: (windowId: string) => void;
   setActiveWindow: (windowId: string) => void;
+  renameWindow: (windowId: string, name: string) => void;
   // Pane-level
   splitPane: (paneId: string, direction: SplitDirection) => string | null;
   closePane: (paneId: string) => void;
@@ -325,6 +326,16 @@ export const useGameStore = create<GameStore>()(
         }),
       setActiveWindow: (windowId) =>
         set((state) => (state.windows.some((w) => w.id === windowId) ? { activeWindowId: windowId } : {})),
+      renameWindow: (windowId, name) =>
+        set((state) => {
+          // Empty/whitespace-only clears the name => label reverts to the derived form.
+          const trimmed = name.trim();
+          return {
+            windows: state.windows.map((w) =>
+              w.id === windowId ? { ...w, name: trimmed ? trimmed : undefined } : w
+            ),
+          };
+        }),
       splitPane: (paneId, direction) => {
         const state = get();
         const win = windowOfPane(state.windows, paneId);

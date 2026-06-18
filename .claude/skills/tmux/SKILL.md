@@ -1,0 +1,148 @@
+---
+name: tmux
+description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching src/state/paneTypes.ts, src/components/Terminal/{TabManager,TabBar,PaneDividers}.tsx, src/engine/terminal/{tmuxConfig,copyMode,ansiPalette}.ts, or the home ~/.tmux.conf in src/story/filesystem/home/dotfiles.ts."
+---
+
+# Tmux Multiplexer
+
+The terminal is a faithful tmux model: **windows** (the tabs in the status line, up to `MAX_WINDOWS=5`) each own a **binary tree of panes**, and each pane (`PaneLeaf`) is a full shell with its own xterm instance, cwd, computerId, and session. `tabs_unlocked` is set `true` in `createInitialState()`, so windows/panes/copy-mode are available from game start.
+
+This skill covers the pane tree model, the Zustand window/pane state and actions, the hardcoded prefix chords, the live `~/.tmux.conf` parsing (prefix/theme/keybindings), repeat-mode resize, copy mode, and how the panes are rendered into xterm.
+
+## Architecture
+
+```
+src/state/
+├── paneTypes.ts                # PURE tree model + helpers (no React, no store) (__tests__/)
+└── gameStore.ts                # windows[] + activeWindowId state, all window/pane actions
+
+src/components/Terminal/
+├── TabManager.tsx              # Orchestrator: prefix handling, xterm pane lifecycle, layout, copy-mode UI
+├── TabBar.tsx                  # tmux status line ([session] block, window labels, "+" dropdown, kill-pane prompt)
+└── PaneDividers.tsx            # Draggable seams overlaying split boundaries
+
+src/engine/terminal/
+├── tmuxConfig.ts               # parseTmuxPrefix / parseTmuxTheme / parseTmuxBindings (__tests__/)
+├── copyMode.ts                 # CopyModeController (per-pane vi-style scroller/yanker)
+└── ansiPalette.ts              # ANSI_COLORS — single source of truth for xterm + status-bar colors
+
+src/story/filesystem/home/
+└── dotfiles.ts                 # The player's ~/.tmux.conf (prefix, pane binds, status colors)
+```
+
+## Core Types (`paneTypes.ts`)
+
+```ts
+type SplitDirection = "h" | "v";          // "h" = side-by-side (vertical divider), "v" = stacked
+
+interface PaneLeaf  { id: string; computerId: ComputerId; cwd: string; }
+interface PaneSplit { id: string; direction: SplitDirection; ratio: number; a: PaneNode; b: PaneNode; }
+type PaneNode = PaneLeaf | PaneSplit;      // the whole window tree
+interface WindowState { id: string; root: PaneNode; activePaneId: string; name?: string; } // name = custom tmux rename-window label
+```
+
+- `ratio` is the fraction of the parent box allocated to child `a` (`b` gets `1 - ratio`).
+- `MIN_PANE_RATIO = 0.1` clamps splits so no pane shrinks below 10% of its parent box.
+- IDs are deterministic per session via `nextPaneId()` / `nextSplitId()` / `nextWindowId()` (`pane-N`, `split-N`, `win-N`). `resetPaneIdCounters()` runs on game reset/load so IDs match across save/restore.
+
+### Persistence
+`SavedWindowState = { root: SavedPaneNode; activePaneIndex: number; name?: string }` — the saved tree carries **no IDs**, and focus is stored as the **DFS leaf index** so it survives ID regeneration. `serializeWindow(w)` drops IDs + converts the active pane to its leaf index (and carries `name` when set); `rebuildWindow(s)` regenerates fresh IDs and restores focus + `name` from the saved shape. (See the **save** skill: `SaveData.windows` + `activeWindowIndex`.)
+
+## Tree helpers (`paneTypes.ts`)
+
+All helpers are **pure** — query functions read, edit functions return a new tree. Never mutate a `PaneNode` in place.
+
+**Query:** `allLeaves(node)` (DFS L→R), `firstLeaf(node)`, `findLeaf(node, id)`, `findSplit(node, id)`, `paneRects(node, x?, y?, w?, h?)` (each leaf's `{x,y,w,h}` rect in [0,1] space), `nodeBox(node, id, ...)` (bounding box of any node — used by resize + dividers), `focusDirectionTarget(root, fromId, dir)` (tmux `select-pane -L|R|U|D`: nearest pane in a direction whose perpendicular span overlaps), `nextLeafId(root, fromId)` (DFS cycle for `o`), `nearestResizableSplit(root, paneId, orientation)` (closest ancestor split resizable in `"h"`/`"v"`).
+
+**Edit (return new tree):** `makeLeaf` / `makeWindow`, `mapLeaf(node, id, fn)` (replace one leaf — used by `setPaneCwd`/`setPaneComputer`), `splitNode(root, paneId, dir, newLeaf)` → `{root, newPaneId}` (original becomes child `a`, new leaf `b`, 50/50), `collapsePane(root, paneId)` (promote sibling; `null` if it was the only child), `prunePanesByComputer(root, downed, protectedId)` (drop panes on downed computers, collapse emptied splits), `setSplitRatio(root, splitId, ratio)` (clamped), `nudgeSplitRatio(root, splitId, delta)` (clamped delta — used by keyboard resize binds).
+
+## Store state & actions (`gameStore.ts`)
+
+State is `windows: WindowState[]` + `activeWindowId`. The focused leaf is each window's `activePaneId`.
+
+**Derivations** (exported from `gameStore.ts`): `getActiveWindow(state)`, `getActivePaneId(state)`, `getActiveLeaf(state)`.
+
+**Constants:** `MAX_WINDOWS = 5`, `MAX_PANES_PER_WINDOW = 6`.
+
+| Action | Effect |
+|---|---|
+| `addWindow(computerId, cwd)` | New window; returns new id, or current id if at `MAX_WINDOWS` |
+| `removeWindow(windowId)` | Close a window (always keeps ≥1) |
+| `setActiveWindow(windowId)` | Switch focused window |
+| `renameWindow(windowId, name)` | Set a custom window name (tmux rename-window); empty/whitespace clears it back to the derived label |
+| `splitPane(paneId, dir)` | Split focused pane; returns new pane id, or `null` if at `MAX_PANES_PER_WINDOW` |
+| `closePane(paneId)` | Kill pane; closes window if it's the last pane (unless only window) |
+| `setActivePane(paneId)` | Focus a pane + activate its window |
+| `focusDirection(dir)` | Geometric select-pane via `focusDirectionTarget` |
+| `cyclePane()` | Focus next pane in DFS order (`o`) |
+| `resizePane(splitId, ratio)` | Set a split ratio directly (divider drag) |
+| `nudgeSplitRatio(splitId, delta)` | Adjust a ratio by a delta (keyboard resize binds) |
+| `setPaneCwd` / `setPaneComputer` / `setActivePaneCwd` / `setActivePaneComputer` | Retarget a pane's cwd/computer |
+| `closePanesForComputers(ids)` | Teardown: prune panes on downed boxes, active pane preserved |
+| `closeOtherPanes()` | Collapse to a single pane (shutdown/reboot) |
+
+CWD is per-pane; the active computer is derived from the active pane's `computerId`. See the rules doc for how `exit`/end-of-day/`shutdown` use the teardown actions.
+
+## Prefix bindings
+
+The prefix key arms "prefix mode" (default Ctrl+Space); the next key fires an action. **Split/window chords are hardcoded** in `TabManager.handleCtrlBAction(key)` (gated on `storyFlags.tabs_unlocked`; control chars are normalized — ASCII 1-26 → lowercase a-z):
+
+| `<prefix>` + | Action |
+|---|---|
+| `\|` | `splitPane(activePaneId, "h")` — side-by-side |
+| `-` | `splitPane(activePaneId, "v")` — stacked |
+| `o` | `cyclePane()` |
+| `c` | `addWindow(...)` (new window on active pane's computer) |
+| `r` | Rename the active window via an inline `(rename-window) <text>` text prompt in the status bar (type, Backspace edits, Enter applies via `renameWindow`, Esc/Ctrl+C cancels; empty Enter reverts to the derived label) |
+| `x` | Kill **focused pane** via a `confirm-before` `kill-pane? (y/n)` prompt in the status bar (blocked if it's the only pane of the only window) |
+| `n` / `p` | Next / previous window |
+| `1`–`5` | Jump to window N (**window**-indexed, 1-based) |
+| `[` | Enter copy mode on the focused pane (handled in the pane's key path, not `handleCtrlBAction`) |
+
+tmux defaults `%` / `"` are intentionally **not** bound. Pane **focus** and **resize** chords (e.g. `hjkl` / `HJKL`) are *not* hardcoded — they come from `~/.tmux.conf` via `parseTmuxBindings` (below).
+
+## `~/.tmux.conf` parsing (`tmuxConfig.ts`)
+
+Parsed **live** from the home PC's `~/.tmux.conf` only (your local terminal config governs the multiplexer regardless of which box a pane is on), memoized in `TabManager`. Later directives override earlier ones; malformed/unsupported tokens are ignored and the field keeps its default.
+
+- **Prefix** — `parseTmuxPrefix(conf) → TabPrefix { char, label }`. `char` is the control char (`\x00` for Ctrl+Space, `\x02` for Ctrl+B); `label` is the display string. `keyTokenToControlChar("C-Space"|"C-a".."C-z")` maps tokens to ASCII control chars (rejects `M-`, `F1`, `C-1`, …). `DEFAULT_TAB_PREFIX = { char: "\x00", label: "Ctrl+Space" }`. The label reaches `help` via `CommandContext.tabPrefixLabel`.
+- **Theme** — `parseTmuxTheme(conf) → TabBarTheme` with `statusBg/Fg`, `currentBg/Fg`, `windowBg/Fg`, `leftBg/Fg`. Reads `status-style` / `window-status-current-style` / `window-status-style` / `status-left-style` (modern `bg=X,fg=Y` and legacy `status-bg`/`status-fg`). `resolveTmuxColor(token)` resolves named ANSI colors (case-insensitive) against `ANSI_COLORS`, passes through hex, maps `default → transparent`, returns `null` if unresolvable. Fallback is `DEFAULT_TAB_BAR_THEME`.
+- **Pane binds** — `parseTmuxBindings(conf) → TmuxBindings` (`Record<singleChar, PaneBinding>`). A `PaneBinding` is `{ kind: "focus", dir }` (from `bind [-r] <key> select-pane -L|-R|-U|-D`) or `{ kind: "resize", dir, cells, repeat }` (from `bind [-r] <key> resize-pane -L|-R|-U|-D [N]`). `PaneDir = "L"|"R"|"U"|"D"`; only single-char keys; `-r` marks the bind repeatable; `DEFAULT_RESIZE_CELLS = 5` when no amount given.
+
+## Repeat-mode resize (`TabManager.tsx`)
+
+`-r` binds auto-fire while held without re-pressing the prefix, for `REPEAT_MS = 500` after the last press. `armRepeat()`/`clearRepeat()` manage `repeatModeRef` + the timer (and keep the status bar "hot"). `applyResize(binding)` converts a cell-based step to a ratio delta: find `nearestResizableSplit` for the bind's orientation, compute the focused pane's cell px and the split box px (via `nodeBox` + the wrapper size), then call `nudgeSplitRatio` (R/D grow child `a`, L/U shrink it).
+
+## Copy mode (`copyMode.ts`)
+
+Each pane owns its own `CopyModeController`. `<prefix> [` enters it on the focused pane; it sits **outside** the shell (all keys are consumed before reaching the session) and works over any session — inline sessions navigate real scrollback, alt-screen sessions (`nano`/`less`/`piper`, per `sessionUsesAltScreen()`) are confined to the visible screen and get a `resize()` redraw on exit.
+
+- **Keys** (vi-style): `h/j/k/l` + arrows (wraps at line ends), `0`/`Home` + `$`/`End` (sticks to EOL), `g`/`G` (top/bottom), `Ctrl+U`/`Ctrl+D` (half-page), `v` (toggle selection anchor), `y`/`Enter` (yank → clipboard), `q`/`Escape`/`Ctrl+C` (exit), `?` (toggle the key-hint overlay).
+- **Callbacks:** `onChange(active)` (re-renders alt-screen sessions on enter/exit), `onYank(text)` (caller owns clipboard via `src/lib/clipboard.ts` + toast), `onToggleHelp()` (flips the store's `copyModeHelpHidden`, which is persisted).
+
+## Rendering wiring (`TabManager.tsx` / `PaneDividers.tsx` / `TabBar.tsx`)
+
+Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed by pane id, and positioned **absolutely** from `paneRects(activeWindow.root)` (avoids the canvas re-parenting a nested-flex tree would cause). Only the active window's panes are visible (others `display:none`). A single wrapper `ResizeObserver` + a layout effect fits every visible pane and calls `resizePaneSession(paneId)` on size change. The active pane shows a 1px accent outline; clicking fires `setActivePane` + `term.focus()`.
+
+**Single-focused-xterm invariant:** `sessionMapRef` and the global cwd/computer refs are keyed on `activePaneId`, so input routes to the right session — keep this invariant when touching focus logic.
+
+`PaneDividers.tsx` overlays one draggable seam per split (computed from the tree, positioned via `nodeBox`); drag converts client coords → ratio and calls `resizePane(splitId, ratio)`. `TabBar.tsx` is the tmux status line: a `[session]` block, window labels (a custom `name` if set, else `index:host:dir`, with a `(n)` pane count, `*` on current), and a "+" dropdown offering home plus only machines with an open pane. Two prompts can take over the status line: the `<prefix> x` `kill-pane? (y/n)` confirm and the `<prefix> r` `(rename-window) <text>` inline text input (both passed in as props, gated in `onData` by `closeConfirmRef`/`renameActiveRef`).
+
+## Adding / Extending
+
+- **New prefix chord:** add a branch in `TabManager.handleCtrlBAction` keyed on `key`/`normalized`; call the matching store action.
+- **New `.tmux.conf`-driven bind:** the focus/resize parser already covers `select-pane`/`resize-pane`. For a brand-new directive, extend `parseTmuxBindings` (or a new parser) + its `PaneBinding` variant, and add tests in `src/engine/terminal/__tests__/tmuxConfig.test.ts`.
+- **Theme colors:** add named colors to `ANSI_COLORS` (keeps xterm + status bar in sync); extend `parseTmuxTheme`/`TabBarTheme` for new style targets.
+- **New copy-mode key:** add it to the `CopyModeController` keydown handler.
+- **Tree changes:** keep `paneTypes.ts` helpers pure and add cases to `src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
+
+Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md).
+
+## Design Principles
+
+- **Immutable, pure tree** — `paneTypes.ts` has no React/store deps; edits return new nodes (enables React re-renders + clean tests).
+- **Windows vs panes** — windows are the tmux tabs; panes are the binary-tree subdivisions inside a window.
+- **Prefix-driven UI** — the prefix arms a one-shot mode; split/window chords are hardcoded, focus/resize binds are config-driven.
+- **`.tmux.conf` is live game state** — prefix, pane binds, and status colors come from the player's home dotfile, parsed at runtime (no restart).
+- **Copy mode sits outside the shell** — a per-pane controller that consumes keys before the session.
+- **Single-focused-xterm invariant** — session routing and global refs key on `activePaneId`.
