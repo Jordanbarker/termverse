@@ -1,6 +1,6 @@
 import { registerAsync, registerAlias } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { AsyncCommandHandler, CommandContext, CommandResult } from "../types";
+import { AsyncCommandHandler, CommandContext, CommandResult } from "@tt/core/commands/types";
 import { parsePipeline, parseInput, parseChainedPipeline } from "../parser";
 import { execute, executeAsync, isAsyncCommand } from "../registry";
 import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../redirection";
@@ -461,7 +461,7 @@ async function expandSubstitutions(
 
 /** Execute a single pipeline (no chain operators). Returns exitCode. */
 async function executePipeline(
-  pipeline: import("../types").ParsedCommand[],
+  pipeline: import("@tt/core/commands/types").ParsedCommand[],
   ctx: CommandContext,
   runningFs: VirtualFS,
   currentCwd: string,

@@ -4,7 +4,7 @@ import { getMenuItems } from "../menuItems";
 import { createNexacorpFilesystem } from "../../filesystem/nexacorp";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { execute } from "../../../engine/commands/registry";
-import { CommandContext } from "../../../engine/commands/types";
+import { CommandContext } from "@tt/core/commands/types";
 import "../../../engine/commands/builtins";
 
 const USERNAME = "testplayer";

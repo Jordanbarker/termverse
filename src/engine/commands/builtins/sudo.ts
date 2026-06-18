@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register, execute } from "../registry";
 
 const sudo: CommandHandler = (args, _flags, ctx) => {

@@ -1,4 +1,4 @@
-import { ParsedCommand, ChainOperator, ChainSegment } from "./types";
+import { ParsedCommand, ChainOperator, ChainSegment } from "@tt/core/commands/types";
 
 /**
  * Tokenize and parse raw terminal input into a structured command.

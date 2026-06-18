@@ -1,7 +1,7 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { HELP_TEXTS } from "./helpTexts";
-import { GameTime } from "../clock";
+import { GameTime } from "@tt/core/commands/clock";
 
 const MONTH_NUM: Record<string, string> = {
   Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",

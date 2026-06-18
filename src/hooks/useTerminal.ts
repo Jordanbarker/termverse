@@ -25,7 +25,7 @@ import { CHECKPOINTS } from "../story/checkpoints";
 import { useSessionRouter } from "./useSessionRouter";
 import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
-import { CommandContext } from "../engine/commands/types";
+import { CommandContext } from "@tt/core/commands/types";
 import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
 import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "@tt/core/terminal/keyCodes";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
@@ -104,7 +104,7 @@ function buildCommandContext(
 }
 
 /** Check if a command result contains fields that require stopping the chain. */
-function isChainEarlyReturn(result: import("../engine/commands/types").CommandResult): boolean {
+function isChainEarlyReturn(result: import("@tt/core/commands/types").CommandResult): boolean {
   return !!(result.editorSession || result.interactiveSession || result.snowSqlSession ||
     result.sshSession || result.chipSession || result.piperSession || result.promptSession ||
     result.incrementalLines || result.transitionTo);
@@ -531,8 +531,8 @@ export function useTerminal() {
           const homeDir = initialFs.homeDir;
 
           const applyCommandResult = (
-            cmdResult: import("../engine/commands/types").CommandResult,
-            parsedCmd: import("../engine/commands/types").ParsedCommand,
+            cmdResult: import("@tt/core/commands/types").CommandResult,
+            parsedCmd: import("@tt/core/commands/types").ParsedCommand,
             runningFs: VirtualFS,
             isFinal: boolean
           ) => {
@@ -640,7 +640,7 @@ export function useTerminal() {
 
             // Execute pipeline for this segment
             let stdin: string | undefined; // reset per chain segment
-            let lastResult: import("../engine/commands/types").CommandResult = { output: "" };
+            let lastResult: import("@tt/core/commands/types").CommandResult = { output: "" };
             const allTriggerEvents: import("../engine/mail/delivery").GameEvent[] = [];
             let pipelineViolation: import("../story/security").SecurityViolation | undefined;
 

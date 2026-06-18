@@ -1,6 +1,6 @@
 import { registerAsync, registerAlias } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { AsyncCommandHandler, CommandResult } from "../types";
+import { AsyncCommandHandler, CommandResult } from "@tt/core/commands/types";
 import { getPyodide } from "@tt/core/python/pyodideLoader";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorize, ansi } from "@tt/core/lib/ansi";

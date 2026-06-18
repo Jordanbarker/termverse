@@ -1,4 +1,4 @@
-import { CommandHandler, CommandContext, CommandResult } from "../types";
+import { CommandHandler, CommandContext, CommandResult } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "@tt/core/lib/pathUtils";

@@ -1,9 +1,9 @@
-import { CommandResult } from "./types";
+import { CommandResult } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { isDirectory } from "@tt/core/filesystem/types";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { MachineId } from "@tt/core/machine";
-import { SecurityPolicy } from "./security";
+import { SecurityPolicy } from "@tt/core/commands/security";
 
 export interface RedirectTarget {
   file: string;

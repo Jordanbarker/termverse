@@ -1,4 +1,4 @@
-import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "./types";
+import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "@tt/core/commands/types";
 import { isCommandAvailable, unavailableCommandMessage } from "./availability";
 import { StoryFlags } from "../../state/types";
 import { MachineId } from "@tt/core/machine";

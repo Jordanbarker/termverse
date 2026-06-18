@@ -1,11 +1,11 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { isDirectory, FSNode } from "@tt/core/filesystem/types";
 import { collectDescendantPaths } from "@tt/core/filesystem/walk";
 import { HELP_TEXTS } from "./helpTexts";
-import { chmodIsRestrictive, SecurityViolation } from "../security";
+import { chmodIsRestrictive, SecurityViolation } from "@tt/core/commands/security";
 
 const PERM_MAP: Record<string, string> = {
   "0": "---", "1": "--x", "2": "-w-", "3": "-wx",

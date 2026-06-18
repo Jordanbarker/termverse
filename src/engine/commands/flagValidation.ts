@@ -1,4 +1,4 @@
-import { CommandResult } from "./types";
+import { CommandResult } from "@tt/core/commands/types";
 
 export interface KnownFlags {
   short?: readonly string[];

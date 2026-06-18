@@ -1,6 +1,6 @@
 import { file } from "@tt/core/filesystem/builders";
 import type { ComputerId } from "../state/types";
-import { BlockDevice, DeviceProvider } from "../engine/commands/devices";
+import { BlockDevice, DeviceProvider } from "@tt/core/commands/devices";
 
 // BlockDevice/DeviceProvider live in core now; re-export so existing importers
 // (builtins, tests) can keep importing them from story/blockDevices.

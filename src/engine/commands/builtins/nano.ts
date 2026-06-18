@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { resolvePath, parentPath } from "@tt/core/lib/pathUtils";
 import { isFile, isDirectory } from "@tt/core/filesystem/types";

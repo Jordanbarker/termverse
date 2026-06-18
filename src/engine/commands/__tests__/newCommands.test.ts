@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { execute } from "../registry";
-import { CommandContext } from "../types";
+import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
 // Registers the turmoil gating policy (side effect) so unavailable commands
@@ -2124,7 +2124,7 @@ describe("command chaining (interactive-style)", () => {
 
       const pipeline = seg.pipeline;
       let stdin: string | undefined;
-      let lastResult: import("../types").CommandResult = { output: "" };
+      let lastResult: import("@tt/core/commands/types").CommandResult = { output: "" };
 
       for (let pi = 0; pi < pipeline.length; pi++) {
         const p = pipeline[pi];

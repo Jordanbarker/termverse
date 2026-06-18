@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { rejectUnknownFlags, skipFlagValidation, KnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";

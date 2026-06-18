@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register, registerAlias } from "../registry";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";

@@ -7,7 +7,7 @@
  * the dependency on Piper delivery definitions + the segment timeline.
  */
 import { ComputerId } from "../state/types";
-import { GameClock, GameTime } from "../engine/commands/clock";
+import { GameClock, GameTime } from "@tt/core/commands/clock";
 import { MachineId } from "@tt/core/machine";
 import { getGameTime } from "../engine/piper/timestamp";
 import { getPiperDeliveries } from "./piper/messages";

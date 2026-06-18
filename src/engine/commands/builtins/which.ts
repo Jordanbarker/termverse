@@ -1,4 +1,4 @@
-import { CommandHandler, CommandContext } from "../types";
+import { CommandHandler, CommandContext } from "@tt/core/commands/types";
 import { register, getAvailableCommands } from "../registry";
 import { isCommandAvailable } from "../availability";
 import { HELP_TEXTS } from "./helpTexts";

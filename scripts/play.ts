@@ -22,7 +22,7 @@ import { parseChainedPipeline, parseInput, expandAliases } from "../src/engine/c
 import { execute, executeAsync, isAsyncCommand } from "../src/engine/commands/registry";
 import "../src/engine/commands/builtins"; // side-effect: registers all commands
 import { computeEffects, SessionToStart } from "../src/engine/commands/applyResult";
-import { CommandResult, ChainSegment, ParsedCommand } from "../src/engine/commands/types";
+import { CommandResult, ChainSegment, ParsedCommand } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
 import { createNexacorpFilesystem } from "../src/story/filesystem/nexacorp";

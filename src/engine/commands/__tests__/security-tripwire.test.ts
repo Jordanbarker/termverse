@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { execute } from "../registry";
-import { CommandContext, CommandResult } from "../types";
+import { CommandContext, CommandResult } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
 import { applyRedirection } from "../redirection";

@@ -1,8 +1,8 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { HELP_TEXTS } from "./helpTexts";
-import { BlockDevice } from "../devices";
+import { BlockDevice } from "@tt/core/commands/devices";
 import { Mount } from "@tt/core/filesystem/mounts";
 
 interface Row {

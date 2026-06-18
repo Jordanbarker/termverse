@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { GameEvent } from "../../mail/delivery";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
@@ -6,7 +6,7 @@ import { resolvePath } from "@tt/core/lib/pathUtils";
 import { FSNode, isDirectory } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { SecurityViolation } from "../security";
+import { SecurityViolation } from "@tt/core/commands/security";
 
 function collectRemoveEvents(node: FSNode, path: string): GameEvent[] {
   const out: GameEvent[] = [];

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createDevcontainerFilesystem } from "../../../story/filesystem/devcontainer";
-import { CommandContext } from "../../commands/types";
+import { CommandContext } from "@tt/core/commands/types";
 import {
   runModels,
   runTests,

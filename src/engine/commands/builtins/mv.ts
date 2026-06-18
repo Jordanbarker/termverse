@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { GameEvent } from "../../mail/delivery";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";

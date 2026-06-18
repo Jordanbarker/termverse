@@ -1,4 +1,4 @@
-import { CommandHandler } from "../types";
+import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { HELP_TEXTS } from "./helpTexts";
 import { Mount, normalizeMountKey } from "@tt/core/filesystem/mounts";

@@ -1,4 +1,4 @@
-import { CommandContext, CommandResult, IncrementalLine } from "../commands/types";
+import { CommandContext, CommandResult, IncrementalLine } from "@tt/core/commands/types";
 import { DbtDebugInfo, DbtRunSummary, DbtTestResult, ModelRunResult } from "./types";
 import {
   findDbtProject,

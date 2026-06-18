@@ -1,6 +1,6 @@
 import { register } from "../registry";
 import { rejectUnknownFlags, skipFlagValidation } from "../flagValidation";
-import { CommandResult, CommandContext } from "../types";
+import { CommandResult, CommandContext } from "@tt/core/commands/types";
 import { HELP_TEXTS } from "./helpTexts";
 import { execute } from "@tt/core/snowflake/executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "@tt/core/snowflake/formatter/table_formatter";

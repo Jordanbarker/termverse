@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { execute } from "../registry";
-import { CommandContext } from "../types";
+import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode, isDirectory } from "@tt/core/filesystem/types";
 import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story/blockDevices";

@@ -1,4 +1,4 @@
-import { CommandHandler, IncrementalLine } from "../types";
+import { CommandHandler, IncrementalLine } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { colorize, ansi } from "@tt/core/lib/ansi";
 import type { ComputerId } from "../../../state/types";

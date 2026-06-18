@@ -7,7 +7,7 @@ import {
   SecurityOpContext,
   SecurityPolicy,
   chmodIsRestrictive,
-} from "../engine/commands/security";
+} from "@tt/core/commands/security";
 
 // Re-export the core security types/helpers so existing app-side importers
 // (hooks, builtins, tests) can keep importing them from story/security.
