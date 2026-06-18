@@ -1,7 +1,7 @@
 import { VirtualFS } from "../filesystem/VirtualFS";
 import { GameEvent } from "../mail/delivery";
 import { SnowflakeState } from "../snowflake/state";
-import type { MachineId } from "../machine";
+import type { MachineId } from "@tt/core/machine";
 
 export interface SessionResult {
   type: "continue" | "exit";

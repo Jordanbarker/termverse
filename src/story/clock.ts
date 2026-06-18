@@ -8,7 +8,7 @@
  */
 import { ComputerId } from "../state/types";
 import { GameClock, GameTime } from "../engine/commands/clock";
-import { MachineId } from "../engine/machine";
+import { MachineId } from "@tt/core/machine";
 import { getGameTime } from "../engine/piper/timestamp";
 import { getPiperDeliveries } from "./piper/messages";
 

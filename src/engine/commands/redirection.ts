@@ -2,7 +2,7 @@ import { CommandResult } from "./types";
 import { VirtualFS } from "../filesystem/VirtualFS";
 import { isDirectory } from "../filesystem/types";
 import { resolvePath } from "../../lib/pathUtils";
-import { MachineId } from "../machine";
+import { MachineId } from "@tt/core/machine";
 import { SecurityPolicy } from "./security";
 
 export interface RedirectTarget {

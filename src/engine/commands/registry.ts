@@ -1,7 +1,7 @@
 import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "./types";
 import { isCommandAvailable, unavailableCommandMessage } from "./availability";
 import { StoryFlags } from "../../state/types";
-import { MachineId } from "../machine";
+import { MachineId } from "@tt/core/machine";
 import { resolvePath } from "../../lib/pathUtils";
 import { colorize, ansi } from "../../lib/ansi";
 import { getKnownFlags, shouldValidateFlags, rejectUnknownFlags } from "./flagValidation";

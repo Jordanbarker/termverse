@@ -3,7 +3,7 @@ import { VirtualFS } from "../filesystem/VirtualFS";
 import { ISession, SessionResult } from "../session/types";
 import { isBackspace, CTRL_C } from "../terminal/keyCodes";
 import { colorize, ansi } from "../../lib/ansi";
-import type { MachineId } from "../machine";
+import type { MachineId } from "@tt/core/machine";
 import type { GameEvent } from "../mail/delivery";
 
 const FAKE_FINGERPRINT = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8";

@@ -5,7 +5,7 @@ import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
 import type { StoryFlags } from "../../state/types";
-import type { MachineId } from "../machine";
+import type { MachineId } from "@tt/core/machine";
 import { GameEvent } from "../mail/delivery";
 import { SecurityViolation, SecurityPolicy } from "./security";
 import { DeviceProvider } from "./devices";

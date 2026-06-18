@@ -8,7 +8,7 @@ import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
 import { StoryFlags } from "../../state/types";
-import { MachineId } from "../machine";
+import { MachineId } from "@tt/core/machine";
 import { SecurityViolation } from "./security";
 import { commandReadsFiles } from "./registry";
 import type { DeliveryResult } from "./processDeliveries";

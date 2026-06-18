@@ -3,7 +3,7 @@ import { checkEmailDeliveries, GameEvent } from "../mail/delivery";
 import { checkPiperDeliveries } from "../piper/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";
 import { ComputerId, StoryFlags } from "../../state/types";
-import { MachineId } from "../machine";
+import { MachineId } from "@tt/core/machine";
 import { StoryFlagUpdate } from "./applyResult";
 
 export interface DeliveryResult {

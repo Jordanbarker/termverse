@@ -1,5 +1,5 @@
 import { StoryFlags } from "../../state/types";
-import { MachineId } from "../machine";
+import { MachineId } from "@tt/core/machine";
 
 /**
  * Command-availability seam (core, story-agnostic).

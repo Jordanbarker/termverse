@@ -1,4 +1,4 @@
-import type { MachineId } from "../machine";
+import type { MachineId } from "@tt/core/machine";
 
 export interface LessSessionInfo {
   filename: string | null;

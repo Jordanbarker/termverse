@@ -4,7 +4,7 @@ import { stripAnsi } from "../../lib/ansi";
 import { parsePagerInput, PagerAction } from "./keymap";
 import { render } from "./render";
 import { LessSessionInfo } from "./types";
-import type { MachineId } from "../machine";
+import type { MachineId } from "@tt/core/machine";
 
 interface LessState {
   lines: string[];
