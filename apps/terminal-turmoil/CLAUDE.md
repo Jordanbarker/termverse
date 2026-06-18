@@ -1,36 +1,12 @@
 # Terminal Turmoil
 
-A narrative-driven browser game that teaches Linux/terminal through a workplace mystery. Prioritize narrative realism in all game content.
+A narrative-driven browser game that teaches Linux/terminal through a workplace mystery. Prioritize narrative realism in all game content — the game should reflect true-to-life zsh/git/data/characters.
 
-## Monorepo / `@tt/core`
+**Chip is an in-game LLM chatbot** — same shape as ChatGPT Codex or Claude Code. It is **not autonomous and not sentient**. Users prompt it through the `chip` CLI; it responds. (See the `apps/terminal-turmoil:narrative` skill for full detail.)
 
-The repo is an npm-workspace monorepo (`workspaces: ["packages/*", "apps/*"]`). The reusable, story-agnostic terminal engine lives in `packages/core` (`@tt/core`): VirtualFS, command engine + builtins, git/dbt/snowflake engines, the pane/window tree model (`@tt/core/terminal/paneTypes`), `PaneDividers`, sessions (editor/pager), the zsh-style autosuggestion + TAB-completion engine (`@tt/core/suggestions/{suggest,complete}`), etc. It is a raw-TS package (no build step) — consumers resolve it via tsconfig `paths` (`@tt/core`, `@tt/core/*`) for typecheck and, for separate Next apps, via a node_modules workspace symlink + `transpilePackages: ["@tt/core"]`. The Tailwind v4 `@source` directive must point at `packages/core/src` so core component classes emit.
+> This is the terminal-turmoil app. Monorepo-wide context (`@tt/core`, tech stack, top-level commands, deploy) lives in the repo-root `.claude/CLAUDE.md`. The story-specific skills are directory-scoped: `apps/terminal-turmoil:{narrative,dbt,piper,git,email,save,snowflake,play-testing}`. The shared engine skills `tmux` and `commands` stay at root.
 
-**Both games live under `apps/`.** terminal-turmoil is `apps/terminal-turmoil` (`@tt/terminal-turmoil`, basePath `/terminal-turmoil`); its app code is `apps/terminal-turmoil/src/` and it owns the play-testing harness in `apps/terminal-turmoil/scripts/`. The repo-root `package.json` is the workspace root only — its `dev`/`build`/`analyze`/`generate-data` scripts delegate to `@tt/terminal-turmoil`, and `typecheck` runs `npm --workspaces --if-present run typecheck` (covers `@tt/core` + both apps). A **second game**, `apps/puzzle-game` (`@tt/puzzle-game`, basePath `/terminal-turmoil/puzzle-game`), is built entirely on `@tt/core` to prove the engine-reuse pattern: a terminal-skills puzzle game with a declarative challenge framework (`challenges/`), a lean Zustand store reusing `paneTypes` helpers, a trimmed xterm renderer, and live state-based win-detection (one tmux pane-matching challenge, one git stage+commit challenge). The renderer has zsh-style **ghost-text autosuggestions + TAB completion** via the shared `@tt/core/suggestions` engine: `usePuzzleTerminal.buildSuggestionContext()` feeds it (commands from `getCommandList()` since there's no flag gating), and `apps/puzzle-game/src/lib/lineSuggest.ts` is the lean ANSI renderer (ghost text, accept-on-Right-arrow, columnar completion menu with cycling) tailored to the puzzle game's end-of-line input model — distinct from the main game's mid-line `useCommandLine`. It has a trimmed tmux **status line** (`PuzzleTabBar.tsx`, no `useGameStore`/`COMPUTERS`/`.tmux.conf` parsing) with full multi-window support: a pulsing `PREFIX` indicator, `idx:label (paneCount)` tabs (click to switch, `x`/`+` to close/add), and window chords `<prefix> c` (new) `/ n,p` (cycle) `/ 1-9` (jump) `/ r` (inline rename). Window/prefix/rename state is lifted into `PuzzleTerminal.tsx`; the store's window actions (`newWindow`/`selectWindow`/`cycleWindow`/`closeWindow`/`renameWindow`) live in `puzzleStore.ts`, and the layout effect keeps non-active windows' panes alive (`display:none`, never fit hidden) so buffers survive window switches. Run via `npm run dev:puzzle` / `npm run build:puzzle`. It does **not** import terminal-turmoil's story code. When changing `@tt/core`, remember both apps consume it. **Deploy** (`.github/workflows/deploy.yml`) builds both apps and assembles one GitHub Pages artifact (`_site/`): terminal-turmoil at `/terminal-turmoil/`, puzzle-game nested at `/terminal-turmoil/puzzle-game/`. basePath is the repo-name Pages path, so it is independent of the source directory.
-
-## Tech Stack
-
-- **Framework**: Next.js (App Router, static export)
-- **Language**: TypeScript
-- **Terminal**: xterm.js (`@xterm/xterm`, `@xterm/addon-fit`)
-- **State**: Zustand with localStorage persist
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest
-- **Python**: Pyodide (WebAssembly)
-- **Deployment**: GitHub Pages via GitHub Actions
-
-## Commands
-
-```bash
-npm run dev       # Local development server
-npm run build     # Production build (static export to apps/terminal-turmoil/out/)
-npm run lint      # ESLint
-npm run typecheck # TypeScript checking
-npm run test      # Vitest (or: npx vitest run)
-npm run check     # Combined typecheck + test + build
-```
-
-### In-Game Commands
+## In-Game Commands
 
 `ls`, `cd`, `cat`, `less`, `pwd`, `clear`, `help`, `nano`, `mail`, `piper`, `python`, `snow`, `dbt`, `chip`, `ssh`, `ssh-add`, `coder`, `exit`, `shutdown`, `save`, `load`, `newgame`, `grep`, `find`, `head`, `tail`, `diff`, `wc`, `echo`, `chmod`, `mkdir`, `rm`, `mv`, `cp`, `touch`, `history`, `whoami`, `hostname`, `file`, `tree`, `sort`, `uniq`, `date`, `which`, `command`, `type`, `man`, `df`, `lsblk`, `mount`, `umount`, `pdftotext`, `sudo`, `apt`, `git`, `source`, `alias`, `unalias`, `export`, `printenv`, `env`, `true`, `false`, `bash` (aliases: `sh`, `zsh`), `cheat` (dev/play-testing checkpoint jump)
 

@@ -1,6 +1,6 @@
 ---
 name: commands
-description: "Command parser, registry, pipeline execution, and how to add new commands. Use this skill whenever adding a new terminal command, modifying the command parser or pipeline, working on applyResult.ts/computeEffects(), or touching files under src/engine/commands/ (except dbt.ts, mail.ts, snow.ts which have their own skills)."
+description: "Command parser, registry, pipeline execution, and how to add new commands. This is a SHARED @tt/core engine skill — the generic parser/registry/pipeline lives in packages/core/src/commands and is consumed by both apps/terminal-turmoil and apps/puzzle-game. Use this skill whenever adding a new terminal command, modifying the command parser or pipeline, working on applyResult.ts/computeEffects(), or touching files under the commands engine (resolve bare src/engine/commands/... paths as packages/core/src/commands or apps/terminal-turmoil/src/engine/commands), except dbt.ts, mail.ts, snow.ts which have their own skills."
 ---
 
 # Command System

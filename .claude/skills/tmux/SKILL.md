@@ -1,6 +1,6 @@
 ---
 name: tmux
-description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching src/state/paneTypes.ts, src/components/Terminal/{TabManager,TabBar,PaneDividers}.tsx, src/engine/terminal/{tmuxConfig,copyMode,ansiPalette}.ts, or the home ~/.tmux.conf in src/story/filesystem/home/dotfiles.ts."
+description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). The pure pane model lives in the SHARED @tt/core engine (@tt/core/terminal/paneTypes + PaneDividers) and is reused by both apps/terminal-turmoil and apps/puzzle-game. Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching paneTypes.ts, the Terminal components (TabManager/TabBar/PaneDividers), the terminal engine (tmuxConfig/copyMode/ansiPalette), or the home ~/.tmux.conf in apps/terminal-turmoil/src/story/filesystem/home/dotfiles.ts."
 ---
 
 # Tmux Multiplexer
