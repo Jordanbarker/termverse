@@ -10,8 +10,8 @@ import {
   debugProject,
   compileModel,
   showModel,
-} from "../../dbt/runner";
-import { formatVersion, formatUsage } from "../../dbt/output";
+} from "@tt/core/dbt/runner";
+import { formatVersion, formatUsage } from "@tt/core/dbt/output";
 
 function unexpectedArg(args: string[], max: number): string | null {
   return args.length > max ? `Error: Got unexpected extra argument (${args[max]})` : null;

@@ -8,7 +8,6 @@ import {
   parseMaterializationConfig,
   buildMaterializationMap,
 } from "./project";
-import { STANDARD_MODEL_ORDER } from "./data";
 import {
   formatRunHeader,
   formatModelRun,
@@ -158,9 +157,10 @@ export function runModels(ctx: CommandContext, selectModel?: string): CommandRes
     modelsToExecute = [...modelsToDisplay];
   }
 
+  const modelOrder = ctx.dbtModelOrder ?? [];
   const sortByOrder = (list: string[]) => list.sort((a, b) => {
-    const ai = STANDARD_MODEL_ORDER.indexOf(a);
-    const bi = STANDARD_MODEL_ORDER.indexOf(b);
+    const ai = modelOrder.indexOf(a);
+    const bi = modelOrder.indexOf(b);
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
   sortByOrder(modelsToDisplay);

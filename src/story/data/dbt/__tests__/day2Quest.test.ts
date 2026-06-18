@@ -1,15 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { createDevcontainerFilesystem } from "../../../story/filesystem/devcontainer";
+import { createDevcontainerFilesystem } from "../../../filesystem/devcontainer";
 import { CommandContext } from "@tt/core/commands/types";
-import { runBuild, runTests } from "../runner";
+import { runBuild, runTests } from "@tt/core/dbt/runner";
+import { STANDARD_MODEL_ORDER } from "../data";
 import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
 import { SnowflakeState } from "@tt/core/snowflake/state";
-import { checkStoryFlagTriggers } from "../../narrative/storyFlags";
-import { getDevcontainerStoryFlagTriggers } from "../../../story/storyFlags";
-import { REMOTE_REPOS } from "../../git/remotes";
-import { gitClone, gitPull, gitCheckout, createBranch } from "../../git/repo";
-import { getMenuItems } from "../../../story/chip/menuItems";
+import { checkStoryFlagTriggers } from "@/engine/narrative/storyFlags";
+import { getDevcontainerStoryFlagTriggers } from "../../../storyFlags";
+import { REMOTE_REPOS } from "@/engine/git/remotes";
+import { gitClone, gitPull, gitCheckout, createBranch } from "@/engine/git/repo";
+import { getMenuItems } from "../../../chip/menuItems";
 
 const username = "player";
 const projectDir = `/home/${username}/nexacorp-analytics`;
@@ -38,6 +39,7 @@ function makeCtxWithGit(opts?: { includeDay2?: boolean; pullUpdates?: boolean })
     activeComputer: "devcontainer" as const,
     storyFlags: { devcontainer_visited: true },
     snowflakeState,
+    dbtModelOrder: STANDARD_MODEL_ORDER,
     setSnowflakeState: (s: SnowflakeState) => { currentState = s; },
     getSnowflakeState: () => currentState,
   } as CommandContext & { getSnowflakeState: () => SnowflakeState };
@@ -55,6 +57,7 @@ function makeSimpleCtx(): CommandContext & { getSnowflakeState: () => SnowflakeS
     activeComputer: "devcontainer" as const,
     storyFlags: { devcontainer_visited: true },
     snowflakeState,
+    dbtModelOrder: STANDARD_MODEL_ORDER,
     setSnowflakeState: (s: SnowflakeState) => { currentState = s; },
     getSnowflakeState: () => currentState,
   } as CommandContext & { getSnowflakeState: () => SnowflakeState };

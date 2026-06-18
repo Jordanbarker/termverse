@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../state/gameStore";
 import { parseInput, parseChainedPipeline, expandAliases } from "../engine/commands/parser";
 import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "../engine/commands/registry";
+import { STANDARD_MODEL_ORDER } from "@/story/data/dbt/data";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
 import { expandZshPrompt } from "@tt/core/lib/promptExpand";
@@ -95,6 +96,7 @@ function buildCommandContext(
     devices: createDeviceProvider(computerId, store.storyFlags),
     gitAuthor: `${PLAYER.displayName} <${store.username}@${GIT_AUTHOR_EMAIL_DOMAIN[computerId]}>`,
     clock: createGameClock(store.deliveredPiperIds, store.username, computerId),
+    dbtModelOrder: STANDARD_MODEL_ORDER,
     tabPrefixLabel: (() => {
       const homeFs = store.computerState.home?.fs;
       const conf = homeFs ? homeFs.readFile(`${homeFs.homeDir}/.tmux.conf`).content : undefined;

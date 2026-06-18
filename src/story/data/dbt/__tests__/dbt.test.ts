@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { createDevcontainerFilesystem } from "../../../story/filesystem/devcontainer";
+import { createDevcontainerFilesystem } from "../../../filesystem/devcontainer";
 import { CommandContext } from "@tt/core/commands/types";
 import {
   runModels,
@@ -10,9 +10,9 @@ import {
   debugProject,
   compileModel,
   showModel,
-} from "../runner";
-import "../../commands/builtins/dbt"; // trigger registration
-import { execute } from "../../commands/registry";
+} from "@tt/core/dbt/runner";
+import "@/engine/commands/builtins/dbt"; // trigger registration
+import { execute } from "@/engine/commands/registry";
 import {
   formatRunHeader,
   formatModelRun,
@@ -20,14 +20,14 @@ import {
   formatSummary,
   formatUsage,
   formatVersion,
-} from "../output";
+} from "@tt/core/dbt/output";
 import {
   STANDARD_MODEL_ORDER,
 } from "../data";
-import { findDbtProject, parseProjectConfig } from "../project";
+import { findDbtProject, parseProjectConfig } from "@tt/core/dbt/project";
 import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
 import { SnowflakeState } from "@tt/core/snowflake/state";
-import { ModelRunResult, DbtTestResult } from "../types";
+import { ModelRunResult, DbtTestResult } from "@tt/core/dbt/types";
 
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 
@@ -43,6 +43,7 @@ function makeCtx(cwd: string): CommandContext {
     activeComputer: "devcontainer" as const,
     storyFlags: { devcontainer_visited: true },
     snowflakeState,
+    dbtModelOrder: STANDARD_MODEL_ORDER,
     setSnowflakeState: (s: SnowflakeState) => { currentState = s; },
     getSnowflakeState: () => currentState,
   } as CommandContext & { getSnowflakeState: () => SnowflakeState };

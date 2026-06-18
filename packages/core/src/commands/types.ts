@@ -60,6 +60,11 @@ export interface CommandContext {
    * absent => callers fall back to the real wall clock.
    */
   clock?: GameClock;
+  /**
+   * Canonical dbt model execution/display order. Injected by the app from story
+   * data; absent => models keep their discovered order (no reordering).
+   */
+  dbtModelOrder?: string[];
 }
 
 export interface EditorSessionInfo {
