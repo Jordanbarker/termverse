@@ -361,6 +361,8 @@ export default function PuzzleTerminal() {
 
     const leaves = allLeaves(activeWindow.root);
     const activeIds = new Set(leaves.map((l) => l.id));
+    // Only outline the active pane when there's more than one — a lone pane needs no highlight.
+    const multi = leaves.length > 1;
 
     // Hide panes that belong to other (non-active) windows. Never fit a hidden
     // (0x0) container — xterm would mis-size.
@@ -381,7 +383,7 @@ export default function PuzzleTerminal() {
         top: `${r.y}px`,
         width: `${r.w}px`,
         height: `${r.h}px`,
-        outline: leaf.id === activeWindow.activePaneId ? "1px solid #e6b450" : "none",
+        outline: multi && leaf.id === activeWindow.activePaneId ? "1px solid #e6b450" : "none",
         outlineOffset: "-1px",
       });
       try { rt.fit.fit(); } catch { /* ignore */ }
