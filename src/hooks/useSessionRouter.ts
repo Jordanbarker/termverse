@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
-import { useGameStore } from "../state/gameStore";
+import { useGameStore, getActivePaneId } from "../state/gameStore";
 import { VirtualFS } from "../engine/filesystem/VirtualFS";
 import { EditorSession } from "../engine/editor/EditorSession";
 import { PythonReplSession } from "../engine/python/PythonReplSession";
@@ -101,14 +101,14 @@ export function useSessionRouter(deps: SessionRouterDeps) {
   const sessionMapRef = useRef<Map<string, SessionEntry>>(new Map());
 
   const getActiveSessionType = useCallback((): string | null => {
-    const activeTabId = useGameStore.getState().activeTabId;
-    return sessionMapRef.current.get(activeTabId)?.type ?? null;
+    const paneId = getActivePaneId(useGameStore.getState());
+    return paneId ? sessionMapRef.current.get(paneId)?.type ?? null : null;
   }, []);
 
-  /** Refresh piper session state from the store (other tabs may have progressed). */
+  /** Refresh piper session state from the store (other panes may have progressed). */
   const refreshPiperSession = useCallback(() => {
-    const activeTabId = useGameStore.getState().activeTabId;
-    const entry = sessionMapRef.current.get(activeTabId);
+    const paneId = getActivePaneId(useGameStore.getState());
+    const entry = paneId ? sessionMapRef.current.get(paneId) : undefined;
     if (!entry || entry.type !== "piper" || !entry.piperInfo) return;
 
     const store = useGameStore.getState();
@@ -127,8 +127,8 @@ export function useSessionRouter(deps: SessionRouterDeps) {
   }, []);
 
   /** Sync piper IDs from the live session back to game state. */
-  const syncPiperIds = useCallback((tabId: string) => {
-    const entry = sessionMapRef.current.get(tabId);
+  const syncPiperIds = useCallback((paneId: string) => {
+    const entry = sessionMapRef.current.get(paneId);
     if (!entry?.piperInfo) return;
     const store = useGameStore.getState();
     const newIds = entry.piperInfo.deliveredPiperIds.filter(
@@ -242,11 +242,11 @@ export function useSessionRouter(deps: SessionRouterDeps) {
   /** Route input to the active session. Returns true if input was consumed. */
   const routeInput = useCallback(
     (term: Terminal, data: string): boolean => {
-      const activeTabId = useGameStore.getState().activeTabId;
-      const entry = sessionMapRef.current.get(activeTabId);
-      if (!entry) return false;
+      const activePaneId = getActivePaneId(useGameStore.getState());
+      const entry = activePaneId ? sessionMapRef.current.get(activePaneId) : undefined;
+      if (!entry || !activePaneId) return false;
 
-      // Refresh piper state from store before routing input (other tabs may have progressed)
+      // Refresh piper state from store before routing input (other panes may have progressed)
       refreshPiperSession();
 
       const result = entry.session.handleInput(data);
@@ -262,7 +262,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       // Sync piper IDs mid-session BEFORE processing trigger events,
       // so processTriggerEvents sees already-delivered IDs and doesn't re-deliver them
       if (entry.type === "piper") {
-        syncPiperIds(activeTabId);
+        syncPiperIds(activePaneId);
       }
 
       // Process mid-session events without terminal notifications (session owns the screen)
@@ -274,7 +274,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
 
       // Session exited — clean up
       const type = entry.type;
-      sessionMapRef.current.delete(activeTabId);
+      sessionMapRef.current.delete(activePaneId);
 
       // Mark intro as seen when player exits nano (not when it opens)
       if (type === "editor" && computerId === "home") {
@@ -293,7 +293,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
 
       // Final piper ID sync on exit
       if (type === "piper") {
-        syncPiperIds(activeTabId);
+        syncPiperIds(activePaneId);
       }
 
       if (result.output) {
@@ -349,15 +349,16 @@ export function useSessionRouter(deps: SessionRouterDeps) {
 
   /** Start a new session from an AppliedEffects startSession descriptor. */
   const startSession = useCallback(
-    (term: Terminal, session: SessionToStart, tabId?: string): void => {
+    (term: Terminal, session: SessionToStart, paneId?: string): void => {
       const computerId = activeComputerRef.current;
-      const targetTabId = tabId ?? useGameStore.getState().activeTabId;
+      const targetPaneId = paneId ?? getActivePaneId(useGameStore.getState());
+      if (!targetPaneId) return;
 
-      // Defensive: if this tab already has a session, exit its alt-buffer before replacing
-      const existing = sessionMapRef.current.get(targetTabId);
+      // Defensive: if this pane already has a session, exit its alt-buffer before replacing
+      const existing = sessionMapRef.current.get(targetPaneId);
       if (existing) {
         term.write("\x1b[?1049l"); // exit any stale alt-buffer
-        sessionMapRef.current.delete(targetTabId);
+        sessionMapRef.current.delete(targetPaneId);
       }
 
       if (session.type === "editor") {
@@ -378,7 +379,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           },
           trigger
         );
-        sessionMapRef.current.set(targetTabId, { session: editorSession, type: "editor" });
+        sessionMapRef.current.set(targetPaneId, { session: editorSession, type: "editor" });
         editorSession.enter();
       } else if (session.type === "snow-sql") {
         const store = useGameStore.getState();
@@ -387,8 +388,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           writePrompt(term);
           return;
         }
-        const snowTabId = store.activeTabId;
-        store.setActiveSnowSession(snowTabId);
+        store.setActiveSnowSession(targetPaneId);
         const snowSqlSession = new SnowSqlSession(
           term,
           store.snowflakeState,
@@ -400,7 +400,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
             return gameNowFor(s.deliveredPiperIds, s.username, computerId);
           }
         );
-        sessionMapRef.current.set(targetTabId, { session: snowSqlSession, type: "snow-sql" });
+        sessionMapRef.current.set(targetPaneId, { session: snowSqlSession, type: "snow-sql" });
         snowSqlSession.enter();
       } else if (session.type === "prompt") {
         const store = useGameStore.getState();
@@ -411,14 +411,14 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           currentFs,
           store.username
         );
-        sessionMapRef.current.set(targetTabId, { session: promptSession, type: "prompt" });
+        sessionMapRef.current.set(targetPaneId, { session: promptSession, type: "prompt" });
         promptSession.enter();
       } else if (session.type === "pythonRepl") {
         const pythonSession = new PythonReplSession(term);
-        sessionMapRef.current.set(targetTabId, { session: pythonSession, type: "pythonRepl" });
+        sessionMapRef.current.set(targetPaneId, { session: pythonSession, type: "pythonRepl" });
         pythonSession.enter().then(() => {
           if (!pythonSession.isReady()) {
-            sessionMapRef.current.delete(targetTabId);
+            sessionMapRef.current.delete(targetPaneId);
             writePrompt(term);
           }
         });
@@ -433,11 +433,11 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           currentFs.homeDir,
           session.info.targetComputer
         );
-        sessionMapRef.current.set(targetTabId, { session: sshSession, type: "ssh" });
+        sessionMapRef.current.set(targetPaneId, { session: sshSession, type: "ssh" });
         const enterResult = sshSession.enter();
         if (enterResult && enterResult.type === "exit") {
           // Known host — process exit immediately without waiting for input
-          sessionMapRef.current.delete(targetTabId);
+          sessionMapRef.current.delete(targetPaneId);
           if (enterResult.triggerEvents?.length) {
             processTriggerEvents(term, enterResult.triggerEvents, true);
           }
@@ -473,7 +473,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
             useGameStore.getState().setStoryFlag("used_chip_topics", value);
           }
         );
-        sessionMapRef.current.set(targetTabId, { session: chipSession, type: "chip" });
+        sessionMapRef.current.set(targetPaneId, { session: chipSession, type: "chip" });
         chipSession.enter();
       } else if (session.type === "piper") {
         const store = useGameStore.getState();
@@ -482,11 +482,11 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           deliveredPiperIds: [...store.deliveredPiperIds],
         };
         const piperSession = new PiperSession(term, piperInfo, store.username);
-        sessionMapRef.current.set(targetTabId, { session: piperSession, type: "piper", piperInfo });
+        sessionMapRef.current.set(targetPaneId, { session: piperSession, type: "piper", piperInfo });
         piperSession.enter();
       } else if (session.type === "less") {
         const lessSession = new LessSession(term, session.info);
-        sessionMapRef.current.set(targetTabId, { session: lessSession, type: "less" });
+        sessionMapRef.current.set(targetPaneId, { session: lessSession, type: "less" });
         lessSession.enter();
       }
     },
@@ -494,32 +494,44 @@ export function useSessionRouter(deps: SessionRouterDeps) {
   );
 
   const canCloseCurrentSession = useCallback((): boolean => {
-    const activeTabId = useGameStore.getState().activeTabId;
-    const entry = sessionMapRef.current.get(activeTabId);
+    const paneId = getActivePaneId(useGameStore.getState());
+    const entry = paneId ? sessionMapRef.current.get(paneId) : undefined;
+    if (!entry) return true;
+    return entry.session.canClose?.() ?? true;
+  }, []);
+
+  /** Whether the session in a specific pane (if any) can close without losing work. */
+  const canClosePaneSession = useCallback((paneId: string): boolean => {
+    const entry = sessionMapRef.current.get(paneId);
     if (!entry) return true;
     return entry.session.canClose?.() ?? true;
   }, []);
 
   /**
-   * Remove the session entry for a tab being closed.
+   * Remove the session entry for a pane being closed.
    * NOTE: This only deletes the map entry — it does NOT write \x1b[?1049l to exit the
-   * alt-buffer. This is safe because cleanupTab is always called immediately before
-   * store.removeTab() / term.dispose(), which destroys the xterm instance entirely.
+   * alt-buffer. This is safe because cleanupPane is always called immediately before
+   * the pane's xterm instance is disposed, which destroys it entirely.
    */
-  const cleanupTab = useCallback((tabId: string) => {
+  const cleanupPane = useCallback((paneId: string) => {
     const store = useGameStore.getState();
-    if (store.activeSnowSession === tabId) {
+    if (store.activeSnowSession === paneId) {
       store.setActiveSnowSession(null);
     }
-    sessionMapRef.current.delete(tabId);
+    sessionMapRef.current.delete(paneId);
   }, []);
 
-  /** Notify the active tab's session (if any) that the terminal was resized. */
+  /** Notify the active pane's session (if any) that the terminal was resized. */
   const resizeActiveSession = useCallback(() => {
-    const tabId = useGameStore.getState().activeTabId;
-    const entry = sessionMapRef.current.get(tabId);
+    const paneId = getActivePaneId(useGameStore.getState());
+    const entry = paneId ? sessionMapRef.current.get(paneId) : undefined;
     entry?.session.resize?.();
   }, []);
 
-  return { getActiveSessionType, routeInput, startSession, canCloseCurrentSession, refreshPiperSession, cleanupTab, resizeActiveSession };
+  /** Notify a specific pane's session (if any) that its xterm was resized. */
+  const resizePaneSession = useCallback((paneId: string) => {
+    sessionMapRef.current.get(paneId)?.session.resize?.();
+  }, []);
+
+  return { getActiveSessionType, routeInput, startSession, canCloseCurrentSession, canClosePaneSession, refreshPiperSession, cleanupPane, resizeActiveSession, resizePaneSession };
 }

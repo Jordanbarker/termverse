@@ -1,15 +1,11 @@
 import { SerializedFS } from "../engine/filesystem/serialization";
 import { Mounts } from "../engine/filesystem/mounts";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
+import { SavedWindowState } from "./paneTypes";
 
-export const SAVE_FORMAT_VERSION = 14;
+export const SAVE_FORMAT_VERSION = 15;
 
 export type SaveSlotId = "auto" | "slot-1" | "slot-2" | "slot-3";
-
-export interface SavedTabState {
-  computerId: ComputerId;
-  cwd: string;
-}
 
 export interface SaveData {
   version: number;
@@ -25,8 +21,9 @@ export interface SaveData {
   computerStates: Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>;
   // Durable per-computer .zsh_history mirror (survives removeComputer).
   zshHistory: Partial<Record<ComputerId, string>>;
-  tabs: SavedTabState[];
-  activeTabIndex: number;
+  // Each window is a tmux-style tab holding a binary pane tree.
+  windows: SavedWindowState[];
+  activeWindowIndex: number;
   notifiedChipTopicIds: string[];
 }
 

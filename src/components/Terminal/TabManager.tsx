@@ -5,7 +5,9 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import TabBar from "./TabBar";
-import { useGameStore } from "../../state/gameStore";
+import PaneDividers from "./PaneDividers";
+import { useGameStore, getActiveLeaf, getActivePaneId } from "../../state/gameStore";
+import { allLeaves, paneRects } from "../../state/paneTypes";
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "../../lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
@@ -66,24 +68,25 @@ function handleScrollShortcut(e: KeyboardEvent, term: XTerm): boolean | null {
   return null;
 }
 
-interface TabInstance {
+interface PaneInstance {
   term: XTerm;
   fitAddon: FitAddon;
   containerEl: HTMLDivElement;
   onDataDisposable: import("@xterm/xterm").IDisposable;
   copyMode: CopyModeController;
+  /** Last applied pixel size — lets the layout effect skip redundant fit()/resize(). */
+  lastW: number;
+  lastH: number;
 }
 
 export default function TabManager() {
-  const tabs = useGameStore((s) => s.tabs);
-  const activeTabId = useGameStore((s) => s.activeTabId);
+  const windows = useGameStore((s) => s.windows);
+  const activeWindowId = useGameStore((s) => s.activeWindowId);
   const gamePhase = useGameStore((s) => s.gamePhase);
   const storyFlags = useGameStore((s) => s.storyFlags);
   const copyModeHelpHidden = useGameStore((s) => s.copyModeHelpHidden);
-  // Tab prefix is read from the home PC's ~/.tmux.conf (your local terminal's
-  // tmux config governs the tabs, regardless of which box a tab is connected to).
-  // Select the raw conf string (a primitive) so the selector stays referentially
-  // stable; parse it with a memo.
+  // Tab/pane prefix is read from the home PC's ~/.tmux.conf (your local terminal's
+  // tmux config governs the multiplexer, regardless of which box a pane connects to).
   const homeTmuxConf = useGameStore((s) => {
     const fs = s.computerState.home?.fs;
     return fs ? fs.readFile(`${fs.homeDir}/.tmux.conf`).content : undefined;
@@ -91,7 +94,9 @@ export default function TabManager() {
   const tabPrefix = useMemo(() => parseTmuxPrefix(homeTmuxConf), [homeTmuxConf]);
   const tabTheme = useMemo(() => parseTmuxTheme(homeTmuxConf), [homeTmuxConf]);
 
-  const { handleInput, getPrompt, startSession, canCloseCurrentSession, getActiveSessionType, cleanupTab, resizeActiveSession } = useTerminal();
+  const activeWindow = windows.find((w) => w.id === activeWindowId);
+
+  const { handleInput, getPrompt, startSession, canCloseCurrentSession, getActiveSessionType, cleanupPane, resizeActiveSession, resizePaneSession } = useTerminal();
 
   // Store callbacks in refs to avoid stale closures in xterm onData
   const handleInputRef = useRef(handleInput);
@@ -100,22 +105,27 @@ export default function TabManager() {
   const gamePhaseRef = useRef(gamePhase);
   const canCloseRef = useRef(canCloseCurrentSession);
   const getActiveSessionTypeRef = useRef(getActiveSessionType);
-  const cleanupTabRef = useRef(cleanupTab);
+  const cleanupPaneRef = useRef(cleanupPane);
   const resizeActiveSessionRef = useRef(resizeActiveSession);
+  const resizePaneSessionRef = useRef(resizePaneSession);
   handleInputRef.current = handleInput;
   startSessionRef.current = startSession;
   getPromptRef.current = getPrompt;
   gamePhaseRef.current = gamePhase;
   canCloseRef.current = canCloseCurrentSession;
   getActiveSessionTypeRef.current = getActiveSessionType;
-  cleanupTabRef.current = cleanupTab;
+  cleanupPaneRef.current = cleanupPane;
   resizeActiveSessionRef.current = resizeActiveSession;
+  resizePaneSessionRef.current = resizePaneSession;
 
-  const tabInstancesRef = useRef<Map<string, TabInstance>>(new Map());
+  const paneInstancesRef = useRef<Map<string, PaneInstance>>(new Map());
   const wrapperRef = useRef<HTMLDivElement>(null);
   const splashShownRef = useRef(false);
   const shownUnlockRef = useRef(false);
   const prevGamePhaseRef = useRef(gamePhase);
+
+  // Wrapper pixel size, tracked via ResizeObserver, drives pane geometry.
+  const [wrapperSize, setWrapperSize] = useState({ w: 0, h: 0 });
 
   // Tab prefix mode state (prefix key configured via ~/.tmux.conf)
   const ctrlBPrefixRef = useRef(false);
@@ -131,15 +141,14 @@ export default function TabManager() {
   // tmux confirm-before-kill: the close prompt shown in the status bar.
   const [closeConfirm, setCloseConfirm] = useState<string | null>(null);
   const closeConfirmRef = useRef(false); // synchronous flag read inside onData
+  const paneToCloseRef = useRef<string | null>(null); // which pane the confirm targets
 
-  // Keep track of tab IDs we've seen to know which are new
-  const knownTabIdsRef = useRef<Set<string>>(new Set());
+  // Track pane IDs we've seen to tell restored panes (show prompt) from brand-new ones
+  const knownPaneIdsRef = useRef<Set<string>>(new Set());
 
-  // Initialize known tabs
+  // Initialize known panes
   useEffect(() => {
-    for (const tab of tabs) {
-      knownTabIdsRef.current.add(tab.id);
-    }
+    for (const win of windows) for (const leaf of allLeaves(win.root)) knownPaneIdsRef.current.add(leaf.id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCtrlBAction = useCallback((key: string) => {
@@ -153,46 +162,68 @@ export default function TabManager() {
       ? String.fromCharCode(code + 96)
       : key.toLowerCase();
 
-    if (normalized === "c") {
-      // Create new tab on same computer
-      const activeTab = store.tabs.find((t) => t.id === store.activeTabId);
-      if (activeTab) store.addTab(activeTab.computerId, activeTab.cwd);
+    const activePaneId = getActivePaneId(store);
+
+    if (key === "|") {
+      // Split side-by-side (tmux split-window -h, vertical divider).
+      if (activePaneId) store.splitPane(activePaneId, "h");
+    } else if (key === "-") {
+      // Split stacked (tmux split-window -v, horizontal divider).
+      if (activePaneId) store.splitPane(activePaneId, "v");
+    } else if (normalized === "o") {
+      // Cycle focus to the next pane in this window.
+      store.cyclePane();
+    } else if (normalized === "c") {
+      // Create a new window on the active pane's computer.
+      const leaf = getActiveLeaf(store);
+      if (leaf) store.addWindow(leaf.computerId, leaf.cwd);
     } else if (normalized === "x") {
-      // Close current tab — tmux-style confirm-before-kill (rendered in the bar).
-      if (store.tabs.length > 1) {
-        const idx = store.tabs.findIndex((t) => t.id === store.activeTabId);
+      // Kill the focused pane — tmux confirm-before-kill (rendered in the bar).
+      // Allowed unless it's the only pane of the only window.
+      const totalPanes = store.windows.reduce((n, w) => n + allLeaves(w.root).length, 0);
+      if (totalPanes > 1 && activePaneId) {
+        paneToCloseRef.current = activePaneId;
         const note = canCloseRef.current() ? "" : " Unsaved changes will be lost.";
-        setCloseConfirm(`kill-pane ${idx + 1}?${note} (y/n)`);
+        setCloseConfirm(`kill-pane?${note} (y/n)`);
         closeConfirmRef.current = true;
       }
     } else if (normalized === "n") {
-      // Next tab
-      const idx = store.tabs.findIndex((t) => t.id === store.activeTabId);
-      const nextIdx = (idx + 1) % store.tabs.length;
-      store.setActiveTab(store.tabs[nextIdx].id);
+      // Next window
+      const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
+      const nextIdx = (idx + 1) % store.windows.length;
+      store.setActiveWindow(store.windows[nextIdx].id);
     } else if (normalized === "p") {
-      // Previous tab
-      const idx = store.tabs.findIndex((t) => t.id === store.activeTabId);
-      const prevIdx = (idx - 1 + store.tabs.length) % store.tabs.length;
-      store.setActiveTab(store.tabs[prevIdx].id);
+      // Previous window
+      const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
+      const prevIdx = (idx - 1 + store.windows.length) % store.windows.length;
+      store.setActiveWindow(store.windows[prevIdx].id);
     } else if (key >= "1" && key <= "5") {
-      // Jump to tab N
-      const tabIdx = parseInt(key) - 1;
-      if (tabIdx < store.tabs.length) {
-        store.setActiveTab(store.tabs[tabIdx].id);
+      // Jump to window N (windows stay 1-indexed; panes don't affect this)
+      const winIdx = parseInt(key) - 1;
+      if (winIdx < store.windows.length) {
+        store.setActiveWindow(store.windows[winIdx].id);
       }
     }
   }, []);
 
-  const createTerminalInstance = useCallback((tabId: string, containerEl: HTMLDivElement): TabInstance => {
+  const createPaneInstance = useCallback((paneId: string, containerEl: HTMLDivElement): PaneInstance => {
     const term = new XTerm(XTERM_OPTIONS);
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(containerEl);
     fitAddon.fit();
 
-    // tmux/vi copy mode (entered via `<prefix> [`). The engine controller owns
-    // the cursor/selection; clipboard + toast live here as the yank side effect.
+    // Clicking a pane focuses it (and makes it the active pane), so input routes
+    // to the right session. Without this the single-focused-pane invariant breaks.
+    containerEl.addEventListener("mousedown", () => {
+      const store = useGameStore.getState();
+      if (getActivePaneId(store) !== paneId) store.setActivePane(paneId);
+      term.focus();
+    });
+
+    // tmux/vi copy mode (entered via `<prefix> [`) — per pane, since each pane
+    // owns its own controller. The engine controller owns cursor/selection;
+    // clipboard + toast live here as the yank side effect.
     const copyMode = new CopyModeController(term, {
       onChange: (active) => {
         setCopyModeActive(active);
@@ -237,13 +268,11 @@ export default function TabManager() {
       if (ctrlBPrefixRef.current && e.type === 'keydown' && e.key >= '1' && e.key <= '5') {
         if (e.ctrlKey) {
           // Ctrl held throughout — Ctrl+digit produces no ASCII, so onData won't fire.
-          // Handle the action directly here.
           ctrlBPrefixRef.current = false;
           setPrefixActive(false);
           handleCtrlBAction(e.key);
         }
         // When Ctrl is NOT held, onData will still fire via textarea input.
-        // Leave prefix mode active so the onData handler catches it.
         return false; // always block xterm's keydown processing for the digit
       }
       return true;
@@ -258,70 +287,74 @@ export default function TabManager() {
         const confirmed = data[0]?.toLowerCase() === "y";
         closeConfirmRef.current = false;
         setCloseConfirm(null);
-        if (confirmed) {
-          const store = useGameStore.getState();
-          cleanupTabRef.current(store.activeTabId);
-          store.removeTab(store.activeTabId);
+        const pid = paneToCloseRef.current;
+        paneToCloseRef.current = null;
+        if (confirmed && pid) {
+          cleanupPaneRef.current(pid);
+          useGameStore.getState().closePane(pid);
         }
-        // Cancel needs no redraw: the prompt lived in the status bar, so the pane
-        // buffer (and any half-typed shell line) was never touched.
         return;
       }
 
-      // Ctrl+B prefix handling
+      // Prefix mode — consume the next key as a tab/pane action
       if (ctrlBPrefixRef.current) {
-        // In prefix mode — consume the next key as a tab action
         ctrlBPrefixRef.current = false;
         setPrefixActive(false);
 
         if (data === prefixCharRef.current) {
           // prefix, prefix — send the literal prefix char to the session
           handleInputRef.current(term, prefixCharRef.current);
-        } else if (data === '[') {
-          // <prefix> [ — enter copy mode (always, matching real tmux). Works at the shell,
-          // over any inline session (email reply prompt, Chip, the snow/python REPLs, ssh
-          // auth), and over a full-screen alternate-screen session (nano/less/piper) where
-          // it's confined to the visible screen. Exiting copy mode redraws the active
-          // alt-screen session (see the onChange handler) to restore its cursor state.
-          copyMode.enter();
-        } else if (useGameStore.getState().storyFlags.tabs_unlocked) {
-          // Tab actions; an unbound prefix key is a no-op (matches real tmux).
-          handleCtrlBAction(data[0]);
-        } else {
-          // Locked and not a copy-mode entry — don't eat the key, pass it through.
-          handleInputRef.current(term, data);
+          return;
         }
+        if (data === '[') {
+          // <prefix> [ — enter copy mode on THIS (focused) pane. Always allowed,
+          // matching real tmux, so it's reachable even before tabs unlock.
+          copyMode.enter();
+          return;
+        }
+        if (!useGameStore.getState().storyFlags.tabs_unlocked) {
+          // Locked and not a copy-mode entry — pass the key through to the shell.
+          handleInputRef.current(term, data);
+          return;
+        }
+        // Directional pane focus (prefix + arrow). Arrows arrive as CSI sequences.
+        const arrowDir =
+          data === "\x1b[A" ? "U" : data === "\x1b[B" ? "D" : data === "\x1b[C" ? "R" : data === "\x1b[D" ? "L" : null;
+        if (arrowDir) {
+          useGameStore.getState().focusDirection(arrowDir);
+          return;
+        }
+        // An unbound prefix key is a no-op (matches real tmux).
+        handleCtrlBAction(data[0]);
         return;
       }
 
       // Check for the configured prefix key. Armed from the start so copy mode is
-      // reachable in Chapter 1; tab actions stay gated inside handleCtrlBAction.
+      // reachable in Chapter 1; tab/pane actions stay gated inside handleCtrlBAction.
       if (data === prefixCharRef.current) {
         ctrlBPrefixRef.current = true;
         setPrefixActive(true);
-        // Wait indefinitely for the next key (matches real tmux — no prefix timeout).
-        // Press the prefix again to send the literal char; any other/unbound key exits.
         return;
       }
 
       handleInputRef.current(term, data);
     });
 
-    return { term, fitAddon, containerEl, onDataDisposable, copyMode };
+    return { term, fitAddon, containerEl, onDataDisposable, copyMode, lastW: 0, lastH: 0 };
   }, [handleCtrlBAction]);
 
-  // Mount/unmount terminal instances when tabs change
+  // Mount/unmount pane instances when the set of panes changes (split/close/window add)
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    const currentIds = new Set(tabs.map((t) => t.id));
-    const instances = tabInstancesRef.current;
+    const currentPaneIds = new Set(windows.flatMap((w) => allLeaves(w.root).map((l) => l.id)));
+    const instances = paneInstancesRef.current;
 
-    // Remove instances for deleted tabs
+    // Dispose instances for removed panes
     for (const [id, instance] of instances) {
-      if (!currentIds.has(id)) {
-        cleanupTabRef.current(id);
+      if (!currentPaneIds.has(id)) {
+        cleanupPaneRef.current(id);
         instance.onDataDisposable.dispose();
         instance.term.dispose();
         if (instance.containerEl.parentNode) {
@@ -331,33 +364,38 @@ export default function TabManager() {
       }
     }
 
-    // Create instances for new tabs
-    for (const tab of tabs) {
-      if (!instances.has(tab.id)) {
+    // Create instances for new panes
+    for (const win of windows) {
+      for (const leaf of allLeaves(win.root)) {
+        if (instances.has(leaf.id)) continue;
         const containerEl = document.createElement("div");
-        containerEl.className = "absolute inset-0";
+        containerEl.className = "absolute";
         containerEl.style.padding = "8px";
+        containerEl.style.left = "0";
+        containerEl.style.top = "0";
+        containerEl.style.width = "100%";
+        containerEl.style.height = "100%";
         wrapper.appendChild(containerEl);
 
-        const instance = createTerminalInstance(tab.id, containerEl);
-        instances.set(tab.id, instance);
+        const instance = createPaneInstance(leaf.id, containerEl);
+        instances.set(leaf.id, instance);
 
-        // Only show splash on the very first tab during initial game load
-        const isFirstTab = !splashShownRef.current;
-        if (isFirstTab && gamePhaseRef.current === "playing") {
+        // Only show splash on the very first pane during initial game load
+        const isFirstPane = !splashShownRef.current;
+        if (isFirstPane && gamePhaseRef.current === "playing") {
           splashShownRef.current = true;
           const store = useGameStore.getState();
 
           const splash =
-            tab.computerId === "home"
+            leaf.computerId === "home"
               ? homeWelcome
-              : tab.computerId === "devcontainer"
+              : leaf.computerId === "devcontainer"
                 ? coderBanner
                 : nexacorpLogo;
           splash.forEach((line) => instance.term.writeln(line));
 
           // Seed immediate piper messages for home
-          if (tab.computerId === "home") {
+          if (leaf.computerId === "home") {
             const homePiperIds = seedImmediatePiper(store.username, "home");
             const newHomeIds = homePiperIds.filter((id) => !store.deliveredPiperIds.includes(id));
             if (newHomeIds.length > 0) {
@@ -366,7 +404,7 @@ export default function TabManager() {
           }
 
           // Auto-open nano on first game start (home PC only)
-          if (!store.hasSeenIntro && tab.computerId === "home") {
+          if (!store.hasSeenIntro && leaf.computerId === "home") {
             const homeFs = store.computerState.home?.fs;
             const filePath = `${homeFs?.homeDir ?? `/home/${store.username}`}/terminal_notes.txt`;
             const readResult = homeFs?.readFile(filePath) ?? { content: undefined };
@@ -374,100 +412,127 @@ export default function TabManager() {
             startSessionRef.current(instance.term, {
               type: "editor",
               info: { filePath, content, readOnly: false, isNewFile: false },
-            });
+            }, leaf.id);
           } else {
             instance.term.write(getPromptRef.current());
           }
-        } else if (knownTabIdsRef.current.has(tab.id)) {
-          // Tab from initial state (e.g., restore from save) — show prompt
+        } else if (knownPaneIdsRef.current.has(leaf.id)) {
+          // Pane from initial state (e.g. restore from save) — show prompt
           if (gamePhaseRef.current === "playing") {
             instance.term.write(getPromptRef.current());
           }
         } else {
-          // New tab created by user — straight to prompt
+          // New pane created by user (split / new window) — straight to prompt
           instance.term.write(getPromptRef.current());
         }
 
-        knownTabIdsRef.current.add(tab.id);
+        knownPaneIdsRef.current.add(leaf.id);
       }
     }
-  }, [tabs, createTerminalInstance]);
+  }, [windows, createPaneInstance]);
 
-  // Toggle visibility and focus on active tab change
+  // Position/show/hide/focus panes whenever the layout or wrapper size changes.
+  // Read the wrapper's live size (effects run post-layout, so it's accurate even
+  // on first mount); wrapperSize is only a dependency that re-runs this on resize.
   useEffect(() => {
-    const instances = tabInstancesRef.current;
-    for (const [id, instance] of instances) {
-      const isActive = id === activeTabId;
-      // Intentional imperative DOM toggle inside an effect: each tab's xterm
-      // container is shown/hidden by activeTabId. The react-hooks immutability
-      // rule false-positives on mutating ref-held DOM nodes here.
-      // eslint-disable-next-line react-hooks/immutability
-      instance.containerEl.style.visibility = isActive ? "visible" : "hidden";
-      instance.containerEl.style.pointerEvents = isActive ? "auto" : "none";
-      if (isActive) {
-        instance.fitAddon.fit();
-        instance.term.focus();
-        resizeActiveSessionRef.current();
-      } else if (instance.copyMode.isActive()) {
-        // Leaving a tab mid-copy-mode (e.g. clicked away): clean up without
-        // refocusing, so this now-hidden terminal can't steal focus.
-        instance.copyMode.exit({ refocus: false });
+    const wrapper = wrapperRef.current;
+    const W = wrapper?.clientWidth ?? 0;
+    const H = wrapper?.clientHeight ?? 0;
+    const rects = activeWindow && W > 0 && H > 0 ? paneRects(activeWindow.root, 0, 0, W, H) : [];
+    const rectById = new Map(rects.map((r) => [r.id, r]));
+    const activePaneId = activeWindow?.activePaneId;
+    const multi = rects.length > 1;
+
+    for (const [id, inst] of paneInstancesRef.current) {
+      const r = rectById.get(id);
+      if (!r) {
+        // Pane belongs to a non-active window — hide it.
+        // eslint-disable-next-line react-hooks/immutability
+        inst.containerEl.style.display = "none";
+        if (inst.copyMode.isActive()) inst.copyMode.exit({ refocus: false });
+        continue;
+      }
+      const el = inst.containerEl;
+      el.style.display = "block";
+      el.style.left = `${r.x}px`;
+      el.style.top = `${r.y}px`;
+      el.style.width = `${r.w}px`;
+      el.style.height = `${r.h}px`;
+      const isActivePane = id === activePaneId;
+      el.style.outline = isActivePane && multi ? "1px solid #e6b450" : "none";
+      el.style.outlineOffset = "-1px";
+
+      if (inst.lastW !== r.w || inst.lastH !== r.h) {
+        inst.lastW = r.w;
+        inst.lastH = r.h;
+        inst.fitAddon.fit();
+        resizePaneSessionRef.current(id);
+      }
+
+      if (isActivePane && !inst.copyMode.isActive()) {
+        inst.term.focus();
+      } else if (!isActivePane && inst.copyMode.isActive()) {
+        inst.copyMode.exit({ refocus: false });
       }
     }
-  }, [activeTabId]);
+  }, [windows, activeWindowId, wrapperSize, activeWindow]);
 
-  // Handle phase transitions (e.g., booting→playing shows unlock box + prompt)
+  // Handle phase transitions (e.g. booting→playing shows unlock box + prompt)
   useEffect(() => {
-    const instance = tabInstancesRef.current.get(activeTabId);
+    const activePaneId = activeWindow?.activePaneId;
+    const instance = activePaneId ? paneInstancesRef.current.get(activePaneId) : undefined;
     if (!instance) return;
 
     const prevPhase = prevGamePhaseRef.current;
     prevGamePhaseRef.current = gamePhase;
 
     if (gamePhase === "playing" && prevPhase === "booting" && splashShownRef.current) {
-      // Only on actual transition to playing (e.g., after boot animation)
       const store = useGameStore.getState();
-      const activeTab = store.tabs.find((t) => t.id === store.activeTabId);
-      if (activeTab?.computerId === "nexacorp" && !shownUnlockRef.current) {
+      const activeLeaf = getActiveLeaf(store);
+      if (activeLeaf?.computerId === "nexacorp" && !shownUnlockRef.current) {
         shownUnlockRef.current = true;
         UNLOCK_BOX.forEach((line) => instance.term.writeln(line));
         store.addToast("New commands unlocked! Type 'help' to see all.");
       }
       instance.term.write(getPromptRef.current());
     }
-  }, [gamePhase, activeTabId]);
+  }, [gamePhase, activeWindow]);
 
-  // Window resize
+  // Track wrapper size (drives pane geometry); a single observer covers browser
+  // resize, layout shifts, and the tab bar appearing/disappearing.
   useEffect(() => {
-    const handleResize = () => {
-      const instance = tabInstancesRef.current.get(activeTabId);
-      if (instance) instance.fitAddon.fit();
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [activeTabId]);
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const update = () => setWrapperSize({ w: wrapper.clientWidth, h: wrapper.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(wrapper);
+    return () => ro.disconnect();
+  }, []);
 
-  // Tab bar callbacks
-  const handleNewTab = useCallback((computerId?: ComputerId) => {
+  // Tab bar callbacks (window-level)
+  const handleNewWindow = useCallback((computerId?: ComputerId) => {
     const store = useGameStore.getState();
     if (computerId) {
       const targetFs = store.computerState[computerId]?.fs;
       const cwd = targetFs?.homeDir ?? `/home/${store.username}`;
-      store.addTab(computerId, cwd);
+      store.addWindow(computerId, cwd);
     } else {
-      const activeTab = store.tabs.find((t) => t.id === store.activeTabId);
-      if (!activeTab) return;
-      store.addTab(activeTab.computerId, activeTab.cwd);
+      const leaf = getActiveLeaf(store);
+      if (!leaf) return;
+      store.addWindow(leaf.computerId, leaf.cwd);
     }
   }, []);
 
-  const handleCloseTab = useCallback((tabId: string) => {
-    cleanupTabRef.current(tabId);
-    useGameStore.getState().removeTab(tabId);
+  const handleCloseWindow = useCallback((windowId: string) => {
+    const store = useGameStore.getState();
+    const win = store.windows.find((w) => w.id === windowId);
+    if (win) for (const leaf of allLeaves(win.root)) cleanupPaneRef.current(leaf.id);
+    store.removeWindow(windowId);
   }, []);
 
-  const handleSelectTab = useCallback((tabId: string) => {
-    useGameStore.getState().setActiveTab(tabId);
+  const handleSelectWindow = useCallback((windowId: string) => {
+    useGameStore.getState().setActiveWindow(windowId);
   }, []);
 
   const tabsUnlocked = !!storyFlags.tabs_unlocked;
@@ -477,19 +542,30 @@ export default function TabManager() {
     <div className="w-full h-full flex flex-col">
       {showTabBar && (
         <TabBar
-          onNewTab={handleNewTab}
-          onCloseTab={handleCloseTab}
-          onSelectTab={handleSelectTab}
+          onNewWindow={handleNewWindow}
+          onCloseWindow={handleCloseWindow}
+          onSelectWindow={handleSelectWindow}
           prefixActive={prefixActive}
           closeConfirm={closeConfirm}
           theme={tabTheme}
         />
       )}
       <div className="flex-1 relative min-h-0">
-        {/* xterm containers are appended here imperatively. `isolate` gives this a
-            stacking context so xterm's internal z-indexes (up to 11) can't paint
-            over the overlays below it. */}
+        {/* xterm pane containers are appended here imperatively and positioned
+            absolutely from the active window's pane tree. `isolate` gives this a
+            stacking context so xterm's internal z-indexes can't paint over the
+            overlays below it. Kept React-childless so reconciliation never
+            touches the imperatively-appended pane nodes. */}
         <div ref={wrapperRef} className="absolute inset-0 isolate" />
+        {/* Resizable seams between split panes, overlaid on top of the panes. */}
+        {showTabBar && activeWindow && (
+          <PaneDividers
+            root={activeWindow.root}
+            width={wrapperSize.w}
+            height={wrapperSize.h}
+            onResize={(splitId, ratio) => useGameStore.getState().resizePane(splitId, ratio)}
+          />
+        )}
         {copyModeActive && (
           <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
             <span className="font-bold text-[#e6b450]">COPY MODE</span>

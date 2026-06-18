@@ -8,9 +8,17 @@ import {
   SaveableState,
 } from "../saveManager";
 import { SAVE_FORMAT_VERSION } from "../saveTypes";
+import { makeWindow, SavedPaneNode } from "../paneTypes";
+import { ComputerId } from "../types";
 import { VirtualFS } from "../../engine/filesystem/VirtualFS";
 import { DirectoryNode } from "../../engine/filesystem/types";
 import { deserializeFS } from "../../engine/filesystem/serialization";
+
+/** A single-pane window for a given computer/cwd. */
+const win = (computerId: ComputerId, cwd: string) => makeWindow(computerId, cwd);
+/** The leaf computer of a saved single-pane window's root. */
+const savedLeafComputer = (root: SavedPaneNode): string =>
+  root.kind === "leaf" ? root.computerId : "(split)";
 
 function createMinimalFS(): VirtualFS {
   const root: DirectoryNode = {
@@ -86,8 +94,8 @@ function createState(): SaveableState {
     storyFlags: {},
     computerState: { nexacorp: { fs, envVars: { USER: "player", HOME: "/home/player" }, aliases: {}, mounts: {} }},
     zshHistory: { nexacorp: "ls\ncd docs\ncat readme.md\n" },
-    tabs: [{ computerId: "nexacorp", cwd: "/home/player" }],
-    activeTabIndex: 0,
+    windows: [win("nexacorp", "/home/player")],
+    activeWindowIndex: 0,
     notifiedChipTopicIds: [],
   };
 }
@@ -155,23 +163,25 @@ describe("createSaveData", () => {
     expect(data.computerStates.nexacorp.envVars).toEqual({ USER: "player", HOME: "/home/player" });
   });
 
-  it("serializes tabs and activeTabIndex", () => {
+  it("serializes windows and activeWindowIndex", () => {
     const state = createState();
     const data = createSaveData(state, "Test");
-    expect(data.tabs).toEqual([{ computerId: "nexacorp", cwd: "/home/player" }]);
-    expect(data.activeTabIndex).toBe(0);
+    expect(data.windows).toHaveLength(1);
+    expect(data.windows[0].root).toEqual({ kind: "leaf", computerId: "nexacorp", cwd: "/home/player" });
+    expect(data.windows[0].activePaneIndex).toBe(0);
+    expect(data.activeWindowIndex).toBe(0);
   });
 
-  it("saves multi-tab layout", () => {
+  it("saves multi-window layout", () => {
     const state = createState();
-    state.tabs = [
-      { computerId: "nexacorp", cwd: "/home/player" },
-      { computerId: "devcontainer", cwd: "/home/player/project" },
+    state.windows = [
+      win("nexacorp", "/home/player"),
+      win("devcontainer", "/home/player/project"),
     ];
-    state.activeTabIndex = 1;
+    state.activeWindowIndex = 1;
     const data = createSaveData(state, "Test");
-    expect(data.tabs).toHaveLength(2);
-    expect(data.activeTabIndex).toBe(1);
+    expect(data.windows).toHaveLength(2);
+    expect(data.activeWindowIndex).toBe(1);
   });
 });
 
@@ -257,12 +267,12 @@ describe("multi-tab round-trip", () => {
         nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         devcontainer: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
       },
-      tabs: [
-        { computerId: "nexacorp", cwd: "/home/player" },
-        { computerId: "devcontainer", cwd: "/home/player" },
-        { computerId: "nexacorp", cwd: "/home/player" },
+      windows: [
+        win("nexacorp", "/home/player"),
+        win("devcontainer", "/home/player"),
+        win("nexacorp", "/home/player"),
       ],
-      activeTabIndex: 1,
+      activeWindowIndex: 1,
       notifiedChipTopicIds: [],
     };
 
@@ -274,11 +284,11 @@ describe("multi-tab round-trip", () => {
     expect(loaded!.computerStates).toBeDefined();
     expect(loaded!.computerStates.nexacorp).toBeDefined();
     expect(loaded!.computerStates.devcontainer).toBeDefined();
-    expect(loaded!.tabs).toHaveLength(3);
-    expect(loaded!.tabs[0].computerId).toBe("nexacorp");
-    expect(loaded!.tabs[1].computerId).toBe("devcontainer");
-    expect(loaded!.tabs[2].computerId).toBe("nexacorp");
-    expect(loaded!.activeTabIndex).toBe(1);
+    expect(loaded!.windows).toHaveLength(3);
+    expect(savedLeafComputer(loaded!.windows[0].root)).toBe("nexacorp");
+    expect(savedLeafComputer(loaded!.windows[1].root)).toBe("devcontainer");
+    expect(savedLeafComputer(loaded!.windows[2].root)).toBe("nexacorp");
+    expect(loaded!.activeWindowIndex).toBe(1);
   });
 
   it("FS isolation preserved across save/load", () => {
@@ -295,11 +305,11 @@ describe("multi-tab round-trip", () => {
         nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         devcontainer: { fs: createBareFS(), envVars: {}, aliases: {}, mounts: {} },
       },
-      tabs: [
-        { computerId: "nexacorp", cwd: "/home/player" },
-        { computerId: "devcontainer", cwd: "/home/player" },
+      windows: [
+        win("nexacorp", "/home/player"),
+        win("devcontainer", "/home/player"),
       ],
-      activeTabIndex: 0,
+      activeWindowIndex: 0,
       notifiedChipTopicIds: [],
     };
 
@@ -328,18 +338,18 @@ describe("multi-tab round-trip", () => {
       storyFlags: {},
       zshHistory: {},
       computerState: { nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} }},
-      tabs: [{ computerId: "nexacorp", cwd: "/home/player" }],
-      activeTabIndex: 0,
+      windows: [win("nexacorp", "/home/player")],
+      activeWindowIndex: 0,
       notifiedChipTopicIds: [],
     };
 
-    const data = createSaveData(state, "single tab");
+    const data = createSaveData(state, "single window");
     saveToSlot("slot-1", data);
     const loaded = loadFromSlot("slot-1");
 
     expect(loaded).not.toBeNull();
-    expect(loaded!.tabs).toHaveLength(1);
-    expect(loaded!.activeTabIndex).toBe(0);
+    expect(loaded!.windows).toHaveLength(1);
+    expect(loaded!.activeWindowIndex).toBe(0);
   });
 
   it("max tabs (5) round-trip", () => {
@@ -357,14 +367,14 @@ describe("multi-tab round-trip", () => {
         nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         devcontainer: { fs: createBareFS(), envVars: {}, aliases: {}, mounts: {} },
       },
-      tabs: [
-        { computerId: "home", cwd: "/home/player" },
-        { computerId: "nexacorp", cwd: "/home/player" },
-        { computerId: "devcontainer", cwd: "/home/player" },
-        { computerId: "nexacorp", cwd: "/home/player" },
-        { computerId: "home", cwd: "/home/player" },
+      windows: [
+        win("home", "/home/player"),
+        win("nexacorp", "/home/player"),
+        win("devcontainer", "/home/player"),
+        win("nexacorp", "/home/player"),
+        win("home", "/home/player"),
       ],
-      activeTabIndex: 2,
+      activeWindowIndex: 2,
       notifiedChipTopicIds: [],
     };
 
@@ -373,7 +383,7 @@ describe("multi-tab round-trip", () => {
     const loaded = loadFromSlot("slot-1");
 
     expect(loaded).not.toBeNull();
-    expect(loaded!.tabs).toHaveLength(5);
-    expect(loaded!.activeTabIndex).toBe(2);
+    expect(loaded!.windows).toHaveLength(5);
+    expect(loaded!.activeWindowIndex).toBe(2);
   });
 });

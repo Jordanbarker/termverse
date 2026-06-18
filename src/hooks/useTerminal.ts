@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
-import { useGameStore } from "../state/gameStore";
+import { useGameStore, getActiveLeaf, getActivePaneId } from "../state/gameStore";
 import { parseInput, parseChainedPipeline, expandAliases } from "../engine/commands/parser";
 import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "../engine/commands/registry";
 import { resolvePath } from "../lib/pathUtils";
@@ -92,23 +92,23 @@ import "../engine/commands/builtins";
 
 export function useTerminal() {
   const busyRef = useRef(false);
-  const busyTabIdRef = useRef<string | null>(null);
+  const busyPaneIdRef = useRef<string | null>(null);
   const confirmNewGameRef = useRef(false);
   const pendingNotificationsRef = useRef<{ email: number; piper: number } | null>(null);
 
-  // Per-tab local refs — derived from active tab
+  // Per-pane local refs — derived from the active pane (the focused leaf)
   const initState = useGameStore.getState();
-  const initTab = initState.tabs.find((t) => t.id === initState.activeTabId);
-  const cwdRef = useRef(initTab?.cwd ?? `/home/${initState.username}`);
-  const activeComputerRef = useRef<ComputerId>(initTab?.computerId ?? "home");
+  const initLeaf = getActiveLeaf(initState);
+  const cwdRef = useRef(initLeaf?.cwd ?? `/home/${initState.username}`);
+  const activeComputerRef = useRef<ComputerId>(initLeaf?.computerId ?? "home");
 
-  // Sync refs whenever the active tab changes (e.g. addTab, setActiveTab, removeTab)
+  // Sync refs whenever the active pane changes (split, focus move, window switch, …)
   useEffect(() => {
     const unsub = useGameStore.subscribe((state) => {
-      const tab = state.tabs.find((t) => t.id === state.activeTabId);
-      if (tab) {
-        activeComputerRef.current = tab.computerId;
-        cwdRef.current = tab.cwd;
+      const leaf = getActiveLeaf(state);
+      if (leaf) {
+        activeComputerRef.current = leaf.computerId;
+        cwdRef.current = leaf.cwd;
       }
     });
     return unsub;
@@ -165,10 +165,11 @@ export function useTerminal() {
   // Refresh piper session when switching back to its tab (picks up state changes from other tabs)
   const { refreshPiperSession } = sessionRouter;
   useEffect(() => {
-    let prevTabId = useGameStore.getState().activeTabId;
+    let prevPaneId = getActivePaneId(useGameStore.getState());
     const unsub = useGameStore.subscribe((state) => {
-      if (state.activeTabId !== prevTabId) {
-        prevTabId = state.activeTabId;
+      const paneId = getActivePaneId(state);
+      if (paneId !== prevPaneId) {
+        prevPaneId = paneId;
         refreshPiperSession();
       }
     });
@@ -190,7 +191,7 @@ export function useTerminal() {
         store.setComputerFs(computerId, effects.newFs);
       }
       if (effects.newCwd) {
-        store.setTabCwd(store.activeTabId, effects.newCwd);
+        store.setActivePaneCwd(effects.newCwd);
         cwdRef.current = effects.newCwd;
       }
       for (const update of effects.storyFlagUpdates) {
@@ -237,9 +238,9 @@ export function useTerminal() {
       /** Shared post-load logic: sync refs, clear screen, show message + prompt. */
       function finishLoad(t: Terminal, message: string): true {
         const state = useGameStore.getState();
-        const loadedTab = state.tabs.find((tab) => tab.id === state.activeTabId);
-        cwdRef.current = loadedTab?.cwd ?? `/home/${state.username}`;
-        activeComputerRef.current = loadedTab?.computerId ?? "home";
+        const loadedLeaf = getActiveLeaf(state);
+        cwdRef.current = loadedLeaf?.cwd ?? `/home/${state.username}`;
+        activeComputerRef.current = loadedLeaf?.computerId ?? "home";
         t.clear();
         t.write(colorize(`\r\n${message}\r\n`, ansi.cyan));
         t.write(getPrompt(cwdRef.current));
@@ -254,12 +255,10 @@ export function useTerminal() {
        */
       function closeTabsForDownedComputer() {
         if (!effects.closeTabsForComputer) return;
-        const downed = new Set(getConnectionClosure(effects.closeTabsForComputer));
-        const store = useGameStore.getState();
-        const tabsToClose = store.tabs.filter((t) => t.id !== store.activeTabId && downed.has(t.computerId));
-        for (const t of tabsToClose) {
-          store.removeTab(t.id);
-        }
+        const downed = getConnectionClosure(effects.closeTabsForComputer);
+        // Prune every pane on a downed box (and anything chained through it).
+        // The active pane is preserved by the store action; transitionTo retargets it.
+        useGameStore.getState().closePanesForComputers(downed);
       }
 
       if (effects.clearScreen) {
@@ -270,7 +269,7 @@ export function useTerminal() {
       if (effects.incrementalLines) {
         applyStateEffects(effects, computerId);
         busyRef.current = true;
-        busyTabIdRef.current = useGameStore.getState().activeTabId;
+        busyPaneIdRef.current = getActivePaneId(useGameStore.getState()) ?? null;
         const lines = effects.incrementalLines;
         let i = 0;
         const writeNext = () => {
@@ -281,7 +280,7 @@ export function useTerminal() {
             setTimeout(writeNext, i < lines.length ? lines[i].delayMs : 0);
           } else {
             busyRef.current = false;
-            busyTabIdRef.current = null;
+            busyPaneIdRef.current = null;
             // The box is down once the broadcast/countdown lines finish.
             closeTabsForDownedComputer();
             if (effects.gameAction?.type === "shutdown") {
@@ -394,8 +393,8 @@ export function useTerminal() {
       if (sessionRouter.routeInput(term, data)) return;
 
       // Ignore input while an async command is running in this tab
-      const activeTabId = useGameStore.getState().activeTabId;
-      if (busyRef.current && activeTabId === busyTabIdRef.current) return;
+      const activePaneId = getActivePaneId(useGameStore.getState());
+      if (busyRef.current && activePaneId === busyPaneIdRef.current) return;
 
       // Handle special characters
       for (let i = 0; i < data.length; i++) {
@@ -495,11 +494,11 @@ export function useTerminal() {
         }
 
         // Capture tab ID at submission time (before async enqueue)
-        const submittingTabId = useGameStore.getState().activeTabId;
+        const submittingPaneId = getActivePaneId(useGameStore.getState());
 
         // Gate input while command is queued/executing
         busyRef.current = true;
-        busyTabIdRef.current = submittingTabId;
+        busyPaneIdRef.current = submittingPaneId ?? null;
 
         // Enqueue command execution to serialize FS mutations per computer
         enqueueCommand(computerId, async () => {
@@ -547,7 +546,7 @@ export function useTerminal() {
               }
               if (effects.newCwd) {
                 cwdRef.current = effects.newCwd;
-                useGameStore.getState().setTabCwd(useGameStore.getState().activeTabId, effects.newCwd);
+                useGameStore.getState().setActivePaneCwd(effects.newCwd);
               }
               if (effects.clearScreen) {
                 term.clear();
@@ -557,12 +556,12 @@ export function useTerminal() {
               }
               // Check if segment triggers session/incremental/transition — must stop chain
               if (effects.startSession || effects.incrementalLines || effects.transitionTo) {
-                return executeEffects(term, effects, submittingTabId);
+                return executeEffects(term, effects, submittingPaneId);
               }
               return false;
             }
 
-            return executeEffects(term, effects, submittingTabId);
+            return executeEffects(term, effects, submittingPaneId);
           };
 
           let runningFs = initialFs;
@@ -727,7 +726,7 @@ export function useTerminal() {
           }
           } finally {
             busyRef.current = false;
-            busyTabIdRef.current = null;
+            busyPaneIdRef.current = null;
           }
         });
       }
@@ -740,8 +739,10 @@ export function useTerminal() {
     getPrompt,
     startSession: sessionRouter.startSession,
     canCloseCurrentSession: sessionRouter.canCloseCurrentSession,
+    canClosePaneSession: sessionRouter.canClosePaneSession,
     getActiveSessionType: sessionRouter.getActiveSessionType,
-    cleanupTab: sessionRouter.cleanupTab,
+    cleanupPane: sessionRouter.cleanupPane,
     resizeActiveSession: sessionRouter.resizeActiveSession,
+    resizePaneSession: sessionRouter.resizePaneSession,
   };
 }

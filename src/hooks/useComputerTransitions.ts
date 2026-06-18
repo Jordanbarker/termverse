@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
-import { useGameStore, buildFs } from "../state/gameStore";
+import { useGameStore, buildFs, getActiveLeaf } from "../state/gameStore";
 import { VirtualFS } from "../engine/filesystem/VirtualFS";
 import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
 import { createChipinfraFilesystem } from "../story/filesystem/chipinfra";
@@ -64,7 +64,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
     }
 
     const newCwd = entry.fs.cwd;
-    store.setTabComputer(store.activeTabId, "erik-pc", newCwd);
+    store.setActivePaneComputer("erik-pc", newCwd);
     activeComputerRef.current = "erik-pc";
     cwdRef.current = newCwd;
 
@@ -114,7 +114,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         const existing = pre.computerState.nexacorp;
         if (existing) {
           const newCwd = existing.fs.cwd;
-          pre.setTabComputer(pre.activeTabId, "nexacorp", newCwd);
+          pre.setActivePaneComputer("nexacorp", newCwd);
           activeComputerRef.current = "nexacorp";
           cwdRef.current = newCwd;
           if (pre.pendingPiperNotification) {
@@ -148,7 +148,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
           const newCwd = finalFs.cwd;
 
           // Update current tab to nexacorp
-          s.setTabComputer(s.activeTabId, "nexacorp", newCwd);
+          s.setActivePaneComputer("nexacorp", newCwd);
           activeComputerRef.current = "nexacorp";
           cwdRef.current = newCwd;
 
@@ -252,7 +252,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
       }
 
       const newCwd = entry.fs.cwd;
-      store.setTabComputer(store.activeTabId, target, newCwd);
+      store.setActivePaneComputer(target, newCwd);
       activeComputerRef.current = target;
       cwdRef.current = newCwd;
       term.writeln("");
@@ -299,7 +299,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         s.initComputer(target, newFs);
 
         // Repurpose current tab to the new target
-        s.setTabComputer(s.activeTabId, target, newCwd);
+        s.setActivePaneComputer(target, newCwd);
         activeComputerRef.current = target;
         cwdRef.current = newCwd;
 
@@ -325,14 +325,14 @@ export function useComputerTransitions(deps: TransitionDeps) {
    */
   const runExitToParent = useCallback((term: Terminal, target: ComputerId) => {
     const store = useGameStore.getState();
-    const sourceComputer = store.tabs.find((t) => t.id === store.activeTabId)?.computerId;
+    const sourceComputer = getActiveLeaf(store)?.computerId;
 
     // Restore target cwd from computerState (default to its conventional home dir)
     const targetEntry = store.computerState[target];
     const fallbackHome = `/home/${store.username}`;
     const targetCwd = targetEntry?.fs?.cwd ?? fallbackHome;
 
-    store.setTabComputer(store.activeTabId, target, targetCwd);
+    store.setActivePaneComputer(target, targetCwd);
     activeComputerRef.current = target;
     cwdRef.current = targetCwd;
 
@@ -387,17 +387,9 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
         const s = useGameStore.getState();
 
-        // Close all other work-machine tabs (nexacorp + everything reachable
-        // only through it)
-        const tabsToClose = s.tabs.filter(
-          (t) =>
-            (t.computerId === "nexacorp" ||
-              t.computerId === "devcontainer" ||
-              t.computerId === "chipinfra" ||
-              t.computerId === "erik-pc") &&
-            t.id !== s.activeTabId
-        );
-        for (const t of tabsToClose) s.removeTab(t.id);
+        // Close all other work-machine panes (nexacorp + everything reachable
+        // only through it). The active pane is preserved and retargeted to home below.
+        s.closePanesForComputers(["nexacorp", "devcontainer", "chipinfra", "erik-pc"]);
 
         // Rebuild home FS
         const username = s.username;
@@ -452,7 +444,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
         // Repurpose current tab to home
         const homeCwd = newFs.cwd;
-        s.setTabComputer(s.activeTabId, "home", homeCwd);
+        s.setActivePaneComputer("home", homeCwd);
         activeComputerRef.current = "home";
         cwdRef.current = homeCwd;
 
@@ -544,12 +536,12 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
     setTimeout(() => {
       const s = useGameStore.getState();
-      const otherTabs = s.tabs.filter((t) => t.id !== s.activeTabId);
-      for (const t of otherTabs) s.removeTab(t.id);
+      // A reboot kills every terminal — collapse to a single home pane.
+      s.closeOtherPanes();
 
       // Fresh login shell starts in ~
       const homeDir = `/home/${s.username}`;
-      s.setTabCwd(s.activeTabId, homeDir);
+      s.setActivePaneCwd(homeDir);
       cwdRef.current = homeDir;
 
       useGameStore.getState().setGamePhase("booting");
@@ -596,11 +588,10 @@ export function useComputerTransitions(deps: TransitionDeps) {
       const username = s.username;
 
       // Powering off kills every terminal, and overnight no work session
-      // survives. Close all other tabs and drop any lingering work-machine
-      // state (the player can ssh back end-of-day, soft-disconnect home, and
-      // reach shutdown with work tabs still open).
-      const otherTabs = s.tabs.filter((t) => t.id !== s.activeTabId);
-      for (const t of otherTabs) s.removeTab(t.id);
+      // survives. Collapse to a single home pane and drop any lingering
+      // work-machine state (the player can ssh back end-of-day, soft-disconnect
+      // home, and reach shutdown with work panes still open).
+      s.closeOtherPanes();
       s.removeComputer("nexacorp");
       s.removeComputer("devcontainer");
       s.removeComputer("chipinfra");
@@ -642,7 +633,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
 
       // Repurpose current tab to home
       const homeCwd = newFs.cwd;
-      s.setTabComputer(s.activeTabId, "home", homeCwd);
+      s.setActivePaneComputer("home", homeCwd);
       activeComputerRef.current = "home";
       cwdRef.current = homeCwd;
 
@@ -726,18 +717,10 @@ export function useComputerTransitions(deps: TransitionDeps) {
         store.setStoryFlag("termination_dest_path", violation.destPath);
       }
 
-      // t=0: close sibling work-machine tabs so the player can't Ctrl+B,N to
-      // another tab on the doomed workstation and keep working while the
-      // cinematic plays.
-      const siblingTabs = store.tabs.filter(
-        (t) =>
-          (t.computerId === "nexacorp" ||
-            t.computerId === "devcontainer" ||
-            t.computerId === "chipinfra" ||
-            t.computerId === "erik-pc") &&
-          t.id !== store.activeTabId
-      );
-      for (const t of siblingTabs) store.removeTab(t.id);
+      // t=0: close sibling work-machine panes so the player can't switch to
+      // another pane on the doomed workstation and keep working while the
+      // cinematic plays. The active pane is preserved and retargeted to home below.
+      store.closePanesForComputers(["nexacorp", "devcontainer", "chipinfra", "erik-pc"]);
 
       const pid = Math.floor(1000 + Math.random() * 9000);
       const alertLines = getTerminationAlertLines(violation, pid);
@@ -799,7 +782,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
         s.removeComputer("erik-pc");
 
         const homeCwd = newFs.cwd;
-        s.setTabComputer(s.activeTabId, "home", homeCwd);
+        s.setActivePaneComputer("home", homeCwd);
         activeComputerRef.current = "home";
         cwdRef.current = homeCwd;
 

@@ -1,17 +1,16 @@
 "use client";
 
-import { useGameStore } from "../../state/gameStore";
+import { useGameStore, getActiveLeaf } from "../../state/gameStore";
 
 export default function StatusBar() {
-  const tabs = useGameStore((s) => s.tabs);
-  const activeTabId = useGameStore((s) => s.activeTabId);
+  // Re-render when windows or the active window/pane change; derive the focused leaf.
+  const activeLeaf = useGameStore((s) => getActiveLeaf(s));
   const chapter = useGameStore((s) => s.currentChapter);
   const gamePhase = useGameStore((s) => s.gamePhase);
   const terminated = useGameStore((s) => s.storyFlags.terminated_for_misconduct);
 
-  const activeTab = tabs.find((t) => t.id === activeTabId);
-  const activeComputer = activeTab?.computerId ?? "home";
-  const cwd = activeTab?.cwd ?? "";
+  const activeComputer = activeLeaf?.computerId ?? "home";
+  const cwd = activeLeaf?.cwd ?? "";
 
   let leftText: string;
   if (gamePhase === "playing" || gamePhase === "transitioning") {

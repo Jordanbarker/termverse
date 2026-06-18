@@ -20,16 +20,58 @@ import { syncToVirtualFS } from "../engine/snowflake/bridge/fs_bridge";
 import { seedDeliveredEmails } from "../engine/mail/delivery";
 import { getDefaultEnv, initEnvForComputer, initAliasesForComputer } from "../story/env";
 import { findNewlyAvailableChipTopics } from "../engine/chip/notifications";
+import {
+  WindowState,
+  PaneLeaf,
+  SplitDirection,
+  makeWindow,
+  makeLeaf,
+  allLeaves,
+  firstLeaf,
+  findLeaf,
+  mapLeaf,
+  splitNode,
+  collapsePane,
+  prunePanesByComputer,
+  setSplitRatio,
+  focusDirectionTarget,
+  nextLeafId,
+  rebuildWindow,
+  serializeWindow,
+  resetPaneIdCounters,
+  SavedWindowState,
+} from "./paneTypes";
 
 export interface Toast {
   id: string;
   message: string;
 }
 
-export interface TabState {
-  id: string;
-  computerId: ComputerId;
-  cwd: string;
+/** Max windows (tmux-style tabs) and panes per window. */
+const MAX_WINDOWS = 5;
+const MAX_PANES_PER_WINDOW = 6;
+
+/** State subset the active-pane selectors need. */
+type WindowSlice = { windows: WindowState[]; activeWindowId: string };
+
+export function getActiveWindow(state: WindowSlice): WindowState | undefined {
+  return state.windows.find((w) => w.id === state.activeWindowId);
+}
+export function getActivePaneId(state: WindowSlice): string | undefined {
+  return getActiveWindow(state)?.activePaneId;
+}
+export function getActiveLeaf(state: WindowSlice): PaneLeaf | undefined {
+  const w = getActiveWindow(state);
+  return w ? findLeaf(w.root, w.activePaneId) : undefined;
+}
+/** The window that contains a given pane id, or undefined. */
+function windowOfPane(windows: WindowState[], paneId: string): WindowState | undefined {
+  return windows.find((w) => findLeaf(w.root, paneId));
+}
+/** Ensure a window's activePaneId still points at a live leaf. */
+function normalizeFocus(w: WindowState): WindowState {
+  if (findLeaf(w.root, w.activePaneId)) return w;
+  return { ...w, activePaneId: firstLeaf(w.root).id };
 }
 
 interface GameStore {
@@ -48,8 +90,9 @@ interface GameStore {
   // rebuilds and removeComputer so shell history continues across day/computer
   // transitions; restored into the fresh fs by initComputer.
   zshHistory: Partial<Record<ComputerId, string>>;
-  tabs: TabState[];
-  activeTabId: string;
+  windows: WindowState[];
+  activeWindowId: string;
+  // Pane id of the snow REPL's pane (null when no session). Pane-scoped.
   activeSnowSession: string | null;
   pendingPiperNotification: boolean;
   notifiedChipTopicIds: string[];
@@ -75,12 +118,26 @@ interface GameStore {
   setComputerFs: (computer: ComputerId, fs: VirtualFS) => void;
   setComputerMounts: (computer: ComputerId, mounts: Mounts) => void;
   initComputer: (computer: ComputerId, fs: VirtualFS) => void;
-  addTab: (computerId: ComputerId, cwd: string) => string;
-  removeTab: (tabId: string) => void;
-  setActiveTab: (tabId: string) => void;
-  setTabCwd: (tabId: string, cwd: string) => void;
-  setActiveSnowSession: (tabId: string | null) => void;
-  setTabComputer: (tabId: string, computerId: ComputerId, cwd: string) => void;
+  // Window-level (tmux tabs)
+  addWindow: (computerId: ComputerId, cwd: string) => string;
+  removeWindow: (windowId: string) => void;
+  setActiveWindow: (windowId: string) => void;
+  // Pane-level
+  splitPane: (paneId: string, direction: SplitDirection) => string | null;
+  closePane: (paneId: string) => void;
+  setActivePane: (paneId: string) => void;
+  focusDirection: (dir: "L" | "R" | "U" | "D") => void;
+  cyclePane: () => void;
+  resizePane: (splitId: string, ratio: number) => void;
+  setPaneCwd: (paneId: string, cwd: string) => void;
+  setPaneComputer: (paneId: string, computerId: ComputerId, cwd: string) => void;
+  // Convenience for transitions/command execution (operate on the active pane)
+  setActivePaneCwd: (cwd: string) => void;
+  setActivePaneComputer: (computerId: ComputerId, cwd: string) => void;
+  // Teardown: prune panes on downed computers (active pane preserved); collapse to one pane.
+  closePanesForComputers: (computerIds: ComputerId[]) => void;
+  closeOtherPanes: () => void;
+  setActiveSnowSession: (paneId: string | null) => void;
   setComputerEnv: (computer: ComputerId, envVars: Record<string, string>) => void;
   setComputerAliases: (computer: ComputerId, aliases: Record<string, string>) => void;
   removeComputer: (computer: ComputerId) => void;
@@ -115,15 +172,10 @@ export function buildFs(
   return fs;
 }
 
-const MAX_TABS = 5;
-let tabCounter = 0;
-function nextTabId(): string {
-  return `tab-${++tabCounter}`;
-}
-
 function createInitialState(username = PLAYER.username) {
+  resetPaneIdCounters();
   const fs = buildFs(username, "home");
-  const initialTabId = nextTabId();
+  const initialWindow = makeWindow("home", fs.cwd);
   return {
     username,
     currentChapter: "chapter-1",
@@ -138,8 +190,8 @@ function createInitialState(username = PLAYER.username) {
     toasts: [] as Toast[],
     computerState: { home: { fs, envVars: initEnvForComputer("home", username, fs), aliases: initAliasesForComputer("home", username, fs), mounts: {} } } as Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>,
     zshHistory: {} as Partial<Record<ComputerId, string>>,
-    tabs: [{ id: initialTabId, computerId: "home" as ComputerId, cwd: fs.cwd }] as TabState[],
-    activeTabId: initialTabId,
+    windows: [initialWindow] as WindowState[],
+    activeWindowId: initialWindow.id,
     activeSnowSession: null as string | null,
     pendingPiperNotification: false,
     notifiedChipTopicIds: [] as string[],
@@ -156,8 +208,7 @@ export const useGameStore = create<GameStore>()(
 
       setUsername: (username) => {
         const state = get();
-        const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
-        const computerId = activeTab?.computerId ?? "home";
+        const computerId = getActiveLeaf(state)?.computerId ?? "home";
         const fs = buildFs(username, computerId, state.storyFlags, state.deliveredEmailIds);
         let finalFs = fs;
         if (computerId === "nexacorp") {
@@ -195,9 +246,9 @@ export const useGameStore = create<GameStore>()(
       setStoryFlag: (key, value) =>
         set((state) => {
           const newFlags = { ...state.storyFlags, [key]: value };
-          const activeTab = state.tabs.find((t) => t.id === state.activeTabId);
-          if (!activeTab) return { storyFlags: newFlags };
-          const newIds = findNewlyAvailableChipTopics(newFlags, activeTab.computerId, state.notifiedChipTopicIds);
+          const activeLeaf = getActiveLeaf(state);
+          if (!activeLeaf) return { storyFlags: newFlags };
+          const newIds = findNewlyAvailableChipTopics(newFlags, activeLeaf.computerId, state.notifiedChipTopicIds);
           if (newIds.length === 0) return { storyFlags: newFlags };
           return {
             storyFlags: newFlags,
@@ -247,46 +298,154 @@ export const useGameStore = create<GameStore>()(
             computerState: { ...state.computerState, [computer]: { fs: finalFs, envVars: initEnvForComputer(computer, state.username, finalFs), aliases: initAliasesForComputer(computer, state.username, finalFs), mounts: state.computerState[computer]?.mounts ?? {} } },
           };
         }),
-      addTab: (computerId, cwd) => {
+      addWindow: (computerId, cwd) => {
         const state = get();
-        if (state.tabs.length >= MAX_TABS) return state.activeTabId;
-        const id = nextTabId();
-        set({
-          tabs: [...state.tabs, { id, computerId, cwd }],
-          activeTabId: id,
-        });
-        return id;
+        if (state.windows.length >= MAX_WINDOWS) return state.activeWindowId;
+        const win = makeWindow(computerId, cwd);
+        set({ windows: [...state.windows, win], activeWindowId: win.id });
+        return win.id;
       },
-      removeTab: (tabId) =>
+      removeWindow: (windowId) =>
         set((state) => {
-          const newTabs = state.tabs.filter((t) => t.id !== tabId);
-          if (newTabs.length === 0) return {}; // Can't remove last tab
-          const updates: Partial<typeof state> = { tabs: newTabs };
-          if (state.activeSnowSession === tabId) {
+          const newWindows = state.windows.filter((w) => w.id !== windowId);
+          if (newWindows.length === 0) return {}; // Can't remove the last window
+          const updates: Partial<typeof state> = { windows: newWindows };
+          // Clear a snow session whose pane lived in the closed window.
+          const closed = state.windows.find((w) => w.id === windowId);
+          if (closed && state.activeSnowSession && findLeaf(closed.root, state.activeSnowSession)) {
             updates.activeSnowSession = null;
           }
-          if (state.activeTabId === tabId) {
-            const idx = state.tabs.findIndex((t) => t.id === tabId);
-            const newActive = newTabs[Math.min(idx, newTabs.length - 1)];
-            updates.activeTabId = newActive.id;
+          if (state.activeWindowId === windowId) {
+            const idx = state.windows.findIndex((w) => w.id === windowId);
+            updates.activeWindowId = newWindows[Math.min(idx, newWindows.length - 1)].id;
           }
           return updates;
         }),
-      setActiveTab: (tabId) =>
+      setActiveWindow: (windowId) =>
+        set((state) => (state.windows.some((w) => w.id === windowId) ? { activeWindowId: windowId } : {})),
+      splitPane: (paneId, direction) => {
+        const state = get();
+        const win = windowOfPane(state.windows, paneId);
+        if (!win) return null;
+        const leaf = findLeaf(win.root, paneId)!;
+        if (allLeaves(win.root).length >= MAX_PANES_PER_WINDOW) return null;
+        const res = splitNode(win.root, paneId, direction, () => makeLeaf(leaf.computerId, leaf.cwd));
+        if (!res) return null;
+        set({
+          windows: state.windows.map((w) =>
+            w.id === win.id ? { ...w, root: res.root, activePaneId: res.newPaneId } : w
+          ),
+          activeWindowId: win.id,
+        });
+        return res.newPaneId;
+      },
+      closePane: (paneId) =>
         set((state) => {
-          const tab = state.tabs.find((t) => t.id === tabId);
-          if (!tab) return {};
-          return { activeTabId: tabId };
+          const win = windowOfPane(state.windows, paneId);
+          if (!win) return {};
+          const collapsed = collapsePane(win.root, paneId);
+          const updates: Partial<typeof state> = {};
+          if (state.activeSnowSession === paneId) updates.activeSnowSession = null;
+          if (collapsed === null) {
+            // Last pane in the window — drop the window unless it's the only one.
+            if (state.windows.length === 1) return updates;
+            const newWindows = state.windows.filter((w) => w.id !== win.id);
+            updates.windows = newWindows;
+            if (state.activeWindowId === win.id) {
+              const idx = state.windows.findIndex((w) => w.id === win.id);
+              updates.activeWindowId = newWindows[Math.min(idx, newWindows.length - 1)].id;
+            }
+            return updates;
+          }
+          const newActivePane = win.activePaneId === paneId ? firstLeaf(collapsed).id : win.activePaneId;
+          updates.windows = state.windows.map((w) =>
+            w.id === win.id ? { ...w, root: collapsed, activePaneId: newActivePane } : w
+          );
+          return updates;
         }),
-      setTabCwd: (tabId, cwd) =>
+      setActivePane: (paneId) =>
+        set((state) => {
+          const win = windowOfPane(state.windows, paneId);
+          if (!win) return {};
+          return {
+            activeWindowId: win.id,
+            windows: state.windows.map((w) => (w.id === win.id ? { ...w, activePaneId: paneId } : w)),
+          };
+        }),
+      focusDirection: (dir) =>
+        set((state) => {
+          const win = getActiveWindow(state);
+          if (!win) return {};
+          const target = focusDirectionTarget(win.root, win.activePaneId, dir);
+          if (!target) return {};
+          return { windows: state.windows.map((w) => (w.id === win.id ? { ...w, activePaneId: target } : w)) };
+        }),
+      cyclePane: () =>
+        set((state) => {
+          const win = getActiveWindow(state);
+          if (!win) return {};
+          const target = nextLeafId(win.root, win.activePaneId);
+          return { windows: state.windows.map((w) => (w.id === win.id ? { ...w, activePaneId: target } : w)) };
+        }),
+      resizePane: (splitId, ratio) =>
         set((state) => ({
-          tabs: state.tabs.map((t) => t.id === tabId ? { ...t, cwd } : t),
+          windows: state.windows.map((w) => ({ ...w, root: setSplitRatio(w.root, splitId, ratio) })),
         })),
-      setActiveSnowSession: (tabId) => set({ activeSnowSession: tabId }),
-      setTabComputer: (tabId, computerId, cwd) =>
+      setPaneCwd: (paneId, cwd) =>
         set((state) => ({
-          tabs: state.tabs.map((t) => t.id === tabId ? { ...t, computerId, cwd } : t),
+          windows: state.windows.map((w) => ({ ...w, root: mapLeaf(w.root, paneId, (l) => ({ ...l, cwd })) })),
         })),
+      setPaneComputer: (paneId, computerId, cwd) =>
+        set((state) => ({
+          windows: state.windows.map((w) => ({
+            ...w,
+            root: mapLeaf(w.root, paneId, (l) => ({ ...l, computerId, cwd })),
+          })),
+        })),
+      setActivePaneCwd: (cwd) => {
+        const paneId = getActivePaneId(get());
+        if (paneId) get().setPaneCwd(paneId, cwd);
+      },
+      setActivePaneComputer: (computerId, cwd) => {
+        const paneId = getActivePaneId(get());
+        if (paneId) get().setPaneComputer(paneId, computerId, cwd);
+      },
+      closePanesForComputers: (computerIds) =>
+        set((state) => {
+          const downed = new Set(computerIds);
+          const protectedId = getActivePaneId(state);
+          const newWindows: WindowState[] = [];
+          for (const w of state.windows) {
+            const pruned = prunePanesByComputer(w.root, downed, protectedId);
+            if (pruned) newWindows.push(normalizeFocus({ ...w, root: pruned }));
+          }
+          if (newWindows.length === 0) return {};
+          const activeStillThere = newWindows.some((w) => w.id === state.activeWindowId);
+          const updates: Partial<typeof state> = {
+            windows: newWindows,
+            activeWindowId: activeStillThere ? state.activeWindowId : newWindows[0].id,
+          };
+          if (state.activeSnowSession && !newWindows.some((w) => findLeaf(w.root, state.activeSnowSession!))) {
+            updates.activeSnowSession = null;
+          }
+          return updates;
+        }),
+      closeOtherPanes: () =>
+        set((state) => {
+          const win = getActiveWindow(state);
+          const leaf = win ? findLeaf(win.root, win.activePaneId) : undefined;
+          if (!win || !leaf) return {};
+          const collapsedWindow: WindowState = { ...win, root: leaf, activePaneId: leaf.id };
+          const updates: Partial<typeof state> = {
+            windows: [collapsedWindow],
+            activeWindowId: collapsedWindow.id,
+          };
+          if (state.activeSnowSession && state.activeSnowSession !== leaf.id) {
+            updates.activeSnowSession = null;
+          }
+          return updates;
+        }),
+      setActiveSnowSession: (paneId) => set({ activeSnowSession: paneId }),
       setComputerEnv: (computer, envVars) =>
         set((state) => ({
           computerState: { ...state.computerState, [computer]: { ...state.computerState[computer]!, envVars } },
@@ -309,14 +468,13 @@ export const useGameStore = create<GameStore>()(
           return { notifiedChipTopicIds: [...state.notifiedChipTopicIds, ...additions] };
         }),
       resetGame: () => {
-        tabCounter = 0;
         set(createInitialState());
       },
 
       saveGame: (slotId, label) => {
         const state = get();
-        const activeTabIndex = state.tabs.findIndex((t) => t.id === state.activeTabId);
-        const saveable = { ...state, activeTabIndex: activeTabIndex >= 0 ? activeTabIndex : 0, notifiedChipTopicIds: [...state.notifiedChipTopicIds] };
+        const activeWindowIndex = state.windows.findIndex((w) => w.id === state.activeWindowId);
+        const saveable = { ...state, activeWindowIndex: activeWindowIndex >= 0 ? activeWindowIndex : 0, notifiedChipTopicIds: [...state.notifiedChipTopicIds] };
         const data = createSaveData(saveable, label ?? `Save ${slotId}`);
         return saveToSlot(slotId, data);
       },
@@ -338,13 +496,12 @@ export const useGameStore = create<GameStore>()(
           } catch { /* skip corrupted entries */ }
         }
 
-        tabCounter = 0;
-        const tabs = data.tabs.map((t) => ({
-          id: nextTabId(),
-          computerId: t.computerId,
-          cwd: t.cwd,
-        }));
-        const activeIdx = Math.min(data.activeTabIndex, tabs.length - 1);
+        resetPaneIdCounters();
+        const savedWindows = data.windows && data.windows.length > 0
+          ? data.windows
+          : [{ root: { kind: "leaf" as const, computerId: "home" as ComputerId, cwd: `/home/${data.username}` }, activePaneIndex: 0 }];
+        const windows = savedWindows.map(rebuildWindow);
+        const activeIdx = Math.min(data.activeWindowIndex ?? 0, windows.length - 1);
 
         set({
           username: data.username,
@@ -356,8 +513,8 @@ export const useGameStore = create<GameStore>()(
           storyFlags: data.storyFlags,
           computerState: loadedComputerState,
           zshHistory: data.zshHistory ?? {},
-          tabs,
-          activeTabId: tabs[activeIdx].id,
+          windows,
+          activeWindowId: windows[activeIdx].id,
           activeSnowSession: null,
           notifiedChipTopicIds: data.notifiedChipTopicIds ?? [],
         });
@@ -385,8 +542,8 @@ export const useGameStore = create<GameStore>()(
           };
         }
 
-        tabCounter = 0;
-        const tabId = nextTabId();
+        resetPaneIdCounters();
+        const win = makeWindow(data.activeComputer, homeDir);
 
         set({
           username,
@@ -401,8 +558,8 @@ export const useGameStore = create<GameStore>()(
           // Fresh cheat-load: clear the history mirror so each computer's seeded
           // .zsh_history file stands.
           zshHistory: {},
-          tabs: [{ id: tabId, computerId: data.activeComputer, cwd: homeDir }],
-          activeTabId: tabId,
+          windows: [win],
+          activeWindowId: win.id,
           activeSnowSession: null,
           notifiedChipTopicIds: [],
         });
@@ -418,8 +575,8 @@ export const useGameStore = create<GameStore>()(
         for (const [id, cs] of Object.entries(state.computerState)) {
           if (cs) serializedComputerState[id] = { fs: serializeFS(cs.fs), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
         }
-        // Persist tab layout
-        const activeTabIndex = state.tabs.findIndex((t) => t.id === state.activeTabId);
+        // Persist window/pane layout
+        const activeWindowIndex = state.windows.findIndex((w) => w.id === state.activeWindowId);
         return {
           username: state.username,
           currentChapter: state.currentChapter,
@@ -432,8 +589,8 @@ export const useGameStore = create<GameStore>()(
           serializedSnowflake: serializeSnowflake(state.snowflakeState),
           serializedComputerState,
           zshHistory: state.zshHistory,
-          persistedTabs: state.tabs.map((t) => ({ computerId: t.computerId, cwd: t.cwd })),
-          persistedActiveTabIndex: activeTabIndex >= 0 ? activeTabIndex : 0,
+          persistedWindows: state.windows.map(serializeWindow),
+          persistedActiveWindowIndex: activeWindowIndex >= 0 ? activeWindowIndex : 0,
           notifiedChipTopicIds: state.notifiedChipTopicIds,
           copyModeHelpHidden: state.copyModeHelpHidden,
         };
@@ -478,43 +635,41 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // Restore tabs
-        tabCounter = 0;
-        const persistedTabs = p.persistedTabs as Array<{ computerId: ComputerId; cwd: string }> | undefined;
-        const persistedActiveTabIndex = (p.persistedActiveTabIndex as number) ?? 0;
-        let tabs: TabState[];
-        if (persistedTabs && persistedTabs.length > 0) {
-          tabs = persistedTabs.map((t) => ({
-            id: nextTabId(),
-            computerId: t.computerId,
-            cwd: t.cwd,
-          }));
+        // Restore windows + panes
+        resetPaneIdCounters();
+        const persistedWindows = p.persistedWindows as SavedWindowState[] | undefined;
+        const persistedActiveWindowIndex = (p.persistedActiveWindowIndex as number) ?? 0;
+        let windows: WindowState[];
+        if (persistedWindows && persistedWindows.length > 0) {
+          windows = persistedWindows.map(rebuildWindow);
         } else {
-          tabs = [{ id: nextTabId(), computerId: "home", cwd: `/home/${username}` }];
+          windows = [makeWindow("home", `/home/${username}`)];
         }
-        const activeIdx = Math.min(persistedActiveTabIndex, tabs.length - 1);
+        const activeIdx = Math.min(persistedActiveWindowIndex, windows.length - 1);
 
         // Durable .zsh_history mirror (survives removeComputer between sessions).
         const zshHistory = (p.zshHistory as Partial<Record<ComputerId, string>>) ?? {};
 
-        // Ensure every tab's computer has a corresponding computerState entry.
-        // A persisted tab can outlive its computerState if the FS failed to
+        // Ensure every pane's computer has a corresponding computerState entry.
+        // A persisted pane can outlive its computerState if the FS failed to
         // deserialize above, or if the save predates a new ComputerId. Without
         // this rebuild, useTerminal asserts on store.computerState[id]!.fs.
-        for (const t of tabs) {
-          if (!computerState[t.computerId]) {
-            const fs = buildFs(username, t.computerId, storyFlags, (p.deliveredEmailIds as string[]) ?? []);
-            let finalFs = t.computerId === "nexacorp" ? syncToVirtualFS(sfState, fs) : fs;
+        const leafComputers = new Set<ComputerId>();
+        for (const w of windows) for (const l of allLeaves(w.root)) leafComputers.add(l.computerId);
+        for (const computerId of leafComputers) {
+          if (!computerState[computerId]) {
+            const fs = buildFs(username, computerId, storyFlags, (p.deliveredEmailIds as string[]) ?? []);
+            let finalFs = computerId === "nexacorp" ? syncToVirtualFS(sfState, fs) : fs;
             // Restore the history mirror into the rebuilt fs (matches initComputer).
-            const savedHistory = zshHistory[t.computerId];
+            const savedHistory = zshHistory[computerId];
             if (savedHistory != null) {
               const written = finalFs.writeFile(`${finalFs.homeDir}/.zsh_history`, savedHistory);
               if (written.fs) finalFs = written.fs;
             }
-            computerState[t.computerId] = {
+            computerState[computerId] = {
               fs: finalFs,
-              envVars: initEnvForComputer(t.computerId, username, finalFs),
-              aliases: initAliasesForComputer(t.computerId, username, finalFs),
+              envVars: initEnvForComputer(computerId, username, finalFs),
+              aliases: initAliasesForComputer(computerId, username, finalFs),
               mounts: {},
             };
           }
@@ -533,8 +688,8 @@ export const useGameStore = create<GameStore>()(
           snowflakeState: sfState,
           computerState,
           zshHistory,
-          tabs,
-          activeTabId: tabs[activeIdx].id,
+          windows,
+          activeWindowId: windows[activeIdx].id,
           notifiedChipTopicIds: (p.notifiedChipTopicIds as string[]) ?? [],
           copyModeHelpHidden: (p.copyModeHelpHidden as boolean) ?? currentState.copyModeHelpHidden,
         };

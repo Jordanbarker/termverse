@@ -43,8 +43,11 @@ Full snapshot of all game state:
   // history (the single source of truth, the .zsh_history file) continues across
   // day/computer transitions even for FS that get torn down and rebuilt.
   zshHistory: Partial<Record<ComputerId, string>>;
-  tabs: SavedTabState[];      // Tab layout: {computerId, cwd}[]
-  activeTabIndex: number;     // Index of active tab in tabs[]
+  // tmux window/pane layout. Each SavedWindowState = serialized pane tree
+  // (SavedPaneNode) + activePaneIndex (DFS-leaf index of the focused pane).
+  // Types + serializeWindow/rebuildWindow live in src/state/paneTypes.ts.
+  windows: SavedWindowState[];
+  activeWindowIndex: number;   // Index of the active window in windows[]
 }
 ```
 
@@ -119,7 +122,7 @@ Zustand auto-save key: `terminal-turmoil-save`
 | `serializedComputerState` | Per-computer serialized filesystems (incl. the `.zsh_history` file), env vars, aliases, and mounts |
 | `zshHistory` | Durable per-computer `.zsh_history` mirror — survives `removeComputer`/FS rebuilds so shell history (the single source of truth) continues across day/computer transitions |
 | `serializedSnowflake` | Snowflake warehouse state via `serializeSnowflake()`. On `merge`, deserialization failures fall back to `createInitialSnowflakeState()` rather than crashing the load |
-| `persistedTabs` / `persistedActiveTabIndex` | Tab layout and active tab position |
+| `persistedWindows` / `persistedActiveWindowIndex` | Window/pane tree layout and active window position (panes rebuilt with fresh ids via `rebuildWindow`) |
 | `notifiedChipTopicIds` | Chip menu item IDs already toasted (prevents re-firing the "New Chip topic available" toast) |
 | `copyModeHelpHidden` | Player's copy-mode key-hint overlay preference |
 

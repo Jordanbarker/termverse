@@ -8,6 +8,7 @@ import {
   SAVE_FORMAT_VERSION,
 } from "./saveTypes";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
+import { WindowState, serializeWindow } from "./paneTypes";
 
 const SLOT_KEY_PREFIX = "terminal-turmoil-slot-";
 
@@ -16,11 +17,6 @@ function slotKey(slotId: SaveSlotId): string {
 }
 
 export const ALL_SLOTS: SaveSlotId[] = ["auto", "slot-1", "slot-2", "slot-3"];
-
-export interface TabLike {
-  computerId: ComputerId;
-  cwd: string;
-}
 
 export interface SaveableState {
   username: string;
@@ -32,8 +28,8 @@ export interface SaveableState {
   storyFlags: StoryFlags;
   computerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>>;
   zshHistory: Partial<Record<ComputerId, string>>;
-  tabs: TabLike[];
-  activeTabIndex: number;
+  windows: WindowState[];
+  activeWindowIndex: number;
   notifiedChipTopicIds: string[];
 }
 
@@ -56,8 +52,8 @@ export function createSaveData(state: SaveableState, label: string): SaveData {
     storyFlags: { ...state.storyFlags },
     computerStates,
     zshHistory: { ...state.zshHistory },
-    tabs: state.tabs.map((t) => ({ computerId: t.computerId, cwd: t.cwd })),
-    activeTabIndex: state.activeTabIndex >= 0 ? state.activeTabIndex : 0,
+    windows: state.windows.map(serializeWindow),
+    activeWindowIndex: state.activeWindowIndex >= 0 ? state.activeWindowIndex : 0,
     notifiedChipTopicIds: [...state.notifiedChipTopicIds],
   };
 }

@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useGameStore, TabState } from "../../state/gameStore";
+import { useGameStore } from "../../state/gameStore";
+import { WindowState, allLeaves, findLeaf, firstLeaf } from "../../state/paneTypes";
 import { COMPUTERS, ComputerId } from "../../state/types";
 import { TabBarTheme } from "../../engine/terminal/tmuxConfig";
 
 interface TabBarProps {
-  onNewTab: (computerId?: ComputerId) => void;
-  onCloseTab: (tabId: string) => void;
-  onSelectTab: (tabId: string) => void;
+  onNewWindow: (computerId?: ComputerId) => void;
+  onCloseWindow: (windowId: string) => void;
+  onSelectWindow: (windowId: string) => void;
   /** True while the tmux prefix key is pending (lights up the session block). */
   prefixActive: boolean;
   /** tmux confirm-before-kill prompt text; takes over the bar when non-null. */
@@ -32,22 +33,26 @@ function abbreviateCwd(cwd: string, username: string): string {
   return display;
 }
 
-function tabLabel(tab: TabState, username: string): string {
-  const host = COMPUTERS[tab.computerId]?.promptHostname ?? tab.computerId;
-  const dir = abbreviateCwd(tab.cwd, username);
-  return `${host}:${dir}`;
+/** A window's status-line label comes from its focused pane; a pane count is
+ *  appended (tmux-style) when the window is split. */
+function windowLabel(win: WindowState, username: string): string {
+  const leaf = findLeaf(win.root, win.activePaneId) ?? firstLeaf(win.root);
+  const host = COMPUTERS[leaf.computerId]?.promptHostname ?? leaf.computerId;
+  const dir = abbreviateCwd(leaf.cwd, username);
+  const count = allLeaves(win.root).length;
+  return count > 1 ? `${host}:${dir} (${count})` : `${host}:${dir}`;
 }
 
 export default function TabBar({
-  onNewTab,
-  onCloseTab,
-  onSelectTab,
+  onNewWindow,
+  onCloseWindow,
+  onSelectWindow,
   prefixActive,
   closeConfirm,
   theme,
 }: TabBarProps) {
-  const tabs = useGameStore((s) => s.tabs);
-  const activeTabId = useGameStore((s) => s.activeTabId);
+  const windows = useGameStore((s) => s.windows);
+  const activeWindowId = useGameStore((s) => s.activeWindowId);
   const username = useGameStore((s) => s.username);
   const computerState = useGameStore((s) => s.computerState);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -66,27 +71,27 @@ export default function TabBar({
   }, [dropdownOpen]);
 
   // Home (the physical machine) is always offered; a remote machine is only
-  // offered while at least one tab is connected to it. Preserved-but-
+  // offered while at least one pane is connected to it. Preserved-but-
   // disconnected state (mid-shift soft disconnect) stays reachable via
   // ssh/coder only, never one click from the "+" button.
-  const openComputerIds = new Set(tabs.map((t) => t.computerId));
+  const openComputerIds = new Set(windows.flatMap((w) => allLeaves(w.root).map((l) => l.computerId)));
   const availableComputers = (Object.keys(computerState) as ComputerId[]).filter(
     (id) => computerState[id] && (id === "home" || openComputerIds.has(id))
   );
   const hasMultipleComputers = availableComputers.length > 1;
 
   const handlePlusClick = () => {
-    if (tabs.length >= 5) return;
+    if (windows.length >= 5) return;
     if (hasMultipleComputers) {
       setDropdownOpen(!dropdownOpen);
     } else {
-      onNewTab();
+      onNewWindow();
     }
   };
 
   const handleComputerSelect = (computerId: ComputerId) => {
     setDropdownOpen(false);
-    onNewTab(computerId);
+    onNewWindow(computerId);
   };
 
   return (
@@ -112,12 +117,12 @@ export default function TabBar({
       >
         [{username}]
       </span>
-      {tabs.map((tab, idx) => {
-        const isActive = tab.id === activeTabId;
+      {windows.map((win, idx) => {
+        const isActive = win.id === activeWindowId;
         return (
           <button
-            key={tab.id}
-            onClick={() => onSelectTab(tab.id)}
+            key={win.id}
+            onClick={() => onSelectWindow(win.id)}
             className={`relative flex items-center gap-1.5 px-3 py-0.5 transition-opacity ${
               isActive ? "font-medium" : "opacity-70 hover:opacity-100"
             }`}
@@ -127,16 +132,16 @@ export default function TabBar({
                 : { backgroundColor: theme.windowBg, color: theme.windowFg }
             }
           >
-            <span className="truncate max-w-[200px]">
-              {idx + 1}:{tabLabel(tab, username)}
+            <span className="truncate max-w-[220px]">
+              {idx + 1}:{windowLabel(win, username)}
               {isActive && " *"}
             </span>
-            {tabs.length > 1 && (
+            {windows.length > 1 && (
               <span
                 role="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onCloseTab(tab.id);
+                  onCloseWindow(win.id);
                 }}
                 className="ml-1 hover:text-red-700 transition-colors"
               >
@@ -149,7 +154,7 @@ export default function TabBar({
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={handlePlusClick}
-          disabled={tabs.length >= 5}
+          disabled={windows.length >= 5}
           className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
           style={{ color: theme.statusFg }}
         >

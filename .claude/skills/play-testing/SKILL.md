@@ -186,15 +186,15 @@ The headless runner has **no tab model and no transition animations** — tab su
 ### Driving xterm.js
 
 - **Renderer is DOM** (no canvas/webgl addons), so terminal text is readable from `.xterm-rows` innerText.
-- **Inactive tabs hide via `visibility: hidden`** (TabManager.tsx), NOT `display: none` — `offsetParent` checks don't work. Pick the active terminal with `getComputedStyle(r).visibility === 'visible'`.
+- **Windows hold panes now (tmux model).** Each pane is an absolutely-positioned container appended to the `.isolate` wrapper in `TabManager.tsx`; **only the active window's panes are shown — the rest are `display:none`** (changed from the old per-tab `visibility:hidden`). Enumerate visible panes with `[...document.querySelector('.isolate').children].filter(el => getComputedStyle(el).display !== 'none' && el.clientWidth > 0)`; the active pane has a non-`none` `style.outline`. Split with `<prefix> |` (side-by-side) / `<prefix> -` (stacked, prefix default Ctrl+Space → `keyboard.down('Control'); press('Space'); up('Control')`), move focus with `<prefix>`+arrows or `<prefix> o`, kill the focused pane with `<prefix> x` then `y`. Draggable seams are elements with `col-resize`/`row-resize` cursors. Clicking a pane focuses it and routes input there.
 - **Typing**: real-mouse-click the visible `.xterm-rows` bounding box first (focuses xterm's hidden textarea), then `page.keyboard.type(...)` + `Enter`. After tab switches the app refocuses the active terminal itself, but the click is cheap insurance.
 - **React needs real Playwright clicks.** `el.dispatchEvent(new MouseEvent('click', {bubbles:true}))` from `page.evaluate` does NOT trigger React handlers here — use locator clicks (`page.getByRole('button', {name: '+', exact: true}).click()`).
 - **Match output against the tail, not the whole buffer.** The visible buffer includes scrollback; a regex like `/yes\/no/` will re-match an *old* fingerprint prompt forever. Anchor to the last lines (`t.trim().split('\n').pop()` or `$`-anchored multiline regex).
 
 ### DOM map
 
-- Tab bar: `div.border-b.font-mono`. Tabs are buttons labeled `1:nexacorp-ws01:/srv *` (tmux style, `*` = active); the new-tab button is exact-text `+`.
-- The "+" dropdown items are buttons labeled with `promptHostname` (`maniac-iv`, `nexacorp-ws01`, `coder-ai`, …) — it offers home plus only machines with at least one open tab (TabBar.tsx), so a soft-disconnected machine never appears until you `ssh`/`coder` back in. With a single eligible machine the "+" opens a tab directly with no dropdown.
+- Tab bar: `div.border-b.font-mono`. Each button is a **window** labeled `1:nexacorp-ws01:/srv *` (tmux style, `*` = active; a split window shows a `(n)` pane count and the label tracks the focused pane); the new-window button is exact-text `+`.
+- The "+" dropdown items are buttons labeled with `promptHostname` (`maniac-iv`, `nexacorp-ws01`, `coder-ai`, …) — it offers home plus only machines with at least one open pane (TabBar.tsx), so a soft-disconnected machine never appears until you `ssh`/`coder` back in. With a single eligible machine the "+" opens a window directly with no dropdown.
 - The objective tracker ("In Production") is also made of buttons — filter it out when enumerating.
 
 ### Driver skeleton
