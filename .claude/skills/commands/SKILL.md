@@ -18,10 +18,10 @@ src/engine/commands/
 ├── builtins/
 │   ├── index.ts           # Side-effect imports that register all commands
 │   ├── cat.ts, ls.ts, cd.ts, grep.ts, find.ts, diff.ts, ...  # Individual commands
-│   ├── dbt.ts             # (see dbt skill)
-│   ├── git.ts             # Git subcommand dispatch (init, add, commit, checkout, etc.)
-│   ├── mail.ts            # (see email skill)
-│   └── snow.ts            # (see snowflake skill)
+│   ├── dbt.ts             # core builtin (see dbt skill)
+│   ├── git.ts             # core builtin — Git subcommand dispatch (init, add, commit, checkout, etc.)
+│   ├── snow.ts            # core builtin (see snowflake skill)
+│   └── (mail.ts)          # NOT in core — app-only, at apps/terminal-turmoil/src/engine/commands/builtins/mail.ts (see email skill)
 └── helpTexts.ts           # HELP_TEXTS lookup for --help output
 
 src/engine/session/

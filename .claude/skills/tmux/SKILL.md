@@ -9,28 +9,33 @@ The terminal is a faithful tmux model: **windows** (the tabs in the status line,
 
 This skill covers the pane tree model, the Zustand window/pane state and actions, the hardcoded prefix chords, the live `~/.tmux.conf` parsing (prefix/theme/keybindings), repeat-mode resize, copy mode, and how the panes are rendered into xterm.
 
-> **Shared engine:** the pure pane model + helpers now live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (the `src/state/paneTypes.ts` / `src/components/Terminal/*` paths below are pre-monorepo names — read them as their `@tt/core` equivalents). These are reused by the second app `apps/puzzle-game`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + trimmed status line (`PuzzleTabBar.tsx`). The puzzle now mirrors the live game's multi-window UX: a pulsing `PREFIX` indicator, clickable `idx:label (paneCount)` tabs, and chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and rename/prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
+> **Shared engine:** the pure pane model + helpers live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (see the Architecture map below for the full core-vs-app split). These are reused by the second app `apps/puzzle-game`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + trimmed status line (`PuzzleTabBar.tsx`). The puzzle now mirrors the live game's multi-window UX: a pulsing `PREFIX` indicator, clickable `idx:label (paneCount)` tabs, and chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and rename/prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
 
 ## Architecture
 
 ```
-src/state/
+# SHARED ENGINE — @tt/core (used by both apps)
+packages/core/src/terminal/
 ├── paneTypes.ts                # PURE tree model + helpers (no React, no store) (__tests__/)
-└── gameStore.ts                # windows[] + activeWindowId state, all window/pane actions
-
-src/components/Terminal/
-├── TabManager.tsx              # Orchestrator: prefix handling, xterm pane lifecycle, layout, copy-mode UI
-├── TabBar.tsx                  # tmux status line ([session] block, window labels, "+" dropdown, kill-pane prompt)
-└── PaneDividers.tsx            # Draggable seams overlaying split boundaries
-
-src/engine/terminal/
 ├── tmuxConfig.ts               # parseTmuxPrefix / parseTmuxTheme / parseTmuxBindings (__tests__/)
 ├── copyMode.ts                 # CopyModeController (per-pane vi-style scroller/yanker)
 └── ansiPalette.ts              # ANSI_COLORS — single source of truth for xterm + status-bar colors
 
-src/story/filesystem/home/
+packages/core/src/components/
+└── PaneDividers.tsx            # Draggable seams overlaying split boundaries
+
+# APP — apps/terminal-turmoil/src (the narrative game's store + renderer)
+apps/terminal-turmoil/src/state/
+└── gameStore.ts                # windows[] + activeWindowId state, all window/pane actions
+
+apps/terminal-turmoil/src/components/Terminal/
+├── TabManager.tsx              # Orchestrator: prefix handling, xterm pane lifecycle, layout, copy-mode UI
+└── TabBar.tsx                  # tmux status line ([session] block, window labels, "+" dropdown, kill-pane prompt)
+
+apps/terminal-turmoil/src/story/filesystem/home/
 └── dotfiles.ts                 # The player's ~/.tmux.conf (prefix, pane binds, status colors)
 ```
+(The second app, `apps/puzzle-game`, ports the same `@tt/core` model into its own `puzzleStore.ts` + `PuzzleTerminal.tsx`/`PuzzleTabBar.tsx`.)
 
 ## Core Types (`paneTypes.ts`)
 
@@ -133,10 +138,10 @@ Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed
 ## Adding / Extending
 
 - **New prefix chord:** add a branch in `TabManager.handleCtrlBAction` keyed on `key`/`normalized`; call the matching store action.
-- **New `.tmux.conf`-driven bind:** the focus/resize parser already covers `select-pane`/`resize-pane`. For a brand-new directive, extend `parseTmuxBindings` (or a new parser) + its `PaneBinding` variant, and add tests in `src/engine/terminal/__tests__/tmuxConfig.test.ts`.
+- **New `.tmux.conf`-driven bind:** the focus/resize parser already covers `select-pane`/`resize-pane`. For a brand-new directive, extend `parseTmuxBindings` (or a new parser) + its `PaneBinding` variant, and add tests in `packages/core/src/terminal/__tests__/tmuxConfig.test.ts`.
 - **Theme colors:** add named colors to `ANSI_COLORS` (keeps xterm + status bar in sync); extend `parseTmuxTheme`/`TabBarTheme` for new style targets.
 - **New copy-mode key:** add it to the `CopyModeController` keydown handler.
-- **Tree changes:** keep `paneTypes.ts` helpers pure and add cases to `src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
+- **Tree changes:** keep `@tt/core/terminal/paneTypes` helpers pure and add cases to `apps/terminal-turmoil/src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
 
 Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md).
 

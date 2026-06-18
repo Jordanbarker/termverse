@@ -26,7 +26,7 @@ State: `challengeIndex` + `stepIndex`. `checkCompletion()` builds a `PuzzleSnaps
 - more steps remain → advance `stepIndex` (flash "✓ Step complete");
 - last step → auto-advance to the next challenge in `CHALLENGES` (resets the FS + panes for its sandbox).
 
-It's invoked after every command and every pane action (split/focus/cycle/window ops). Keep validators cheap — they run on every keystroke-completed command.
+It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. Keep validators cheap — they run on every keystroke-completed command.
 
 ## Existing challenges (`src/challenges/registry.ts`)
 
