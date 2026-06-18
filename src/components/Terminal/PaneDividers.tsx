@@ -85,7 +85,7 @@ export default function PaneDividers({ root, width, height, onResize }: PaneDivi
             window.addEventListener("pointermove", move);
             window.addEventListener("pointerup", up);
           }}
-          className="absolute hover:bg-[#e6b450]/40 transition-colors"
+          className="group absolute"
           style={{
             left: d.x,
             top: d.y,
@@ -94,7 +94,17 @@ export default function PaneDividers({ root, width, height, onResize }: PaneDivi
             cursor: d.direction === "h" ? "col-resize" : "row-resize",
             pointerEvents: "auto",
           }}
-        />
+        >
+          {/* Always-visible dim line, centered in the hit-strip; gold on hover/drag. */}
+          <div
+            className="absolute bg-[#3d4751] group-hover:bg-[#e6b450] transition-colors"
+            style={
+              d.direction === "h"
+                ? { left: "50%", top: 0, width: 1, height: "100%", transform: "translateX(-50%)", pointerEvents: "none" }
+                : { top: "50%", left: 0, height: 1, width: "100%", transform: "translateY(-50%)", pointerEvents: "none" }
+            }
+          />
+        </div>
       ))}
     </div>
   );
