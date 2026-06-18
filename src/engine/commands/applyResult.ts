@@ -7,7 +7,8 @@ import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
-import { ComputerId, StoryFlags } from "../../state/types";
+import { StoryFlags } from "../../state/types";
+import { MachineId } from "../machine";
 import { SecurityViolation } from "./security";
 import { commandReadsFiles } from "./registry";
 import type { DeliveryResult } from "./processDeliveries";
@@ -20,7 +21,7 @@ import type { DeliveryResult } from "./processDeliveries";
 export type ProcessDeliveriesFn = (
   events: GameEvent[],
   computerFs: VirtualFS,
-  computerId: ComputerId,
+  computerId: MachineId,
   deliveredEmailIds: string[],
   deliveredPiperIds: string[],
   username: string,
@@ -57,9 +58,9 @@ export interface AppliedEffects {
   newDeliveredPiperIds: string[];
   piperNotifications: number;
   suppressPrompt: boolean;
-  transitionTo?: ComputerId;
+  transitionTo?: MachineId;
   incrementalLines?: IncrementalLine[];
-  closeTabsForComputer?: ComputerId;
+  closeTabsForComputer?: MachineId;
   newMounts?: Mounts;
   terminationReason?: SecurityViolation;
 }
@@ -69,7 +70,7 @@ export interface ApplyContext {
   parsedArgs: string[];
   cwd: string;
   homeDir: string;
-  activeComputer: ComputerId;
+  activeComputer: MachineId;
   username: string;
   deliveredEmailIds: string[];
   deliveredPiperIds: string[];

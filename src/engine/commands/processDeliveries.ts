@@ -3,6 +3,7 @@ import { checkEmailDeliveries, GameEvent } from "../mail/delivery";
 import { checkPiperDeliveries } from "../piper/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";
 import { ComputerId, StoryFlags } from "../../state/types";
+import { MachineId } from "../machine";
 import { StoryFlagUpdate } from "./applyResult";
 
 export interface DeliveryResult {
@@ -25,7 +26,7 @@ export interface DeliveryResult {
 export function processDeliveries(
   events: GameEvent[],
   computerFs: VirtualFS,
-  computerId: ComputerId,
+  computerId: MachineId,
   deliveredEmailIds: string[],
   deliveredPiperIds: string[],
   username: string,
@@ -41,7 +42,8 @@ export function processDeliveries(
   };
 
   let currentFs = computerFs;
-  const storyFlagTriggers = getTriggersForComputer(computerId, username);
+  const cid = computerId as ComputerId;
+  const storyFlagTriggers = getTriggersForComputer(cid, username);
   let currentFlags = { ...storyFlags };
 
   // First pass: process story flag triggers from command/file/directory events
@@ -60,7 +62,7 @@ export function processDeliveries(
       currentFs,
       event,
       emailIds,
-      computerId,
+      cid,
       currentFlags
     );
     if (delivery.newDeliveries.length > 0) {
@@ -78,7 +80,7 @@ export function processDeliveries(
       event,
       piperIds,
       username,
-      computerId,
+      cid,
       currentFlags
     );
     if (newPiper.length > 0) {

@@ -1,7 +1,7 @@
 import { VirtualFS } from "../filesystem/VirtualFS";
 import { GameEvent } from "../mail/delivery";
 import { SnowflakeState } from "../snowflake/state";
-import type { ComputerId } from "../../state/types";
+import type { MachineId } from "../machine";
 
 export interface SessionResult {
   type: "continue" | "exit";
@@ -10,7 +10,7 @@ export interface SessionResult {
   output?: string;
   triggerEvents?: GameEvent[];
   /** When set, the router should run a computer transition to this target after the session exits. */
-  transitionTo?: ComputerId;
+  transitionTo?: MachineId;
 }
 
 /** Session types that take over the full screen via xterm's alternate buffer. */

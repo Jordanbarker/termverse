@@ -17,7 +17,7 @@ register(
       piperSession: {
         storyFlags: ctx.storyFlags ?? {},
         deliveredPiperIds: [],  // Will be filled by the caller
-        computerId: ctx.activeComputer,
+        computerId: ctx.activeComputer as import("../../../state/types").ComputerId,
       },
     };
   },

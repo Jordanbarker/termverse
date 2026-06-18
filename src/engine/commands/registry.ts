@@ -1,6 +1,7 @@
 import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "./types";
 import { isCommandAvailable, unavailableCommandMessage } from "./availability";
-import { ComputerId, StoryFlags } from "../../state/types";
+import { StoryFlags } from "../../state/types";
+import { MachineId } from "../machine";
 import { resolvePath } from "../../lib/pathUtils";
 import { colorize, ansi } from "../../lib/ansi";
 import { getKnownFlags, shouldValidateFlags, rejectUnknownFlags } from "./flagValidation";
@@ -171,6 +172,6 @@ export function getCommandList(): { name: string; description: string; aliases?:
 }
 
 /** Returns only commands available on the given computer. */
-export function getAvailableCommands(computer: ComputerId, storyFlags?: StoryFlags): { name: string; description: string }[] {
+export function getAvailableCommands(computer: MachineId, storyFlags?: StoryFlags): { name: string; description: string }[] {
   return getCommandList().filter((c) => isCommandAvailable(c.name, computer, storyFlags));
 }

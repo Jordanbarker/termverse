@@ -2,7 +2,7 @@ import { CommandResult } from "./types";
 import { VirtualFS } from "../filesystem/VirtualFS";
 import { isDirectory } from "../filesystem/types";
 import { resolvePath } from "../../lib/pathUtils";
-import { ComputerId } from "../../state/types";
+import { MachineId } from "../machine";
 import { SecurityPolicy } from "./security";
 
 export interface RedirectTarget {
@@ -126,7 +126,7 @@ export function applyRedirection(
   currentCwd: string,
   homeDir: string,
   currentFs: VirtualFS,
-  computerId: ComputerId,
+  computerId: MachineId,
   security?: SecurityPolicy,
 ): { result: CommandResult; fs: VirtualFS } {
   let fs = currentFs;

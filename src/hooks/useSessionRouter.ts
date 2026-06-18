@@ -308,7 +308,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
       // Computer transition driven directly by the session's transitionTo field
       if (result.transitionTo) {
         pendingNotificationsRef.current = null;
-        if (dispatchTransition(term, result.transitionTo, computerId)) {
+        if (dispatchTransition(term, result.transitionTo as ComputerId, computerId)) {
           return true;
         }
       }
@@ -443,7 +443,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
           }
           if (enterResult.transitionTo) {
             pendingNotificationsRef.current = null;
-            if (dispatchTransition(term, enterResult.transitionTo, computerId)) {
+            if (dispatchTransition(term, enterResult.transitionTo as ComputerId, computerId)) {
               return;
             }
           }

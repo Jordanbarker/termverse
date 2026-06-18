@@ -4,7 +4,8 @@ import { PromptSessionInfo } from "../prompt/types";
 import { ChipSessionInfo } from "../chip/types";
 import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "../pager/types";
-import type { ComputerId, StoryFlags } from "../../state/types";
+import type { StoryFlags } from "../../state/types";
+import type { MachineId } from "../machine";
 import { GameEvent } from "../mail/delivery";
 import { SecurityViolation, SecurityPolicy } from "./security";
 import { DeviceProvider } from "./devices";
@@ -26,7 +27,7 @@ export interface CommandContext {
   cwd: string;
   homeDir: string;
   username: string;
-  activeComputer: ComputerId;
+  activeComputer: MachineId;
   storyFlags?: StoryFlags;
   stdin?: string;
   rawArgs?: string[];
@@ -97,7 +98,7 @@ export interface SnowSqlSessionInfo {
 export interface SshSessionInfo {
   host: string;
   username: string;
-  targetComputer: ComputerId;
+  targetComputer: MachineId;
 }
 
 export interface CommandResult {
@@ -116,9 +117,9 @@ export interface CommandResult {
   piperSession?: PiperSessionInfo;
   lessSession?: LessSessionInfo;
   triggerEvents?: GameEvent[];
-  transitionTo?: ComputerId;
+  transitionTo?: MachineId;
   incrementalLines?: IncrementalLine[];
-  closeTabsForComputer?: ComputerId;
+  closeTabsForComputer?: MachineId;
   newMounts?: Mounts;
   securityViolation?: SecurityViolation;
 }

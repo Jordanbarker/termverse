@@ -1,4 +1,5 @@
-import { ComputerId, StoryFlags } from "../../state/types";
+import { StoryFlags } from "../../state/types";
+import { MachineId } from "../machine";
 
 /**
  * Command-availability seam (core, story-agnostic).
@@ -12,12 +13,12 @@ import { ComputerId, StoryFlags } from "../../state/types";
  */
 export interface AvailabilityPolicy {
   /** Is `commandName` usable on `computer` given the current flags? */
-  isAvailable(commandName: string, computer: ComputerId, flags?: StoryFlags): boolean;
+  isAvailable(commandName: string, computer: MachineId, flags?: StoryFlags): boolean;
   /**
    * Message shown when an unavailable command is run. Return null to use the
    * generic "command not found". The engine applies exitCode 127 either way.
    */
-  unavailableMessage?(commandName: string, computer: ComputerId): string | null;
+  unavailableMessage?(commandName: string, computer: MachineId): string | null;
 }
 
 const ALLOW_ALL: AvailabilityPolicy = { isAvailable: () => true };
@@ -35,11 +36,11 @@ export function resetAvailabilityPolicy(): void {
 }
 
 /** Returns true if the command is available on the given computer. */
-export function isCommandAvailable(commandName: string, computer: ComputerId, storyFlags?: StoryFlags): boolean {
+export function isCommandAvailable(commandName: string, computer: MachineId, storyFlags?: StoryFlags): boolean {
   return activePolicy.isAvailable(commandName, computer, storyFlags);
 }
 
 /** App-defined message for an unavailable command, or null for the generic one. */
-export function unavailableCommandMessage(commandName: string, computer: ComputerId): string | null {
+export function unavailableCommandMessage(commandName: string, computer: MachineId): string | null {
   return activePolicy.unavailableMessage?.(commandName, computer) ?? null;
 }

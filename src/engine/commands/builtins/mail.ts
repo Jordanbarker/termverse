@@ -16,7 +16,7 @@ import { getEmailDefinitions } from "../../mail/emails";
 import { ReplyOption } from "../../mail/types";
 import { PromptOption, PromptSessionInfo } from "../../prompt/types";
 import { GameEvent } from "../../mail/delivery";
-import { PLAYER } from "../../../state/types";
+import { PLAYER, ComputerId } from "../../../state/types";
 
 const RFC_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const RFC_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -124,7 +124,7 @@ function buildPromptSession(
 
 const mail: CommandHandler = (args, flags, ctx) => {
   const username = ctx.homeDir.split("/").pop() || PLAYER.username;
-  const computer = ctx.activeComputer;
+  const computer = ctx.activeComputer as ComputerId;
   const fromDomain = computer === "home" ? "email.com" : "nexacorp.com";
 
   // mail -s "subject" recipient — send a message

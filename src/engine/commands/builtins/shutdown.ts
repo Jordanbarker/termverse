@@ -2,7 +2,7 @@ import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { getShutdownIncrementalLines, getRemoteShutdownIncrementalLines } from "../../../lib/ascii";
-import { COMPUTERS, CONNECTION_PARENT } from "../../../state/types";
+import { COMPUTERS, CONNECTION_PARENT, ComputerId } from "../../../state/types";
 
 const shutdown: CommandHandler = (args, flags, ctx) => {
   const immediate = Boolean(flags.h && args.includes("now"));
@@ -13,7 +13,7 @@ const shutdown: CommandHandler = (args, flags, ctx) => {
   // Remote machines: the box powers off under the SSH session, which drops
   // back to wherever the player connected from. Nothing is lost — the machine
   // is back up (unchanged) the next time they connect.
-  const computer = ctx.activeComputer;
+  const computer = ctx.activeComputer as ComputerId;
   if (computer && computer !== "home") {
     const target = CONNECTION_PARENT[computer];
     if (!target) return { output: "shutdown: operation not permitted\n" };

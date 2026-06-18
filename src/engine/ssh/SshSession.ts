@@ -3,7 +3,7 @@ import { VirtualFS } from "../filesystem/VirtualFS";
 import { ISession, SessionResult } from "../session/types";
 import { isBackspace, CTRL_C } from "../terminal/keyCodes";
 import { colorize, ansi } from "../../lib/ansi";
-import type { ComputerId } from "../../state/types";
+import type { MachineId } from "../machine";
 import type { GameEvent } from "../mail/delivery";
 
 const FAKE_FINGERPRINT = "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8";
@@ -14,7 +14,7 @@ export class SshSession implements ISession {
   private host: string;
   private username: string;
   private homeDir: string;
-  private targetComputer: ComputerId;
+  private targetComputer: MachineId;
   private inputBuffer = "";
 
   constructor(
@@ -23,7 +23,7 @@ export class SshSession implements ISession {
     host: string,
     username: string,
     homeDir: string,
-    targetComputer: ComputerId
+    targetComputer: MachineId
   ) {
     this.terminal = terminal;
     this.fs = fs;

@@ -4,7 +4,7 @@ import { stripAnsi } from "../../lib/ansi";
 import { parsePagerInput, PagerAction } from "./keymap";
 import { render } from "./render";
 import { LessSessionInfo } from "./types";
-import type { ComputerId } from "../../state/types";
+import type { MachineId } from "../machine";
 
 interface LessState {
   lines: string[];
@@ -21,7 +21,7 @@ export class LessSession implements ISession {
   private terminal: Terminal;
   private filename: string | null;
   private state: LessState;
-  private transitionAfterClose: ComputerId | undefined;
+  private transitionAfterClose: MachineId | undefined;
 
   constructor(terminal: Terminal, info: LessSessionInfo) {
     this.terminal = terminal;

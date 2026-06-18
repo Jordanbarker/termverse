@@ -1,11 +1,11 @@
 import { CommandHandler } from "../types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { COMPUTERS } from "../../../state/types";
+import { COMPUTERS, ComputerId } from "../../../state/types";
 import { HELP_TEXTS } from "./helpTexts";
 
 const hostname: CommandHandler = (_args, flags, ctx) => {
-  const computer = COMPUTERS[ctx.activeComputer];
+  const computer = COMPUTERS[ctx.activeComputer as ComputerId];
   if (flags["I"]) {
     return { output: `${computer.ip} ` };
   }

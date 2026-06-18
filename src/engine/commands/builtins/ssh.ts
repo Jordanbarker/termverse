@@ -61,7 +61,7 @@ const ssh: CommandHandler = (args, _flags, ctx) => {
     return { output: `ssh: Could not resolve hostname ${target}` };
   }
 
-  const routes = SSH_ROUTES[ctx.activeComputer] ?? [];
+  const routes = SSH_ROUTES[ctx.activeComputer as ComputerId] ?? [];
   const matchingHostRoute = routes.find((r) => r.host === resolved.host);
   if (!matchingHostRoute) {
     return {

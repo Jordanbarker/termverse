@@ -1,4 +1,4 @@
-import type { ComputerId } from "../../state/types";
+import type { MachineId } from "../machine";
 
 export interface LessSessionInfo {
   filename: string | null;
@@ -8,5 +8,5 @@ export interface LessSessionInfo {
    * (q / Ctrl-C). Surfaced via SessionResult.transitionTo so the session
    * router runs the transition exactly once after the alt-buffer is restored.
    */
-  transitionAfterClose?: ComputerId;
+  transitionAfterClose?: MachineId;
 }

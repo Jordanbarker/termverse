@@ -8,6 +8,7 @@
  */
 import { ComputerId } from "../state/types";
 import { GameClock, GameTime } from "../engine/commands/clock";
+import { MachineId } from "../engine/machine";
 import { getGameTime } from "../engine/piper/timestamp";
 import { getPiperDeliveries } from "./piper/messages";
 
@@ -36,11 +37,12 @@ function gameTimeToDate(t: GameTime): Date {
 export function createGameClock(
   deliveredPiperIds: string[],
   username: string,
-  computer: ComputerId,
+  computer: MachineId,
 ): GameClock {
   const compute = (): GameTime => {
     const defMap = new Map(getPiperDeliveries(username).map((d) => [d.id, d]));
-    return getGameTime(deliveredPiperIds, defMap, computer);
+    // The engine hands an opaque MachineId; in turmoil it is always a ComputerId.
+    return getGameTime(deliveredPiperIds, defMap, computer as ComputerId);
   };
   return {
     time: compute,

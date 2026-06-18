@@ -11,7 +11,7 @@
  * The turmoil app supplies its NexaCorp policy from src/story/security.ts.
  */
 import { VirtualFS } from "../filesystem/VirtualFS";
-import type { ComputerId } from "../../state/types";
+import type { MachineId } from "../machine";
 
 export type SecurityViolationKind = "log_tampering" | "leadership_destruction" | "exfiltration";
 
@@ -28,7 +28,7 @@ export interface SecurityViolation {
 
 /** Inputs an rm/cp/mv check needs beyond the filesystem + root path. */
 export interface SecurityOpContext {
-  computerId: ComputerId;
+  computerId: MachineId;
   homeDir: string;
   destPath?: string;
   /** Short command summary recorded on any violation (e.g. `rm -rf /srv/leadership/`). */

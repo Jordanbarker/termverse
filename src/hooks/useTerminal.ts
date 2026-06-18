@@ -278,7 +278,7 @@ export function useTerminal() {
        */
       function closeTabsForDownedComputer() {
         if (!effects.closeTabsForComputer) return;
-        const downed = getConnectionClosure(effects.closeTabsForComputer);
+        const downed = getConnectionClosure(effects.closeTabsForComputer as ComputerId);
         // Prune every pane on a downed box (and anything chained through it).
         // The active pane is preserved by the store action; transitionTo retargets it.
         useGameStore.getState().closePanesForComputers(downed);
@@ -310,7 +310,7 @@ export function useTerminal() {
               runShutdownTransition(term);
             } else if (effects.gameAction?.type === "reboot") {
               runRebootTransition(term);
-            } else if (effects.transitionTo && dispatchTransition(term, effects.transitionTo, computerId, effects.terminationReason)) {
+            } else if (effects.transitionTo && dispatchTransition(term, effects.transitionTo as ComputerId, computerId, effects.terminationReason)) {
               // dispatchTransition handles its own notifications/prompt
             } else {
               writeNotifications(term, effects);
@@ -334,7 +334,7 @@ export function useTerminal() {
 
       // Computer transitions — source-aware dispatch (see dispatchTransition for the matrix).
       if (effects.transitionTo) {
-        if (dispatchTransition(term, effects.transitionTo, computerId, effects.terminationReason)) {
+        if (dispatchTransition(term, effects.transitionTo as ComputerId, computerId, effects.terminationReason)) {
           return true;
         }
       }
@@ -549,7 +549,7 @@ export function useTerminal() {
               deliveredPiperIds: latestStore.deliveredPiperIds,
               storyFlags: latestStore.storyFlags,
               fs: runningFs,
-              targetComputerExists: targetComputer ? !!latestStore.computerState[targetComputer] : undefined,
+              targetComputerExists: targetComputer ? !!latestStore.computerState[targetComputer as ComputerId] : undefined,
               processDeliveries,
               renderSavesList,
               renderCheckpointsList,
