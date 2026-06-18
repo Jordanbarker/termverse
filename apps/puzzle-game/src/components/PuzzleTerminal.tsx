@@ -182,6 +182,13 @@ export default function PuzzleTerminal() {
     const rt = runtimes.current.get(paneId);
     if (!rt) return;
 
+    // Challenge-complete gate: freeze terminal input until the player presses
+    // Enter to advance to the next challenge.
+    if (usePuzzleStore.getState().awaitingContinue) {
+      if (data === "\r" || data === "\n") usePuzzleStore.getState().continueToNext();
+      return;
+    }
+
     // tmux rename-window modal — route keys here before anything else. (Rename
     // can't begin mid-session since the prefix is gated behind no active session,
     // but gating first matches the live game and is harmless.)

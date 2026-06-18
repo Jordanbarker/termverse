@@ -21,10 +21,13 @@ This app is built only on `@tt/core` and does **not** import terminal-turmoil st
 
 ## Win-detection (`src/state/puzzleStore.ts`)
 
-State: `challengeIndex` + `stepIndex`. `checkCompletion()` builds a `PuzzleSnapshot`, runs `challenge.steps[stepIndex].isComplete(snap)`, and:
+State: `challengeIndex` + `stepIndex` + `awaitingContinue` (completion-gate flag). `checkCompletion()` builds a `PuzzleSnapshot`, runs `challenge.steps[stepIndex].isComplete(snap)`, and:
 - not satisfied → return;
 - more steps remain → advance `stepIndex` (flash "✓ Step complete");
-- last step → auto-advance to the next challenge in `CHALLENGES` (resets the FS + panes for its sandbox).
+- last step, more challenges remain → set `awaitingContinue` (panel shows "✓ {title} complete! Press Enter to continue", terminal input frozen); `continueToNext()` (Enter) then calls `loadChallenge(next)`, resetting FS + panes for its sandbox;
+- last step of the last challenge → set `completed` (flash "✓ All challenges complete").
+
+`checkCompletion()` early-returns while `completed || awaitingContinue` so the still-passing last step doesn't re-fire during the gate.
 
 It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. Keep validators cheap — they run on every keystroke-completed command.
 

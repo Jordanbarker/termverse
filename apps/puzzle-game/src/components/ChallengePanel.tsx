@@ -10,6 +10,7 @@ export default function ChallengePanel() {
   const challengeIndex = usePuzzleStore((s) => s.challengeIndex);
   const stepIndex = usePuzzleStore((s) => s.stepIndex);
   const completed = usePuzzleStore((s) => s.completed);
+  const awaitingContinue = usePuzzleStore((s) => s.awaitingContinue);
   const flash = usePuzzleStore((s) => s.flash);
   const windows = usePuzzleStore((s) => s.windows);
   const activeWindowId = usePuzzleStore((s) => s.activeWindowId);
@@ -41,7 +42,14 @@ export default function ChallengePanel() {
         </div>
       )}
 
-      {completed || !challenge ? (
+      {awaitingContinue && challenge ? (
+        <div className="rounded border border-[#2e7d32] bg-[#11231a] p-4 text-[#7ee787]">
+          <div className="text-base font-semibold">✓ {challenge.title} complete!</div>
+          <div className="mt-2 text-sm text-[#b3b1ad]">
+            Press <span className="font-semibold text-[#7ee787]">Enter</span> to continue →
+          </div>
+        </div>
+      ) : completed || !challenge ? (
         <div className="rounded border border-[#2e7d32] bg-[#11231a] p-4 text-sm text-[#7ee787]">
           🎉 All challenges complete. Nicely done.
         </div>

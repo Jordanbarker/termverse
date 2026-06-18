@@ -46,11 +46,13 @@ export interface PuzzleState {
   challengeIndex: number;
   stepIndex: number;
   completed: boolean;
+  awaitingContinue: boolean;
   flash: string | null;
 
   // lifecycle
   loadChallenge: (index: number) => void;
   checkCompletion: () => void;
+  continueToNext: () => void;
   clearFlash: () => void;
 
   // shell mutations (called by the command pipeline)
@@ -84,6 +86,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
   challengeIndex: 0,
   stepIndex: 0,
   completed: false,
+  awaitingContinue: false,
   flash: null,
 
   loadChallenge: (index) => {
@@ -101,12 +104,13 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       challengeIndex: index,
       stepIndex: 0,
       completed: false,
+      awaitingContinue: false,
     });
   },
 
   checkCompletion: () => {
     const state = get();
-    if (state.completed) return;
+    if (state.completed || state.awaitingContinue) return;
     const challenge = CHALLENGES[state.challengeIndex];
     if (!challenge) return;
 
@@ -132,12 +136,20 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     // Last step of this challenge passed.
     const nextIndex = state.challengeIndex + 1;
     if (nextIndex < CHALLENGES.length) {
-      // Auto-advance: load the next challenge (resets fs + panes for its sandbox).
-      get().loadChallenge(nextIndex);
-      set({ flash: `✓ ${challenge.title} complete` });
+      // Pause on a completion gate; the next challenge loads on continueToNext()
+      // (Enter), so the player gets a beat to register the win before the fs +
+      // panes reset for the next sandbox. Clear flash so it doesn't compete.
+      set({ awaitingContinue: true, flash: null });
     } else {
       set({ completed: true, flash: "✓ All challenges complete" });
     }
+  },
+
+  continueToNext: () => {
+    const state = get();
+    if (!state.awaitingContinue) return;
+    // loadChallenge resets awaitingContinue (and fs/panes) for the next sandbox.
+    get().loadChallenge(state.challengeIndex + 1);
   },
 
   clearFlash: () => set({ flash: null }),
