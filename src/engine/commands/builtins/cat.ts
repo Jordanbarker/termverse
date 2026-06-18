@@ -3,7 +3,7 @@ import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorizeCsv } from "@tt/core/lib/ansi";
-import { highlightSql } from "../../../lib/sqlHighlight";
+import { highlightSql } from "@tt/core/lib/sqlHighlight";
 import { highlightPython } from "@tt/core/lib/pythonHighlight";
 import { isBinaryFile } from "@tt/core/filesystem/VirtualFS";
 import { HELP_TEXTS } from "./helpTexts";

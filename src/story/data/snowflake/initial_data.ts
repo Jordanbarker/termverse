@@ -1,8 +1,8 @@
-import { SnowflakeState, SnowflakeData } from "../state";
-import { Database, Schema, Column, Row, createSchema } from "../types";
-import { LogOptions } from "../../../story/filesystem/logs";
+import { SnowflakeState, SnowflakeData } from "@tt/core/snowflake/state";
+import { Database, Schema, Column, Row, createSchema } from "@tt/core/snowflake/types";
+import { LogOptions } from "../../filesystem/logs";
 
-import nexacorpProdJson from "../../../story/data/snowflake/nexacorp_prod.json";
+import nexacorpProdJson from "./nexacorp_prod.json";
 
 // ── Date columns per table (for reconstituting Date objects from JSON strings) ──
 const DATE_COLUMNS: Record<string, Set<string>> = {

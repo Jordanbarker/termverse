@@ -25,8 +25,8 @@ import {
   STANDARD_MODEL_ORDER,
 } from "../data";
 import { findDbtProject, parseProjectConfig } from "../project";
-import { createInitialSnowflakeState } from "../../snowflake/seed/initial_data";
-import { SnowflakeState } from "../../snowflake/state";
+import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
+import { SnowflakeState } from "@tt/core/snowflake/state";
 import { ModelRunResult, DbtTestResult } from "../types";
 
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");

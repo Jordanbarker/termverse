@@ -5,8 +5,8 @@ import type { MachineId, StoryFlags, GameEvent, PromptSessionInfo, ChipSessionIn
 import { SecurityViolation, SecurityPolicy } from "./security";
 import { DeviceProvider } from "./devices";
 import { GameClock } from "./clock";
-import { SnowflakeState } from "../snowflake/state";
-import { SessionContext } from "../snowflake/session/context";
+import { SnowflakeState } from "@tt/core/snowflake/state";
+import { SessionContext } from "@tt/core/snowflake/session/context";
 
 export interface ParsedCommand {
   command: string;

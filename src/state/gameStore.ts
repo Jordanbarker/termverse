@@ -13,10 +13,10 @@ import { serializeFS, deserializeFS, SerializedFS } from "@tt/core/filesystem/se
 import { createSaveData, saveToSlot, loadFromSlot } from "./saveManager";
 import { SaveSlotId } from "./saveTypes";
 import { GamePhase, ComputerId, StoryFlags, PLAYER } from "./types";
-import { SnowflakeState } from "../engine/snowflake/state";
-import { createInitialSnowflakeState } from "../engine/snowflake/seed/initial_data";
-import { serializeSnowflake, deserializeSnowflake, SerializedSnowflake } from "../engine/snowflake/serialization";
-import { syncToVirtualFS } from "../engine/snowflake/bridge/fs_bridge";
+import { SnowflakeState } from "@tt/core/snowflake/state";
+import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
+import { serializeSnowflake, deserializeSnowflake, SerializedSnowflake } from "@tt/core/snowflake/serialization";
+import { syncToVirtualFS } from "@tt/core/snowflake/bridge/fs_bridge";
 import { seedDeliveredEmails } from "../engine/mail/delivery";
 import { getDefaultEnv, initEnvForComputer, initAliasesForComputer } from "../story/env";
 import { findNewlyAvailableChipTopics } from "../engine/chip/notifications";

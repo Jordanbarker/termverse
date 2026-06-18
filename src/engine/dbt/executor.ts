@@ -1,8 +1,8 @@
-import { SnowflakeState } from "../snowflake/state";
-import { Column, Row } from "../snowflake/types";
-import { execute } from "../snowflake/executor/executor";
-import { SessionContext } from "../snowflake/session/context";
-import { ResultSet } from "../snowflake/formatter/result_types";
+import { SnowflakeState } from "@tt/core/snowflake/state";
+import { Column, Row } from "@tt/core/snowflake/types";
+import { execute } from "@tt/core/snowflake/executor/executor";
+import { SessionContext } from "@tt/core/snowflake/session/context";
+import { ResultSet } from "@tt/core/snowflake/formatter/result_types";
 
 const TARGET_DB = "NEXACORP_PROD";
 const TARGET_SCHEMA = "ANALYTICS";

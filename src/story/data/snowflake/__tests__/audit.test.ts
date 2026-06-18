@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createInitialSnowflakeState } from "../seed/initial_data";
-import { SnowflakeState } from "../state";
-import type { SessionContext } from "../session/context";
-import { formatResultSet } from "../formatter/table_formatter";
-import { createTestContext, executeQuery, rows, singleValue, expectError, stripAnsi } from "./testHelpers";
+import { createInitialSnowflakeState } from "../initial_data";
+import { SnowflakeState } from "@tt/core/snowflake/state";
+import type { SessionContext } from "@tt/core/snowflake/session/context";
+import { formatResultSet } from "@tt/core/snowflake/formatter/table_formatter";
+import { createTestContext, executeQuery, rows, singleValue, expectError, stripAnsi } from "@tt/core/snowflake/__tests__/testHelpers";
 
 // ─── Shared Helpers ─────────────────────────────────────────────────
 

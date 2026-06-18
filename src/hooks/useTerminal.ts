@@ -7,7 +7,7 @@ import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
 import { expandZshPrompt } from "@tt/core/lib/promptExpand";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { createDefaultContext } from "../engine/snowflake/session/context";
+import { createDefaultContext } from "@tt/core/snowflake/session/context";
 import { SaveSlotId } from "../state/saveTypes";
 import { formatSlotName } from "../state/saveManager";
 import { COMPUTERS, ComputerId, getConnectionClosure } from "../state/types";

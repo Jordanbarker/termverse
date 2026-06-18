@@ -7,7 +7,7 @@ import { colorize, ansi } from "@tt/core/lib/ansi";
 import { isBackspace, isPrintable, CTRL_A, CTRL_C, CTRL_D, CTRL_E, CTRL_K, CTRL_U, CTRL_BACKSPACE } from "@tt/core/terminal/keyCodes";
 import { findPrevWordBoundary, findNextWordBoundary } from "@tt/core/terminal/wordBoundary";
 import { ISession, SessionResult } from "@tt/core/session/types";
-import { GameEvent } from "../../mail/delivery";
+import { GameEvent } from "@tt/core";
 
 /**
  * Interactive Snowflake CLI SQL REPL session.

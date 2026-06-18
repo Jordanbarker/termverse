@@ -1,5 +1,5 @@
 import { colorize, ansi } from "@tt/core/lib/ansi";
-import { highlightSql } from "../../lib/sqlHighlight";
+import { highlightSql } from "@tt/core/lib/sqlHighlight";
 import { ModelRunResult, DbtTestResult, DbtRunSummary, DbtDebugInfo } from "./types";
 
 function ts(timestamp: string): string {

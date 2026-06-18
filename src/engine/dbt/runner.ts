@@ -21,10 +21,10 @@ import {
 import { DBT_DEFAULT_LINE_DELAY_MS, jitterDelay } from "@tt/core/lib/timing";
 import { parseSourceMap, parseMacros, compileSql, extractRefs } from "./compiler";
 import { executeModel, executeTest, queryModel, getModelRowCount } from "./executor";
-import { createDefaultContext } from "../snowflake/session/context";
-import { execute as executeSql } from "../snowflake/executor/executor";
+import { createDefaultContext } from "@tt/core/snowflake/session/context";
+import { execute as executeSql } from "@tt/core/snowflake/executor/executor";
 import { isFile, isDirectory } from "@tt/core/filesystem/types";
-import { SnowflakeState } from "../snowflake/state";
+import { SnowflakeState } from "@tt/core/snowflake/state";
 
 /** In-game "now" as a Date, falling back to the real clock when none is injected. */
 function clockNow(ctx: CommandContext): Date {

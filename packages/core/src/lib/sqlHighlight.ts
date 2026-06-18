@@ -1,5 +1,5 @@
 import { colorize, ansi } from "@tt/core/lib/ansi";
-import { KEYWORDS } from "../engine/snowflake/lexer/keywords";
+import { KEYWORDS } from "@tt/core/snowflake/lexer/keywords";
 
 const SQL_KEYWORDS = new Set(Object.keys(KEYWORDS));
 

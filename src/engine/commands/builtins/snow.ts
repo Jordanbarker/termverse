@@ -2,8 +2,8 @@ import { register } from "../registry";
 import { rejectUnknownFlags, skipFlagValidation } from "../flagValidation";
 import { CommandResult, CommandContext } from "../types";
 import { HELP_TEXTS } from "./helpTexts";
-import { execute } from "../../snowflake/executor/executor";
-import { formatResultSet, formatStatusMessage, formatError } from "../../snowflake/formatter/table_formatter";
+import { execute } from "@tt/core/snowflake/executor/executor";
+import { formatResultSet, formatStatusMessage, formatError } from "@tt/core/snowflake/formatter/table_formatter";
 
 register(
   "snow",

@@ -5,8 +5,8 @@ import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
 import { HELP_TEXTS } from "../builtins/helpTexts";
 import { stripAnsi } from "@tt/core/lib/ansi";
-import { createInitialSnowflakeState } from "../../snowflake/seed/initial_data";
-import { createDefaultContext } from "../../snowflake/session/context";
+import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
+import { createDefaultContext } from "@tt/core/snowflake/session/context";
 
 // Import builtins to trigger registration
 import "../builtins/ls";

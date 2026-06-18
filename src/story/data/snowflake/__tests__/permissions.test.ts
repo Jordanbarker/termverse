@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { checkPermission, canReadSchema, isValidRole, AVAILABLE_ROLES } from "../session/permissions";
-import { execute } from "../executor/executor";
-import { createDefaultContext } from "../session/context";
-import { createInitialSnowflakeState } from "../seed/initial_data";
-import { createTestContext } from "./testHelpers";
+import { checkPermission, canReadSchema, isValidRole, AVAILABLE_ROLES } from "@tt/core/snowflake/session/permissions";
+import { execute } from "@tt/core/snowflake/executor/executor";
+import { createDefaultContext } from "@tt/core/snowflake/session/context";
+import { createInitialSnowflakeState } from "../initial_data";
+import { createTestContext } from "@tt/core/snowflake/__tests__/testHelpers";
 
 function ctx(role: string) {
   return createTestContext({ currentDatabase: "NEXACORP_PROD", currentSchema: "ANALYTICS", currentRole: role });
