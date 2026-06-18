@@ -8,8 +8,8 @@ import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data
 import { SnowflakeState } from "@tt/core/snowflake/state";
 import { checkStoryFlagTriggers } from "@/engine/narrative/storyFlags";
 import { getDevcontainerStoryFlagTriggers } from "../../../storyFlags";
-import { REMOTE_REPOS } from "@/engine/git/remotes";
-import { gitClone, gitPull, gitCheckout, createBranch } from "@/engine/git/repo";
+import { REMOTE_REPOS } from "@/story/git/remotes";
+import { gitClone, gitPull, gitCheckout, createBranch } from "@tt/core/git/repo";
 import { getMenuItems } from "../../../chip/menuItems";
 
 const username = "player";

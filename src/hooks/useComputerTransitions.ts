@@ -9,7 +9,7 @@ import { checkEmailDeliveries, seedDeliveredEmails, GameEvent } from "../engine/
 import { getReadEmailIds } from "../engine/mail/mailUtils";
 import { getEmailDefinitions } from "../engine/mail/emails";
 import { seedImmediatePiper, deliverPiperAndCascade } from "../engine/piper/delivery";
-import { gitClone } from "../engine/git/repo";
+import { gitClone } from "@tt/core/git/repo";
 import { syncToVirtualFS } from "@tt/core/snowflake/bridge/fs_bridge";
 import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
 import { colorize, ansi } from "@tt/core/lib/ansi";

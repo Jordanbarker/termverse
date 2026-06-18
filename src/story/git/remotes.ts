@@ -1,35 +1,8 @@
-import { GitCommit, RemoteRepoDef } from "./types";
-import { shortHash } from "./repo";
+import { GitCommit, RemoteRepoDef } from "@tt/core/git/types";
+import { shortHash } from "@tt/core/git/repo";
 import { DirectoryNode } from "@tt/core/filesystem/types";
-import { buildDbtProject } from "../../story/filesystem/nexacorp";
-
-/**
- * Build a simple remote with a single initial commit from a set of files.
- */
-function buildSimpleRemote(
-  files: Record<string, string>,
-  opts: { author: string; defaultBranch?: string; commitMessage?: string }
-): RemoteRepoDef {
-  const branch = opts.defaultBranch ?? "main";
-  const message = opts.commitMessage ?? "Initial commit";
-  const timestamp = 1700000000000; // fixed for determinism
-  const hash = shortHash(message + timestamp + "" + JSON.stringify(files));
-
-  return {
-    files,
-    defaultBranch: branch,
-    commits: [
-      {
-        hash,
-        parent: null,
-        message,
-        author: opts.author,
-        timestamp,
-        tree: files,
-      },
-    ],
-  };
-}
+import { REMOTE_REPOS } from "@tt/core/git/remotes";
+import { buildDbtProject } from "../filesystem/nexacorp";
 
 /** Flatten a DirectoryNode tree into a flat Record<path, content> for RemoteRepoDef. */
 function flattenTree(node: DirectoryNode, prefix = ""): Record<string, string> {
@@ -531,31 +504,30 @@ function buildAnalyticsCommits(): GitCommit[] {
 }
 
 /**
- * Registry of remote repositories that can be cloned.
- * Keys are the URL passed to `git clone`.
+ * Register this story's clonable remotes into the core git registry, keyed by
+ * the URL passed to `git clone`. Importing this module (side effect) populates
+ * the registry; the app does so at startup (see gameStore).
  */
-export const REMOTE_REPOS: Record<string, RemoteRepoDef> = {
-  "nexacorp/nexacorp-analytics": (() => {
-    const commits = buildAnalyticsCommits();
-    const finalTree = commits[commits.length - 1].tree;
-    return {
-      files: finalTree,
-      defaultBranch: "main",
-      commits,
-      getUpdates: (storyFlags: Record<string, string | boolean>, localHead: string | null) => {
-        if (!storyFlags.day1_shutdown || !localHead) return [];
-        const message = "add not_null test for conversion_rate";
-        const timestamp = 1772000000000;
-        // Deterministic remote-tip hash so repeated pulls converge instead of looping.
-        const hash = shortHash(message + timestamp);
-        if (localHead === hash) return [];
-        const files = { ...finalTree };
-        files["models/marts/_marts__models.yml"] = UPDATED_MARTS_YAML;
-        return [{ hash, parent: localHead, message, author: "Auri Park <auri@nexacorp.com>", timestamp, tree: files }];
-      },
-    } satisfies RemoteRepoDef;
-  })(),
-};
+REMOTE_REPOS["nexacorp/nexacorp-analytics"] = (() => {
+  const commits = buildAnalyticsCommits();
+  const finalTree = commits[commits.length - 1].tree;
+  return {
+    files: finalTree,
+    defaultBranch: "main",
+    commits,
+    getUpdates: (storyFlags: Record<string, string | boolean>, localHead: string | null) => {
+      if (!storyFlags.day1_shutdown || !localHead) return [];
+      const message = "add not_null test for conversion_rate";
+      const timestamp = 1772000000000;
+      // Deterministic remote-tip hash so repeated pulls converge instead of looping.
+      const hash = shortHash(message + timestamp);
+      if (localHead === hash) return [];
+      const files = { ...finalTree };
+      files["models/marts/_marts__models.yml"] = UPDATED_MARTS_YAML;
+      return [{ hash, parent: localHead, message, author: "Auri Park <auri@nexacorp.com>", timestamp, tree: files }];
+    },
+  } satisfies RemoteRepoDef;
+})();
 
-// Re-export for use in story content that registers remotes
-export { buildSimpleRemote };
+// Re-export the (now-populated) core registry for story-side consumers.
+export { REMOTE_REPOS };

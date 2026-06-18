@@ -9,6 +9,7 @@ import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
 import { createChipinfraFilesystem } from "../story/filesystem/chipinfra";
 import { createErikpcFilesystem } from "../story/filesystem/erikpc";
 import { getComputerUsername } from "../story/player";
+import "../story/git/remotes"; // side effect: registers this story's clonable git remotes into @tt/core
 import { serializeFS, deserializeFS, SerializedFS } from "@tt/core/filesystem/serialization";
 import { createSaveData, saveToSlot, loadFromSlot } from "./saveManager";
 import { SaveSlotId } from "./saveTypes";

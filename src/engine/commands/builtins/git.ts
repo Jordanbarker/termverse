@@ -9,8 +9,8 @@ import {
   gitStashSave, gitStashPop, gitStashList,
   gitClone, gitPush, gitPull,
   type BranchListMode,
-} from "../../git/repo";
-import { formatStatus, formatLog, formatDiff, formatBranches } from "../../git/output";
+} from "@tt/core/git/repo";
+import { formatStatus, formatLog, formatDiff, formatBranches } from "@tt/core/git/output";
 
 const NOT_A_REPO = "fatal: not a git repository (or any of the parent directories): .git";
 
