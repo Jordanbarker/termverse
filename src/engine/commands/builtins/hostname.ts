@@ -1,8 +1,8 @@
 import { CommandHandler } from "@tt/core/commands/types";
-import { register } from "../registry";
-import { setKnownFlags } from "../flagValidation";
+import { register } from "@tt/core/commands/registry";
+import { setKnownFlags } from "@tt/core/commands/flagValidation";
 import { COMPUTERS, ComputerId } from "../../../state/types";
-import { HELP_TEXTS } from "./helpTexts";
+import { HELP_TEXTS } from "@tt/core/commands/builtins/helpTexts";
 
 const hostname: CommandHandler = (_args, flags, ctx) => {
   const computer = COMPUTERS[ctx.activeComputer as ComputerId];

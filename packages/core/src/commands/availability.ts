@@ -1,4 +1,4 @@
-import { StoryFlags } from "../../state/types";
+import { StoryFlags } from "@tt/core";
 import { MachineId } from "@tt/core/machine";
 
 /**

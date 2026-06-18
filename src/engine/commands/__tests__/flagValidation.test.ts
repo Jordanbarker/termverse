@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rejectUnknownFlags } from "../flagValidation";
+import { rejectUnknownFlags } from "@tt/core/commands/flagValidation";
 
 describe("rejectUnknownFlags", () => {
   describe("coreutils style (default)", () => {

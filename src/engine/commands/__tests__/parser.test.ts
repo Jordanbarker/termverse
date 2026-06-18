@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseInput, splitOnChainOperators, parseChainedPipeline, expandAliases } from "../parser";
+import { parseInput, splitOnChainOperators, parseChainedPipeline, expandAliases } from "@tt/core/commands/parser";
 
 describe("parseInput", () => {
   it("returns empty command for empty input", () => {

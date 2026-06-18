@@ -1,6 +1,6 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
-import { GameEvent } from "../../mail/delivery";
+import { GameEvent } from "@tt/core";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 

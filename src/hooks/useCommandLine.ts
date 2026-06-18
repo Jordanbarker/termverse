@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore } from "../state/gameStore";
-import { getAvailableCommands } from "../engine/commands/registry";
+import { getAvailableCommands } from "@tt/core/commands/registry";
 import { getSuggestion, SuggestionContext } from "../engine/suggestions/suggest";
 import { getCompletions, CompletionResult } from "../engine/suggestions/complete";
 import { isBackspace, isPrintable, CTRL_C, TAB } from "@tt/core/terminal/keyCodes";

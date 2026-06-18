@@ -18,10 +18,10 @@ globalThis.localStorage = {
 } as Storage;
 
 // Engine imports (no React/Zustand dependency)
-import { parseChainedPipeline, parseInput, expandAliases } from "../src/engine/commands/parser";
-import { execute, executeAsync, isAsyncCommand } from "../src/engine/commands/registry";
+import { parseChainedPipeline, parseInput, expandAliases } from "@tt/core/commands/parser";
+import { execute, executeAsync, isAsyncCommand } from "@tt/core/commands/registry";
 import "../src/engine/commands/builtins"; // side-effect: registers all commands
-import { computeEffects, SessionToStart } from "../src/engine/commands/applyResult";
+import { computeEffects, SessionToStart } from "@tt/core/commands/applyResult";
 import { CommandResult, ChainSegment, ParsedCommand } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
@@ -38,7 +38,7 @@ import { createDefaultContext, SessionContext } from "@tt/core/snowflake/session
 import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
 import { resolvePath } from "@tt/core/lib/pathUtils";
-import { extractStdoutRedirect, applyRedirection, precheckRedirects } from "../src/engine/commands/redirection";
+import { extractStdoutRedirect, applyRedirection, precheckRedirects } from "@tt/core/commands/redirection";
 import { PromptSessionInfo } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";

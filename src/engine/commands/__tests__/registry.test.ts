@@ -18,8 +18,8 @@ import {
   executeAsync,
   isAsyncCommand,
   getCommandList,
-} from "../registry";
-import { setKnownFlags } from "../flagValidation";
+} from "@tt/core/commands/registry";
+import { setKnownFlags } from "@tt/core/commands/flagValidation";
 
 function makeCtx(): CommandContext {
   const root: DirectoryNode = {

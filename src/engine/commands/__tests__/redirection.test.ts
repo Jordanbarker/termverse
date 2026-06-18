@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractStdoutRedirect, precheckRedirects, applyRedirection } from "../redirection";
+import { extractStdoutRedirect, precheckRedirects, applyRedirection } from "@tt/core/commands/redirection";
 import { CommandResult } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode, isDirectory, isFile } from "@tt/core/filesystem/types";

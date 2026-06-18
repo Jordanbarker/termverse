@@ -5,7 +5,7 @@ import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorize, ansi } from "@tt/core/lib/ansi";
 import { computeDiff, DiffEntry } from "@tt/core/lib/diff";
 import { isDirectory, FSNode } from "@tt/core/filesystem/types";
-import { GameEvent } from "../../mail/delivery";
+import { GameEvent } from "@tt/core";
 import { HELP_TEXTS } from "./helpTexts";
 
 interface Hunk {

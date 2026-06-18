@@ -12,7 +12,7 @@ register(
     }
     return {
       output: "",
-      chipSession: { storyFlags: ctx.storyFlags ?? {}, currentComputer: ctx.activeComputer as import("../../../state/types").ComputerId },
+      chipSession: { storyFlags: ctx.storyFlags ?? {}, currentComputer: ctx.activeComputer },
     };
   },
   "Chat with NexaCorp's AI assistant"

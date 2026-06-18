@@ -1,17 +1,11 @@
 import { CommandResult, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { Mounts } from "@tt/core/filesystem/mounts";
-import { GameEvent } from "../mail/delivery";
 import { resolvePath } from "@tt/core/lib/pathUtils";
-import { PromptSessionInfo } from "../prompt/types";
-import { ChipSessionInfo } from "../chip/types";
-import { PiperSessionInfo } from "../piper/types";
 import { LessSessionInfo } from "@tt/core/pager/types";
-import { StoryFlags } from "../../state/types";
-import { MachineId } from "@tt/core/machine";
+import { MachineId, GameEvent, StoryFlags, PromptSessionInfo, ChipSessionInfo, PiperSessionInfo } from "@tt/core";
 import { SecurityViolation } from "@tt/core/commands/security";
 import { commandReadsFiles } from "./registry";
-import type { DeliveryResult } from "./processDeliveries";
 
 /**
  * Delivery-cascade processor, injected by the app. Given the events a command
@@ -27,6 +21,19 @@ export type ProcessDeliveriesFn = (
   username: string,
   storyFlags: StoryFlags,
 ) => DeliveryResult;
+
+/**
+ * Result of a delivery cascade: the mutated FS plus the new email/piper
+ * deliveries, notification counts, and story-flag updates to apply.
+ */
+export interface DeliveryResult {
+  fs: VirtualFS;
+  newDeliveredEmailIds: string[];
+  emailNotifications: number;
+  newDeliveredPiperIds: string[];
+  piperNotifications: number;
+  storyFlagUpdates: StoryFlagUpdate[];
+}
 
 export type SessionToStart =
   | { type: "editor"; info: EditorSessionInfo }

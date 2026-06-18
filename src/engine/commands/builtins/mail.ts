@@ -1,9 +1,9 @@
 import { CommandHandler } from "@tt/core/commands/types";
-import { register } from "../registry";
-import { setKnownFlags } from "../flagValidation";
+import { register } from "@tt/core/commands/registry";
+import { setKnownFlags } from "@tt/core/commands/flagValidation";
 import { colorize, ansi } from "@tt/core/lib/ansi";
 import { pad2 } from "@tt/core/lib/format";
-import { HELP_TEXTS } from "./helpTexts";
+import { HELP_TEXTS } from "@tt/core/commands/builtins/helpTexts";
 import {
   getMailDir,
   getSentDir,

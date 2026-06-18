@@ -11,8 +11,8 @@ import {
   compileModel,
   showModel,
 } from "@tt/core/dbt/runner";
-import "@/engine/commands/builtins/dbt"; // trigger registration
-import { execute } from "@/engine/commands/registry";
+import "@tt/core/commands/builtins/dbt"; // trigger registration
+import { execute } from "@tt/core/commands/registry";
 import {
   formatRunHeader,
   formatModelRun,

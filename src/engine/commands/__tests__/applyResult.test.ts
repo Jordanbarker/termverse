@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeEffects, ApplyContext } from "../applyResult";
+import { computeEffects, ApplyContext } from "@tt/core/commands/applyResult";
 import { processDeliveries } from "../processDeliveries";
 import { renderSavesList, renderCheckpointsList } from "../../../story/listingOutput";
 import { CommandResult } from "@tt/core/commands/types";

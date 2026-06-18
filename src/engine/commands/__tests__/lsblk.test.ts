@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { execute } from "../registry";
+import { execute } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
@@ -7,9 +7,9 @@ import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story
 import { Mounts } from "@tt/core/filesystem/mounts";
 import type { ComputerId } from "../../../state/types";
 
-import "../builtins/lsblk";
-import "../builtins/mount";
-import "../builtins/umount";
+import "@tt/core/commands/builtins/lsblk";
+import "@tt/core/commands/builtins/mount";
+import "@tt/core/commands/builtins/umount";
 
 // Capture the imported BLOCK_DEVICES.home before any test mutates it.
 const ORIGINAL_HOME_DEVICES = BLOCK_DEVICES.home;

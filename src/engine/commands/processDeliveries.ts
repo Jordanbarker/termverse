@@ -4,16 +4,9 @@ import { checkPiperDeliveries } from "../piper/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { MachineId } from "@tt/core/machine";
-import { StoryFlagUpdate } from "./applyResult";
+import { StoryFlagUpdate, DeliveryResult } from "@tt/core/commands/applyResult";
 
-export interface DeliveryResult {
-  fs: VirtualFS;
-  newDeliveredEmailIds: string[];
-  emailNotifications: number;
-  newDeliveredPiperIds: string[];
-  piperNotifications: number;
-  storyFlagUpdates: StoryFlagUpdate[];
-}
+export type { DeliveryResult };
 
 /**
  * Pure function that processes delivery cascades for a set of game events.

@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { execute } from "../registry";
+import { execute } from "@tt/core/commands/registry";
 import { CommandContext, CommandResult } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
-import { applyRedirection } from "../redirection";
+import { applyRedirection } from "@tt/core/commands/redirection";
 import { NEXACORP_SECURITY_POLICY } from "../../../story/security";
 import { getHomeEmailDefinitions } from "../../../story/emails/home";
 
-import "../builtins/rm";
-import "../builtins/chmod";
-import "../builtins/cp";
-import "../builtins/mv";
+import "@tt/core/commands/builtins/rm";
+import "@tt/core/commands/builtins/chmod";
+import "@tt/core/commands/builtins/cp";
+import "@tt/core/commands/builtins/mv";
 
 function file(name: string, content = "x", permissions = "rw-r--r--") {
   return { type: "file" as const, name, content, permissions, hidden: false };

@@ -3,7 +3,7 @@ import { getDefaultEnv, parseEnvAssignments, initEnvForComputer } from "../../..
 
 // Import builtins to register commands
 import "../builtins";
-import { execute } from "../registry";
+import { execute } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";

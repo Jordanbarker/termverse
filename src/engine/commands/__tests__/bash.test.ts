@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createGameClock } from "../../../story/clock";
-import { executeAsync, isAsyncCommand } from "../registry";
+import { executeAsync, isAsyncCommand } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";

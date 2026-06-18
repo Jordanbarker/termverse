@@ -3,7 +3,7 @@ import { accessLogTopSummary } from "../accessLogSummary";
 import { getMenuItems } from "../menuItems";
 import { createNexacorpFilesystem } from "../../filesystem/nexacorp";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { execute } from "../../../engine/commands/registry";
+import { execute } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import "../../../engine/commands/builtins";
 

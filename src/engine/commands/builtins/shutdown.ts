@@ -1,6 +1,6 @@
 import { CommandHandler } from "@tt/core/commands/types";
-import { register } from "../registry";
-import { setKnownFlags } from "../flagValidation";
+import { register } from "@tt/core/commands/registry";
+import { setKnownFlags } from "@tt/core/commands/flagValidation";
 import { getShutdownIncrementalLines, getRemoteShutdownIncrementalLines } from "@tt/core/lib/ascii";
 import { COMPUTERS, CONNECTION_PARENT, ComputerId } from "../../../state/types";
 

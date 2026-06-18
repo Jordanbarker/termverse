@@ -1,5 +1,5 @@
 import { resolvePath } from "@tt/core/lib/pathUtils";
-import { splitOnChainOperators } from "../commands/parser";
+import { splitOnChainOperators } from "@tt/core/commands/parser";
 import {
   SuggestionContext,
   PATH_COMMANDS,

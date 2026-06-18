@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { execute } from "../registry";
+import { execute } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
@@ -7,8 +7,8 @@ import { DirectoryNode } from "@tt/core/filesystem/types";
 // produce the not-found / colleague-hint behavior these tests assert.
 import "../../../story/availabilityPolicy";
 import { createGameClock } from "../../../story/clock";
-import { HELP_TEXTS } from "../builtins/helpTexts";
-import { parsePipeline, parseChainedPipeline } from "../parser";
+import { HELP_TEXTS } from "@tt/core/commands/builtins/helpTexts";
+import { parsePipeline, parseChainedPipeline } from "@tt/core/commands/parser";
 
 /** Strip ANSI escape codes for easier assertion */
 function stripAnsi(str: string): string {

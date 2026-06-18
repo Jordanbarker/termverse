@@ -1,5 +1,5 @@
 import { CommandHandler } from "@tt/core/commands/types";
-import { register } from "../registry";
+import { register } from "@tt/core/commands/registry";
 import { CHECKPOINTS } from "../../../story/checkpoints";
 
 const cheat: CommandHandler = (args) => {

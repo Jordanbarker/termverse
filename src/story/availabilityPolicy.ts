@@ -1,5 +1,5 @@
 import { ComputerId, StoryFlags } from "../state/types";
-import { AvailabilityPolicy, setAvailabilityPolicy } from "../engine/commands/availability";
+import { AvailabilityPolicy, setAvailabilityPolicy } from "@tt/core/commands/availability";
 import {
   HOME_COMMANDS,
   NEXACORP_GATED,

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { execute } from "../registry";
+import { execute } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode, isDirectory } from "@tt/core/filesystem/types";
@@ -7,10 +7,10 @@ import { BLOCK_DEVICES, BlockDevice, createDeviceProvider } from "../../../story
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { dir, file } from "@tt/core/filesystem/builders";
 
-import "../builtins/mount";
-import "../builtins/umount";
-import "../builtins/ls";
-import "../builtins/mkdir";
+import "@tt/core/commands/builtins/mount";
+import "@tt/core/commands/builtins/umount";
+import "@tt/core/commands/builtins/ls";
+import "@tt/core/commands/builtins/mkdir";
 
 function fsWithMnt(): VirtualFS {
   const root: DirectoryNode = {

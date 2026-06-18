@@ -1,5 +1,5 @@
 import { CommandHandler } from "@tt/core/commands/types";
-import { register } from "../registry";
+import { register } from "@tt/core/commands/registry";
 import { resolveSshTarget } from "@tt/core/ssh/sshConfig";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { ComputerId } from "../../../state/types";

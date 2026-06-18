@@ -74,7 +74,7 @@ register(
       }
 
       // Detect campaign_metrics query for story progression (mirrors SnowSqlSession)
-      const triggerEvents: import("../../mail/delivery").GameEvent[] = [];
+      const triggerEvents: import("@tt/core").GameEvent[] = [];
       if (/campaign_metrics/i.test(sql)) {
         triggerEvents.push({ type: "command_executed", detail: "queried_campaign_metrics" });
       }

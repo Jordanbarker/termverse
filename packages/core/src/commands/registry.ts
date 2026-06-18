@@ -1,6 +1,6 @@
 import { CommandHandler, AsyncCommandHandler, CommandResult, CommandContext } from "@tt/core/commands/types";
 import { isCommandAvailable, unavailableCommandMessage } from "./availability";
-import { StoryFlags } from "../../state/types";
+import { StoryFlags } from "@tt/core";
 import { MachineId } from "@tt/core/machine";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorize, ansi } from "@tt/core/lib/ansi";

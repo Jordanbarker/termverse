@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../state/gameStore";
-import { parseInput, parseChainedPipeline, expandAliases } from "../engine/commands/parser";
-import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "../engine/commands/registry";
+import { parseInput, parseChainedPipeline, expandAliases } from "@tt/core/commands/parser";
+import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "@tt/core/commands/registry";
 import { STANDARD_MODEL_ORDER } from "@/story/data/dbt/data";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
@@ -18,8 +18,8 @@ import { createDeviceProvider } from "../story/blockDevices";
 import { createGameClock } from "../story/clock";
 // Registers the turmoil command-availability policy (side-effect import).
 import "../story/availabilityPolicy";
-import { isCommandAvailable } from "../engine/commands/availability";
-import { computeEffects, AppliedEffects } from "../engine/commands/applyResult";
+import { isCommandAvailable } from "@tt/core/commands/availability";
+import { computeEffects, AppliedEffects } from "@tt/core/commands/applyResult";
 import { processDeliveries } from "../engine/commands/processDeliveries";
 import { renderSavesList, renderCheckpointsList } from "../story/listingOutput";
 import { CHECKPOINTS } from "../story/checkpoints";
@@ -31,7 +31,7 @@ import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
 import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "@tt/core/terminal/keyCodes";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { Mounts } from "@tt/core/filesystem/mounts";
-import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../engine/commands/redirection";
+import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "@tt/core/commands/redirection";
 
 // ---------------------------------------------------------------------------
 // Module-scope helpers (no React dependencies)

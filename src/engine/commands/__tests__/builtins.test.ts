@@ -1,37 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { execute, executeAsync } from "../registry";
+import { execute, executeAsync } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
-import { HELP_TEXTS } from "../builtins/helpTexts";
+import { HELP_TEXTS } from "@tt/core/commands/builtins/helpTexts";
 import { stripAnsi } from "@tt/core/lib/ansi";
 import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
 import { createDefaultContext } from "@tt/core/snowflake/session/context";
 
 // Import builtins to trigger registration
-import "../builtins/ls";
-import "../builtins/cd";
-import "../builtins/cat";
-import "../builtins/pwd";
-import "../builtins/clear";
-import "../builtins/help";
-import "../builtins/nano";
-import "../builtins/save";
-import "../builtins/load";
-import "../builtins/newgame";
+import "@tt/core/commands/builtins/ls";
+import "@tt/core/commands/builtins/cd";
+import "@tt/core/commands/builtins/cat";
+import "@tt/core/commands/builtins/pwd";
+import "@tt/core/commands/builtins/clear";
+import "@tt/core/commands/builtins/help";
+import "@tt/core/commands/builtins/nano";
+import "@tt/core/commands/builtins/save";
+import "@tt/core/commands/builtins/load";
+import "@tt/core/commands/builtins/newgame";
 import "../builtins/mail";
-import "../builtins/python";
-import "../builtins/snow";
-import "../builtins/wc";
-import "../builtins/df";
-import "../builtins/git";
-import "../builtins/grep";
-import "../builtins/find";
-import "../builtins/head";
-import "../builtins/less";
-import "../builtins/tree";
-import "../builtins/mkdir";
-import "../builtins/command";
+import "@tt/core/commands/builtins/python";
+import "@tt/core/commands/builtins/snow";
+import "@tt/core/commands/builtins/wc";
+import "@tt/core/commands/builtins/df";
+import "@tt/core/commands/builtins/git";
+import "@tt/core/commands/builtins/grep";
+import "@tt/core/commands/builtins/find";
+import "@tt/core/commands/builtins/head";
+import "@tt/core/commands/builtins/less";
+import "@tt/core/commands/builtins/tree";
+import "@tt/core/commands/builtins/mkdir";
+import "@tt/core/commands/builtins/command";
 
 function createTestFS(): VirtualFS {
   const root: DirectoryNode = {

@@ -17,9 +17,9 @@ import { PiperSession } from "../engine/piper/PiperSession";
 import { LessSession } from "@tt/core/pager/LessSession";
 import { deliverPiperAndCascade } from "../engine/piper/delivery";
 import { ISession, sessionUsesAltScreen } from "@tt/core/session/types";
-import { SessionToStart } from "../engine/commands/applyResult";
+import { SessionToStart } from "@tt/core/commands/applyResult";
 import { ComputerId } from "../state/types";
-import { isCommandAvailable } from "../engine/commands/availability";
+import { isCommandAvailable } from "@tt/core/commands/availability";
 import { PiperSessionInfo } from "../engine/piper/types";
 
 interface EventActionContext {

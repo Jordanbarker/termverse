@@ -2,7 +2,7 @@ import { CommandHandler } from "@tt/core/commands/types";
 import { register, registerAlias } from "../registry";
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";
-import { GameEvent } from "../../mail/delivery";
+import { GameEvent } from "@tt/core";
 import { HELP_TEXTS } from "./helpTexts";
 
 const source: CommandHandler = (args, _flags, ctx) => {

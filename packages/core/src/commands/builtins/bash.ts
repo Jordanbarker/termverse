@@ -7,7 +7,7 @@ import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../r
 import { resolvePath } from "@tt/core/lib/pathUtils";
 import { HELP_TEXTS } from "./helpTexts";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { GameEvent } from "../../mail/delivery";
+import { GameEvent } from "@tt/core";
 import { isCommandAvailable } from "../availability";
 import { getAvailableCommands } from "../registry";
 import { COMMAND_PATHS } from "./which";
