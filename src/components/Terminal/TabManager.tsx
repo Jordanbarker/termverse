@@ -589,6 +589,12 @@ export default function TabManager() {
       const isActivePane = id === activePaneId;
       el.style.outline = isActivePane && multi ? "1px solid #e6b450" : "none";
       el.style.outlineOffset = "-1px";
+      // Lift the active pane above its sibling panes so the later-painted neighbor
+      // below/right can't repaint over the abutting (inset) edge of its outline —
+      // otherwise the bottom/right side of the gold box goes missing. Stays below the
+      // PaneDividers layer (z-10, outside the wrapper's stacking context) so seams remain
+      // visible and draggable.
+      el.style.zIndex = isActivePane && multi ? "1" : "";
 
       if (inst.lastW !== r.w || inst.lastH !== r.h) {
         inst.lastW = r.w;
@@ -692,6 +698,9 @@ export default function TabManager() {
             root={activeWindow.root}
             width={wrapperSize.w}
             height={wrapperSize.h}
+            activePaneRect={paneRects(activeWindow.root, 0, 0, wrapperSize.w, wrapperSize.h).find(
+              (r) => r.id === activeWindow.activePaneId,
+            )}
             onResize={(splitId, ratio) => useGameStore.getState().resizePane(splitId, ratio)}
           />
         )}

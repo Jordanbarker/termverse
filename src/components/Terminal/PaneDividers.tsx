@@ -42,18 +42,46 @@ function computeDividers(node: PaneNode, x: number, y: number, w: number, h: num
   ];
 }
 
+interface PaneRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * True if a divider's center line abuts an edge of the active pane (and their
+ * cross-axis ranges overlap). Such a seam IS the active pane's border on that
+ * side, so it should render gold — matching tmux's pane-active-border-style and
+ * filling the bottom/right edge the seam would otherwise paint over.
+ */
+function bordersActivePane(d: DividerRect, active: PaneRect): boolean {
+  if (d.direction === "h") {
+    const lineX = d.x + DIVIDER_THICKNESS / 2;
+    const touchesEdge = Math.abs(lineX - active.x) <= 1 || Math.abs(lineX - (active.x + active.w)) <= 1;
+    const overlaps = active.y < d.boxY + d.boxH && active.y + active.h > d.boxY;
+    return touchesEdge && overlaps;
+  }
+  const lineY = d.y + DIVIDER_THICKNESS / 2;
+  const touchesEdge = Math.abs(lineY - active.y) <= 1 || Math.abs(lineY - (active.y + active.h)) <= 1;
+  const overlaps = active.x < d.boxX + d.boxW && active.x + active.w > d.boxX;
+  return touchesEdge && overlaps;
+}
+
 interface PaneDividersProps {
   root: PaneNode;
   width: number;
   height: number;
   onResize: (splitId: string, ratio: number) => void;
+  /** The active pane's wrapper-relative rect; seams bordering it render gold. */
+  activePaneRect?: PaneRect;
 }
 
 /**
  * Absolutely-positioned, draggable seams for the active window's pane tree.
  * Each seam maps a pointer drag to a new split ratio (clamped by the store).
  */
-export default function PaneDividers({ root, width, height, onResize }: PaneDividersProps) {
+export default function PaneDividers({ root, width, height, onResize, activePaneRect }: PaneDividersProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   if (width === 0 || height === 0) return null;
   const dividers = computeDividers(root, 0, 0, width, height);
@@ -61,7 +89,9 @@ export default function PaneDividers({ root, width, height, onResize }: PaneDivi
 
   return (
     <div ref={layerRef} className="absolute inset-0 z-10" style={{ pointerEvents: "none" }}>
-      {dividers.map((d) => (
+      {dividers.map((d) => {
+        const active = activePaneRect ? bordersActivePane(d, activePaneRect) : false;
+        return (
         <div
           key={d.splitId}
           onPointerDown={(e) => {
@@ -95,9 +125,14 @@ export default function PaneDividers({ root, width, height, onResize }: PaneDivi
             pointerEvents: "auto",
           }}
         >
-          {/* Always-visible dim line, centered in the hit-strip; gold on hover/drag. */}
+          {/* Centered line in the hit-strip. Gold when it borders the active pane
+              (it IS that pane's border on this side) or on hover/drag; else dim. */}
           <div
-            className="absolute bg-[#3d4751] group-hover:bg-[#e6b450] transition-colors"
+            className={
+              active
+                ? "absolute bg-[#e6b450] transition-colors"
+                : "absolute bg-[#3d4751] group-hover:bg-[#e6b450] transition-colors"
+            }
             style={
               d.direction === "h"
                 ? { left: "50%", top: 0, width: 1, height: "100%", transform: "translateX(-50%)", pointerEvents: "none" }
@@ -105,7 +140,8 @@ export default function PaneDividers({ root, width, height, onResize }: PaneDivi
             }
           />
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
