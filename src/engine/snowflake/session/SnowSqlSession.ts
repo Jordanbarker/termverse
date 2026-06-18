@@ -4,8 +4,8 @@ import { SessionContext } from "./context";
 import { execute } from "../executor/executor";
 import { formatResultSet, formatStatusMessage, formatError } from "../formatter/table_formatter";
 import { colorize, ansi } from "../../../lib/ansi";
-import { isBackspace, isPrintable, CTRL_A, CTRL_C, CTRL_D, CTRL_E, CTRL_K, CTRL_U, CTRL_BACKSPACE } from "../../terminal/keyCodes";
-import { findPrevWordBoundary, findNextWordBoundary } from "../../terminal/wordBoundary";
+import { isBackspace, isPrintable, CTRL_A, CTRL_C, CTRL_D, CTRL_E, CTRL_K, CTRL_U, CTRL_BACKSPACE } from "@tt/core/terminal/keyCodes";
+import { findPrevWordBoundary, findNextWordBoundary } from "@tt/core/terminal/wordBoundary";
 import { ISession, SessionResult } from "../../session/types";
 import { GameEvent } from "../../mail/delivery";
 

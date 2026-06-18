@@ -4,8 +4,8 @@ import { useGameStore } from "../state/gameStore";
 import { getAvailableCommands } from "../engine/commands/registry";
 import { getSuggestion, SuggestionContext } from "../engine/suggestions/suggest";
 import { getCompletions, CompletionResult } from "../engine/suggestions/complete";
-import { isBackspace, isPrintable, CTRL_C, TAB } from "../engine/terminal/keyCodes";
-import { parseZshHistory } from "../engine/terminal/zshHistory";
+import { isBackspace, isPrintable, CTRL_C, TAB } from "@tt/core/terminal/keyCodes";
+import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { ComputerId } from "../state/types";
 
 interface CommandLineDeps {

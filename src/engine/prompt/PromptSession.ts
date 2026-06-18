@@ -3,7 +3,7 @@ import { VirtualFS } from "../filesystem/VirtualFS";
 import { PromptSessionInfo } from "./types";
 import { getSentDir } from "../mail/mailUtils";
 import { colorize, ansi } from "../../lib/ansi";
-import { isBackspace, CTRL_C } from "../terminal/keyCodes";
+import { isBackspace, CTRL_C } from "@tt/core/terminal/keyCodes";
 import { ISession, SessionResult } from "../session/types";
 
 export class PromptSession implements ISession {

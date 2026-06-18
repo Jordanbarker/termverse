@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { useGameStore } from "../../state/gameStore";
 import { WindowState, allLeaves, findLeaf, firstLeaf } from "../../state/paneTypes";
 import { COMPUTERS, ComputerId } from "../../state/types";
-import { TabBarTheme } from "../../engine/terminal/tmuxConfig";
-import { ANSI_COLORS } from "../../engine/terminal/ansiPalette";
+import { TabBarTheme } from "@tt/core/terminal/tmuxConfig";
+import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
 
 const PREFIX_BLUE = ANSI_COLORS.blue;
 

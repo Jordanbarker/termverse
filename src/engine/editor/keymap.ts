@@ -1,4 +1,4 @@
-import { isBackspace, isPrintable } from "../terminal/keyCodes";
+import { isBackspace, isPrintable } from "@tt/core/terminal/keyCodes";
 
 export type EditorAction =
   | { type: "insert"; char: string }

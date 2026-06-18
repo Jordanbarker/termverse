@@ -1,6 +1,6 @@
 import { ComputerId } from "../state/types";
 import { COMPUTERS, getComputerUsername } from "./player";
-import { parseEnvAssignments, parseAliases } from "../engine/terminal/envParse";
+import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";
 
 // The shell-config parsers moved to core; re-export so existing importers
 // (source builtin, tests) can keep importing them from story/env.

@@ -26,9 +26,9 @@ import { useSessionRouter } from "./useSessionRouter";
 import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "../engine/commands/types";
-import { parseTmuxPrefix } from "../engine/terminal/tmuxConfig";
-import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "../engine/terminal/keyCodes";
-import { parseZshHistory } from "../engine/terminal/zshHistory";
+import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
+import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "@tt/core/terminal/keyCodes";
+import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { Mounts } from "../engine/filesystem/mounts";
 import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "../engine/commands/redirection";
 

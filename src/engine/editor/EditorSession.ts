@@ -4,7 +4,7 @@ import { EditorState, EditorConfig, PromptState } from "./types";
 import { parseEditorInput, EditorAction } from "./keymap";
 import { renderEditor } from "./render";
 import { ISession, SessionResult } from "../session/types";
-import { findPrevWordBoundary, findNextWordBoundary } from "../terminal/wordBoundary";
+import { findPrevWordBoundary, findNextWordBoundary } from "@tt/core/terminal/wordBoundary";
 import { GameEvent } from "../mail/delivery";
 
 export interface EditorTrigger {

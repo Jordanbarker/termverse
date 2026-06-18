@@ -19,7 +19,7 @@ import {
   renderConversationFooter,
   renderScrollIndicator,
 } from "./render";
-import { CTRL_C } from "../terminal/keyCodes";
+import { CTRL_C } from "@tt/core/terminal/keyCodes";
 import { GameEvent } from "../mail/delivery";
 import { checkStoryFlagTriggers, getTriggersForComputer } from "../narrative/storyFlags";
 import { PIPER_TYPING_DELAY_MS } from "../../lib/timing";

@@ -1,4 +1,4 @@
-import { BACKSPACE, BACKSPACE_ALT, CTRL_C, isPrintable } from "../terminal/keyCodes";
+import { BACKSPACE, BACKSPACE_ALT, CTRL_C, isPrintable } from "@tt/core/terminal/keyCodes";
 
 const CTRL_L = 0x0c;
 const ENTER = 0x0d;

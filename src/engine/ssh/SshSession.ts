@@ -1,7 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import { VirtualFS } from "../filesystem/VirtualFS";
 import { ISession, SessionResult } from "../session/types";
-import { isBackspace, CTRL_C } from "../terminal/keyCodes";
+import { isBackspace, CTRL_C } from "@tt/core/terminal/keyCodes";
 import { colorize, ansi } from "../../lib/ansi";
 import type { MachineId } from "@tt/core/machine";
 import type { GameEvent } from "../mail/delivery";

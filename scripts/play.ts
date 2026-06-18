@@ -42,7 +42,7 @@ import { extractStdoutRedirect, applyRedirection, precheckRedirects } from "../s
 import { PromptSessionInfo } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "../src/lib/ansi";
-import { parseZshHistory } from "../src/engine/terminal/zshHistory";
+import { parseZshHistory } from "../packages/core/src/terminal/zshHistory";
 import { execSync } from "child_process";
 
 // ── Types ───────────────────────────────────────────────────────────

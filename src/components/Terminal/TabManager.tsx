@@ -11,9 +11,9 @@ import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "../../stat
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "../../lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
-import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "../../engine/terminal/tmuxConfig";
-import { ANSI_COLORS } from "../../engine/terminal/ansiPalette";
-import { CopyModeController } from "../../engine/terminal/copyMode";
+import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "@tt/core/terminal/tmuxConfig";
+import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
+import { CopyModeController } from "@tt/core/terminal/copyMode";
 import { sessionUsesAltScreen } from "../../engine/session/types";
 import { copyToClipboard } from "../../lib/clipboard";
 import { ComputerId } from "../../state/types";

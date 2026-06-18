@@ -1,7 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import { getPyodide, PyodideInterface } from "./pyodideLoader";
 import { colorize, ansi } from "../../lib/ansi";
-import { isBackspace, isPrintable, CTRL_C, CTRL_D } from "../terminal/keyCodes";
+import { isBackspace, isPrintable, CTRL_C, CTRL_D } from "@tt/core/terminal/keyCodes";
 import { ISession, SessionResult } from "../session/types";
 
 export class PythonReplSession implements ISession {
