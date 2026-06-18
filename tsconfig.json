@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["./apps/terminal-turmoil/src/*"],
       "@tt/core": ["./packages/core/src/index.ts"],
       "@tt/core/*": ["./packages/core/src/*"]
     }
@@ -32,5 +32,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "apps/puzzle-game"]
+  "exclude": ["node_modules", "apps/*"]
 }

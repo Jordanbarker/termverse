@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* @tt/core lives outside this app, so Tailwind v4 auto-detection won't crawl it.
+   Point it at core's source so its component classes (e.g. PaneDividers) emit. */
+@source "../../../../packages/core/src/**/*.{ts,tsx}";
+
 :root {
   --background: #0a0e14;
   --foreground: #b3b1ad;

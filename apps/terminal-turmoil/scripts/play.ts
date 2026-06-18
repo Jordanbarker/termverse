@@ -34,6 +34,7 @@ import { initEnvForComputer, initAliasesForComputer } from "../src/story/env";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { SnowflakeState } from "@tt/core/snowflake/state";
 import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
+import "../src/story/git/remotes"; // side effect: registers this story's clonable git remotes into @tt/core
 import { createDefaultContext, SessionContext } from "@tt/core/snowflake/session/context";
 import { checkEmailDeliveries, GameEvent } from "../src/engine/mail/delivery";
 import { getSentDir } from "../src/engine/mail/mailUtils";
@@ -42,7 +43,7 @@ import { extractStdoutRedirect, applyRedirection, precheckRedirects } from "@tt/
 import { PromptSessionInfo } from "../src/engine/prompt/types";
 import { ComputerId, StoryFlags, PLAYER, COMPUTERS } from "../src/state/types";
 import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
-import { parseZshHistory } from "../packages/core/src/terminal/zshHistory";
+import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { execSync } from "child_process";
 
 // ── Types ───────────────────────────────────────────────────────────

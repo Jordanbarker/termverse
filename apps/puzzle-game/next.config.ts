@@ -4,7 +4,9 @@ const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
   output: "export",
-  basePath: isProd ? "/puzzle-game" : "",
+  // Nested under terminal-turmoil's GitHub Pages site (one project Pages site,
+  // served at /<repo>/). Both games ship in one artifact; see .github/workflows/deploy.yml.
+  basePath: isProd ? "/terminal-turmoil/puzzle-game" : "",
   images: { unoptimized: true },
   trailingSlash: true,
   // @tt/core lives outside this app's root, so Next must be told to compile

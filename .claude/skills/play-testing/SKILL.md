@@ -1,28 +1,35 @@
 ---
 name: play-testing
-description: "Headless game runner for programmatic play-testing without a browser, plus a Playwright recipe for browser-driving the real game. Use this skill whenever modifying GameRunner, using the headless runner for testing, working on scripts/play.ts, manually play-testing the game from the terminal, or verifying tab/transition/xterm behavior in the browser."
+description: "Headless game runner for programmatic play-testing without a browser, plus a Playwright recipe for browser-driving the real game. Use this skill whenever modifying GameRunner, using the headless runner for testing, working on apps/terminal-turmoil/scripts/play.ts, manually play-testing the game from the terminal, or verifying tab/transition/xterm behavior in the browser."
 ---
 
 # Headless Game Runner
 
-`scripts/play.ts` replicates the browser game loop from `useTerminal.ts` without xterm.js or React. It exports a `GameRunner` class for programmatic game interaction and includes an interactive REPL for manual play-testing.
+`apps/terminal-turmoil/scripts/play.ts` replicates the browser game loop from `useTerminal.ts` without xterm.js or React. It exports a `GameRunner` class for programmatic game interaction and includes an interactive REPL for manual play-testing. The play scripts are a sibling of the app's `src/` (so their `../src/*` imports resolve); engine primitives come from `@tt/core`. Run them via the workspace scripts (`npm -w @tt/terminal-turmoil run play|playtest|playtest:arcs|...`) so `tsx` picks up the app tsconfig's path aliases.
 
 ## Architecture
 
 ```
-scripts/
-└── play.ts              # GameRunner class + interactive REPL
+apps/terminal-turmoil/scripts/
+├── play.ts              # GameRunner class + interactive REPL
+└── playtest*.ts         # scenario scripts (each imports GameRunner from ./play)
 
-Dependencies (engine layer only — no React/Zustand):
-  src/engine/commands/    # parser, registry, builtins, applyResult
-  src/engine/filesystem/  # VirtualFS, serialization
-  src/engine/snowflake/   # SnowflakeState, seed, session context
-  src/engine/mail/        # delivery, mailUtils
-  src/engine/prompt/      # PromptSessionInfo, PromptOption
-  src/lib/                # ansi, pathUtils
-  src/state/types.ts      # ComputerId, StoryFlags
-  src/story/player.ts     # PLAYER, COMPUTERS
-  src/story/filesystem/   # home/ (homeFilesystem), nexacorp/ (createNexacorpFilesystem)
+Engine primitives — from @tt/core (no React/Zustand):
+  @tt/core/commands/      # parser, registry, applyResult, types, redirection
+  @tt/core/filesystem/    # VirtualFS, mounts
+  @tt/core/snowflake/     # SnowflakeState, session context
+  @tt/core/lib/           # ansi, pathUtils
+  @tt/core/terminal/      # zshHistory parser
+
+Story + state — from the app (apps/terminal-turmoil/src/):
+  src/engine/commands/builtins   # side-effect import: registers all commands
+  src/engine/mail/               # delivery, mailUtils
+  src/engine/prompt/             # PromptSessionInfo, PromptOption
+  src/state/types.ts             # ComputerId, StoryFlags
+  src/story/player.ts            # PLAYER, COMPUTERS, getComputerUsername
+  src/story/env.ts               # initEnvForComputer, initAliasesForComputer
+  src/story/filesystem/          # create{Home,Nexacorp,Devcontainer,Chipinfra,Erikpc}Filesystem
+  src/story/data/snowflake/      # createInitialSnowflakeState
 ```
 
 The script mocks `globalThis.localStorage` before any imports so Zustand's persist middleware doesn't crash in Node.
@@ -93,7 +100,7 @@ interface CommandOutput {
 
 ## REPL Commands
 
-Run the REPL: `npx tsx scripts/play.ts`
+Run the REPL: `npm -w @tt/terminal-turmoil run play` (or `npx tsx apps/terminal-turmoil/scripts/play.ts`)
 
 | Command | Action |
 |---------|--------|
@@ -115,7 +122,7 @@ All other input is executed as a game command (with pipe and redirection support
 ### Interactive play-testing
 
 ```bash
-npx tsx scripts/play.ts
+npm -w @tt/terminal-turmoil run play
 ```
 
 Walk through the game manually: run `mail`, `cat`, `ls`, read emails, reply via `:select`, trigger the NexaCorp transition, then `:switch nexacorp` to continue.
@@ -155,7 +162,7 @@ runner.switchComputer("nexacorp");
 
 ### Multi-arc regression playtest
 
-`scripts/playtest_arcs.ts` exercises each major story arc end-to-end with a fresh runner per scenario: home main path, Olive's challenges, backup quest, rejection branch (×3), Edward onboarding, Oscar logs, Auri dbt, Dana ops, end-of-day shutdown, USB tip, Day 2 pipeline fix, plugin build on chipinfra, Loose Thread pivot (chipinfra → erik-pc), Marcus endgame (all four accusations), and security tripwires. Run with `npx tsx scripts/playtest_arcs.ts`.
+`apps/terminal-turmoil/scripts/playtest_arcs.ts` exercises each major story arc end-to-end with a fresh runner per scenario: home main path, Olive's challenges, backup quest, rejection branch (×3), Edward onboarding, Oscar logs, Auri dbt, Dana ops, end-of-day shutdown, USB tip, Day 2 pipeline fix, plugin build on chipinfra, Loose Thread pivot (chipinfra → erik-pc), Marcus endgame (all four accusations), and security tripwires. Run with `npm -w @tt/terminal-turmoil run playtest:arcs` (or `npx tsx apps/terminal-turmoil/scripts/playtest_arcs.ts`).
 
 Two known limitations to plan around when extending the script:
 
@@ -178,9 +185,9 @@ The headless runner has **no tab model and no transition animations** — tab su
 ### Game-side facts the driver must know
 
 - A fresh browser context = fresh localStorage = **new game**, which boots into a nano tutorial file. Send `Control+x` to exit nano before expecting a shell prompt.
-- Use `cheat N` to jump checkpoints (1=day1-start … 5=day2-chapter3-marcus-dm; see `src/story/checkpoints.ts`). `cheat 3` (day2-start, on nexacorp, mid-shift flags) is the best fixture for transition testing.
+- Use `cheat N` to jump checkpoints (1=day1-start … 5=day2-chapter3-marcus-dm; see `apps/terminal-turmoil/src/story/checkpoints.ts`). `cheat 3` (day2-start, on nexacorp, mid-shift flags) is the best fixture for transition testing.
 - After `cheat`, the home FS is rebuilt from seed **without** a nexacorp `known_hosts` entry, so the first `ssh nexacorp-ws01.nexacorp.internal` shows the host-key fingerprint prompt — answer `yes`. Subsequent sshes connect directly (the entry persists).
-- The player is `ren`; ssh route is `ssh nexacorp-ws01.nexacorp.internal` (see `SSH_ROUTES` in `src/engine/commands/builtins/ssh.ts`).
+- The player is `ren`; ssh route is `ssh nexacorp-ws01.nexacorp.internal` (see `SSH_ROUTES` in `apps/terminal-turmoil/src/engine/commands/builtins/ssh.ts`).
 - Transitions print on `setInterval` at `BOOT_LINE_INTERVAL_MS` (300ms) — use polling waits with generous (15–25s) timeouts, never fixed sleeps alone.
 
 ### Driving xterm.js

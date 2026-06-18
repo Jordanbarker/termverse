@@ -1,0 +1,38 @@
+{
+  "name": "@tt/terminal-turmoil",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "analyze": "ANALYZE=true next build",
+    "generate-data": "python3 scripts/generate_data/main.py",
+    "play": "tsx scripts/play.ts",
+    "playtest": "tsx scripts/playtest.ts",
+    "playtest:arcs": "tsx scripts/playtest_arcs.ts",
+    "playtest:git": "tsx scripts/playtest_git.ts",
+    "playtest:nexacorp": "tsx scripts/playtest_nexacorp.ts",
+    "playtest:reference": "tsx scripts/playtest_reference.ts"
+  },
+  "dependencies": {
+    "@tt/core": "*",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "next": "^16.2.9",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.6",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "tsx": "^4.8.1",
+    "typescript": "^5"
+  }
+}
