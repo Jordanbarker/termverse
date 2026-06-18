@@ -2,6 +2,12 @@
 
 A narrative-driven browser game that teaches Linux/terminal through a workplace mystery. Prioritize narrative realism in all game content.
 
+## Monorepo / `@tt/core`
+
+The repo is an npm-workspace monorepo (`workspaces: ["packages/*", "apps/*"]`). The reusable, story-agnostic terminal engine lives in `packages/core` (`@tt/core`): VirtualFS, command engine + builtins, git/dbt/snowflake engines, the pane/window tree model (`@tt/core/terminal/paneTypes`), `PaneDividers`, sessions (editor/pager), the zsh-style autosuggestion + TAB-completion engine (`@tt/core/suggestions/{suggest,complete}`), etc. It is a raw-TS package (no build step) — consumers resolve it via tsconfig `paths` (`@tt/core`, `@tt/core/*`) for typecheck and, for separate Next apps, via a node_modules workspace symlink + `transpilePackages: ["@tt/core"]`. The Tailwind v4 `@source` directive must point at `packages/core/src` so core component classes emit.
+
+**terminal-turmoil itself stays at the repo root** (its `src/` is unmoved; root `package.json` is also the workspace root). A **second game**, `apps/puzzle-game` (`@tt/puzzle-game`, basePath `/puzzle-game`), is built entirely on `@tt/core` to prove the engine-reuse pattern: a terminal-skills puzzle game with a declarative challenge framework (`challenges/`), a lean Zustand store reusing `paneTypes` helpers, a trimmed xterm renderer, and live state-based win-detection (one tmux pane-matching challenge, one git stage+commit challenge). The renderer has zsh-style **ghost-text autosuggestions + TAB completion** via the shared `@tt/core/suggestions` engine: `usePuzzleTerminal.buildSuggestionContext()` feeds it (commands from `getCommandList()` since there's no flag gating), and `apps/puzzle-game/src/lib/lineSuggest.ts` is the lean ANSI renderer (ghost text, accept-on-Right-arrow, columnar completion menu with cycling) tailored to the puzzle game's end-of-line input model — distinct from the main game's mid-line `useCommandLine`. It has a trimmed tmux **status line** (`PuzzleTabBar.tsx`, no `useGameStore`/`COMPUTERS`/`.tmux.conf` parsing) with full multi-window support: a pulsing `PREFIX` indicator, `idx:label (paneCount)` tabs (click to switch, `x`/`+` to close/add), and window chords `<prefix> c` (new) `/ n,p` (cycle) `/ 1-9` (jump) `/ r` (inline rename). Window/prefix/rename state is lifted into `PuzzleTerminal.tsx`; the store's window actions (`newWindow`/`selectWindow`/`cycleWindow`/`closeWindow`/`renameWindow`) live in `puzzleStore.ts`, and the layout effect keeps non-active windows' panes alive (`display:none`, never fit hidden) so buffers survive window switches. Run via `npm run dev:puzzle` / `npm run build:puzzle`. It does **not** import terminal-turmoil's story code. When changing `@tt/core`, remember both apps consume it.
+
 ## Tech Stack
 
 - **Framework**: Next.js (App Router, static export)
@@ -56,7 +62,7 @@ src/
 │   ├── prompt/             # Inline prompt system (numbered choices for email replies, narrative)
 │   ├── session/            # Shared ISession interface and SessionResult types
 │   ├── terminal/           # keyCodes, copyMode (CopyModeController), tmuxConfig parser, ansiPalette, zshHistory parser
-│   ├── suggestions/        # Zsh-style autosuggestions (ghost text from history, commands, paths) (__tests__/)
+│   ├── suggestions/        # → moved to @tt/core/suggestions: zsh autosuggestions + TAB completion (suggest/complete, __tests__/)
 │   ├── narrative/          # Chapter/objective/trigger types, storyFlags engine, triggerMatcher (re-exports from story/)
 │   ├── result.ts           # Generic Result<T> type for error handling
 │   └── assistant/          # Chip message types

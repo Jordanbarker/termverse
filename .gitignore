@@ -17,6 +17,11 @@
 /.next/
 /out/
 
+# monorepo workspace apps (nested build artifacts + deps)
+apps/*/.next/
+apps/*/out/
+**/node_modules/
+
 # production
 /build
 

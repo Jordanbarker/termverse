@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* @tt/core lives outside this app, so Tailwind v4 auto-detection won't crawl it.
+   Point it at core's source so PaneDividers' classes (e.g. bg-[#e6b450]) emit. */
+@source "../../../../packages/core/src/**/*.{ts,tsx}";
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #0a0e14;
+  color: #b3b1ad;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+}

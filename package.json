@@ -2,6 +2,10 @@
   "name": "terminal-turmoil",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +15,9 @@
     "test": "vitest run",
     "check": "npm run typecheck && npm test && npm run build",
     "analyze": "ANALYZE=true next build",
-    "generate-data": "python3 scripts/generate_data/main.py"
+    "generate-data": "python3 scripts/generate_data/main.py",
+    "dev:puzzle": "npm -w @tt/puzzle-game run dev",
+    "build:puzzle": "npm -w @tt/puzzle-game run build"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

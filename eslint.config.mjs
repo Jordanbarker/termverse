@@ -7,11 +7,12 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    // Default ignores of eslint-config-next (broadened to nested workspace apps,
+    // e.g. apps/puzzle-game/out, so generated bundles aren't linted).
+    "**/.next/**",
+    "**/out/**",
+    "**/build/**",
+    "**/next-env.d.ts",
   ]),
   // Treat a leading underscore as the convention for intentionally-unused
   // bindings (params, vars, caught errors) so they don't trip no-unused-vars.

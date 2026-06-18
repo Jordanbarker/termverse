@@ -9,6 +9,8 @@ The terminal is a faithful tmux model: **windows** (the tabs in the status line,
 
 This skill covers the pane tree model, the Zustand window/pane state and actions, the hardcoded prefix chords, the live `~/.tmux.conf` parsing (prefix/theme/keybindings), repeat-mode resize, copy mode, and how the panes are rendered into xterm.
 
+> **Shared engine:** the pure pane model + helpers now live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (the `src/state/paneTypes.ts` / `src/components/Terminal/*` paths below are pre-monorepo names — read them as their `@tt/core` equivalents). These are reused by the second app `apps/puzzle-game`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + trimmed status line (`PuzzleTabBar.tsx`). The puzzle now mirrors the live game's multi-window UX: a pulsing `PREFIX` indicator, clickable `idx:label (paneCount)` tabs, and chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and rename/prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
+
 ## Architecture
 
 ```
