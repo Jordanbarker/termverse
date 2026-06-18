@@ -5,6 +5,9 @@ import { useGameStore } from "../../state/gameStore";
 import { WindowState, allLeaves, findLeaf, firstLeaf } from "../../state/paneTypes";
 import { COMPUTERS, ComputerId } from "../../state/types";
 import { TabBarTheme } from "../../engine/terminal/tmuxConfig";
+import { ANSI_COLORS } from "../../engine/terminal/ansiPalette";
+
+const PREFIX_BLUE = ANSI_COLORS.blue;
 
 interface TabBarProps {
   onNewWindow: (computerId?: ComputerId) => void;
@@ -14,6 +17,8 @@ interface TabBarProps {
   prefixActive: boolean;
   /** tmux confirm-before-kill prompt text; takes over the bar when non-null. */
   closeConfirm?: string | null;
+  /** tmux rename-window inline prompt text; takes over the bar when non-null. */
+  renamePrompt?: string | null;
   /** Bar colors parsed from `~/.tmux.conf` (drives the inline styles). */
   theme: TabBarTheme;
 }
@@ -36,11 +41,17 @@ function abbreviateCwd(cwd: string, username: string): string {
 /** A window's status-line label comes from its focused pane; a pane count is
  *  appended (tmux-style) when the window is split. */
 function windowLabel(win: WindowState, username: string): string {
-  const leaf = findLeaf(win.root, win.activePaneId) ?? firstLeaf(win.root);
-  const host = COMPUTERS[leaf.computerId]?.promptHostname ?? leaf.computerId;
-  const dir = abbreviateCwd(leaf.cwd, username);
   const count = allLeaves(win.root).length;
-  return count > 1 ? `${host}:${dir} (${count})` : `${host}:${dir}`;
+  // A custom name (tmux rename-window) replaces the derived host:dir; the pane
+  // count is still appended when split, matching tmux.
+  const base = win.name
+    ? win.name
+    : (() => {
+        const leaf = findLeaf(win.root, win.activePaneId) ?? firstLeaf(win.root);
+        const host = COMPUTERS[leaf.computerId]?.promptHostname ?? leaf.computerId;
+        return `${host}:${abbreviateCwd(leaf.cwd, username)}`;
+      })();
+  return count > 1 ? `${base} (${count})` : base;
 }
 
 export default function TabBar({
@@ -49,6 +60,7 @@ export default function TabBar({
   onSelectWindow,
   prefixActive,
   closeConfirm,
+  renamePrompt,
   theme,
 }: TabBarProps) {
   const windows = useGameStore((s) => s.windows);
@@ -99,23 +111,22 @@ export default function TabBar({
       className="flex items-center border-b font-mono text-xs select-none"
       style={{ backgroundColor: theme.statusBg, borderBottomColor: theme.statusBg }}
     >
-      {closeConfirm ? (
-        // tmux confirm-before-kill takes over the status line until answered.
+      {closeConfirm || renamePrompt ? (
+        // tmux confirm-before-kill / rename-window takes over the status line.
         <span className="px-2 py-0.5 font-bold" style={{ color: theme.currentFg }}>
-          {closeConfirm}
+          {closeConfirm ?? renamePrompt}
         </span>
       ) : (
       <>
-      {/* tmux status-left: session block. Lights up gold while the prefix is pending. */}
+      {/* tmux status-left: prefix-state indicator. Blank (space reserved) at rest; "PREFIX" in blue when armed. */}
       <span
         className={`px-2 py-0.5 font-bold transition-colors ${prefixActive ? "animate-pulse" : ""}`}
-        style={
-          prefixActive
-            ? { backgroundColor: theme.currentBg, color: theme.currentFg }
-            : { backgroundColor: theme.leftBg, color: theme.leftFg }
-        }
+        style={{
+          visibility: prefixActive ? "visible" : "hidden",
+          color: PREFIX_BLUE,
+        }}
       >
-        [{username}]
+        PREFIX
       </span>
       {windows.map((win, idx) => {
         const isActive = win.id === activeWindowId;
