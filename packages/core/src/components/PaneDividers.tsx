@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { PaneNode } from "../../state/paneTypes";
+import { PaneNode } from "../terminal/paneTypes";
 
 /** Pixel thickness of the draggable seam between two panes. */
 const DIVIDER_THICKNESS = 6;

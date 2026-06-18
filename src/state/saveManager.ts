@@ -8,7 +8,7 @@ import {
   SAVE_FORMAT_VERSION,
 } from "./saveTypes";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
-import { WindowState, serializeWindow } from "./paneTypes";
+import { WindowState, serializeWindow } from "@tt/core/terminal/paneTypes";
 
 const SLOT_KEY_PREFIX = "terminal-turmoil-slot-";
 

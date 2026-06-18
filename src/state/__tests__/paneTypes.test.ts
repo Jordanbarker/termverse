@@ -20,7 +20,7 @@ import {
   serializeWindow,
   rebuildWindow,
   PaneNode,
-} from "../paneTypes";
+} from "@tt/core/terminal/paneTypes";
 
 beforeEach(() => resetPaneIdCounters());
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useGameStore } from "../../state/gameStore";
-import { WindowState, allLeaves, findLeaf, firstLeaf } from "../../state/paneTypes";
+import { WindowState, allLeaves, findLeaf, firstLeaf } from "@tt/core/terminal/paneTypes";
 import { COMPUTERS, ComputerId } from "../../state/types";
 import { TabBarTheme } from "@tt/core/terminal/tmuxConfig";
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
@@ -48,7 +48,7 @@ function windowLabel(win: WindowState, username: string): string {
     ? win.name
     : (() => {
         const leaf = findLeaf(win.root, win.activePaneId) ?? firstLeaf(win.root);
-        const host = COMPUTERS[leaf.computerId]?.promptHostname ?? leaf.computerId;
+        const host = COMPUTERS[leaf.computerId as ComputerId]?.promptHostname ?? leaf.computerId;
         return `${host}:${abbreviateCwd(leaf.cwd, username)}`;
       })();
   return count > 1 ? `${base} (${count})` : base;

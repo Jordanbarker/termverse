@@ -125,14 +125,14 @@ export function useTerminal() {
   const initState = useGameStore.getState();
   const initLeaf = getActiveLeaf(initState);
   const cwdRef = useRef(initLeaf?.cwd ?? `/home/${initState.username}`);
-  const activeComputerRef = useRef<ComputerId>(initLeaf?.computerId ?? "home");
+  const activeComputerRef = useRef<ComputerId>((initLeaf?.computerId ?? "home") as ComputerId);
 
   // Sync refs whenever the active pane changes (split, focus move, window switch, …)
   useEffect(() => {
     const unsub = useGameStore.subscribe((state) => {
       const leaf = getActiveLeaf(state);
       if (leaf) {
-        activeComputerRef.current = leaf.computerId;
+        activeComputerRef.current = leaf.computerId as ComputerId;
         cwdRef.current = leaf.cwd;
       }
     });
@@ -265,7 +265,7 @@ export function useTerminal() {
         const state = useGameStore.getState();
         const loadedLeaf = getActiveLeaf(state);
         cwdRef.current = loadedLeaf?.cwd ?? `/home/${state.username}`;
-        activeComputerRef.current = loadedLeaf?.computerId ?? "home";
+        activeComputerRef.current = (loadedLeaf?.computerId ?? "home") as ComputerId;
         t.clear();
         t.write(colorize(`\r\n${message}\r\n`, ansi.cyan));
         t.write(getPrompt(cwdRef.current));

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useGameStore, getActiveLeaf, getActivePaneId, getActiveWindow } from "../gameStore";
-import { allLeaves, findSplit, PaneNode } from "../paneTypes";
+import { allLeaves, findSplit, PaneNode } from "@tt/core/terminal/paneTypes";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
 

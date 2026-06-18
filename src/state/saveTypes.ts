@@ -1,7 +1,7 @@
 import { SerializedFS } from "@tt/core/filesystem/serialization";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
-import { SavedWindowState } from "./paneTypes";
+import { SavedWindowState } from "@tt/core/terminal/paneTypes";
 
 export const SAVE_FORMAT_VERSION = 16;
 

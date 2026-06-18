@@ -5,9 +5,9 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import TabBar from "./TabBar";
-import PaneDividers from "./PaneDividers";
+import PaneDividers from "@tt/core/components/PaneDividers";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../../state/gameStore";
-import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "../../state/paneTypes";
+import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "@tt/core/terminal/paneTypes";
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "@tt/core/lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
@@ -194,7 +194,7 @@ export default function TabManager() {
     } else if (normalized === "c") {
       // Create a new window on the active pane's computer.
       const leaf = getActiveLeaf(store);
-      if (leaf) store.addWindow(leaf.computerId, leaf.cwd);
+      if (leaf) store.addWindow(leaf.computerId as ComputerId, leaf.cwd);
     } else if (normalized === "x") {
       // Kill the focused pane — tmux confirm-before-kill (rendered in the bar).
       // Allowed unless it's the only pane of the only window.
@@ -654,7 +654,7 @@ export default function TabManager() {
     } else {
       const leaf = getActiveLeaf(store);
       if (!leaf) return;
-      store.addWindow(leaf.computerId, leaf.cwd);
+      store.addWindow(leaf.computerId as ComputerId, leaf.cwd);
     }
   }, []);
 

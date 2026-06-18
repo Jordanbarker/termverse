@@ -10,7 +10,7 @@
  * VirtualFS convention) — never mutate in place.
  */
 
-import { ComputerId } from "./types";
+import { MachineId } from "@tt/core/machine";
 
 /** `h` = panes side-by-side (vertical divider, tmux `split-window -h`, prefix `|`).
  *  `v` = panes stacked (horizontal divider, tmux `split-window -v`, prefix `-`). */
@@ -19,7 +19,7 @@ export type SplitDirection = "h" | "v";
 export interface PaneLeaf {
   kind: "leaf";
   id: string;
-  computerId: ComputerId;
+  computerId: MachineId;
   cwd: string;
 }
 
@@ -81,11 +81,11 @@ export function resetPaneIdCounters(): void {
 
 // --- constructors --------------------------------------------------------
 
-export function makeLeaf(computerId: ComputerId, cwd: string): PaneLeaf {
+export function makeLeaf(computerId: MachineId, cwd: string): PaneLeaf {
   return { kind: "leaf", id: nextPaneId(), computerId, cwd };
 }
 
-export function makeWindow(computerId: ComputerId, cwd: string): WindowState {
+export function makeWindow(computerId: MachineId, cwd: string): WindowState {
   const leaf = makeLeaf(computerId, cwd);
   return { id: nextWindowId(), root: leaf, activePaneId: leaf.id };
 }
@@ -182,7 +182,7 @@ export function collapsePane(root: PaneNode, paneId: string): PaneNode | null {
  */
 export function prunePanesByComputer(
   root: PaneNode,
-  downed: Set<ComputerId>,
+  downed: Set<MachineId>,
   protectedId?: string,
 ): PaneNode | null {
   const prune = (node: PaneNode): PaneNode | null => {
@@ -339,7 +339,7 @@ export function nextLeafId(root: PaneNode, fromId: string): string {
 // saveTypes, so saveTypes can import these without a cycle.)
 
 export type SavedPaneNode =
-  | { kind: "leaf"; computerId: ComputerId; cwd: string }
+  | { kind: "leaf"; computerId: MachineId; cwd: string }
   | { kind: "split"; direction: SplitDirection; ratio: number; a: SavedPaneNode; b: SavedPaneNode };
 
 export interface SavedWindowState {

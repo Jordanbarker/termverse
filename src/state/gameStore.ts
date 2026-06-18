@@ -42,7 +42,7 @@ import {
   serializeWindow,
   resetPaneIdCounters,
   SavedWindowState,
-} from "./paneTypes";
+} from "@tt/core/terminal/paneTypes";
 
 export interface Toast {
   id: string;
@@ -212,7 +212,7 @@ export const useGameStore = create<GameStore>()(
 
       setUsername: (username) => {
         const state = get();
-        const computerId = getActiveLeaf(state)?.computerId ?? "home";
+        const computerId = (getActiveLeaf(state)?.computerId ?? "home") as ComputerId;
         const fs = buildFs(username, computerId, state.storyFlags, state.deliveredEmailIds);
         let finalFs = fs;
         if (computerId === "nexacorp") {
@@ -252,7 +252,7 @@ export const useGameStore = create<GameStore>()(
           const newFlags = { ...state.storyFlags, [key]: value };
           const activeLeaf = getActiveLeaf(state);
           if (!activeLeaf) return { storyFlags: newFlags };
-          const newIds = findNewlyAvailableChipTopics(newFlags, activeLeaf.computerId, state.notifiedChipTopicIds);
+          const newIds = findNewlyAvailableChipTopics(newFlags, activeLeaf.computerId as ComputerId, state.notifiedChipTopicIds);
           if (newIds.length === 0) return { storyFlags: newFlags };
           return {
             storyFlags: newFlags,
@@ -673,7 +673,7 @@ export const useGameStore = create<GameStore>()(
         // deserialize above, or if the save predates a new ComputerId. Without
         // this rebuild, useTerminal asserts on store.computerState[id]!.fs.
         const leafComputers = new Set<ComputerId>();
-        for (const w of windows) for (const l of allLeaves(w.root)) leafComputers.add(l.computerId);
+        for (const w of windows) for (const l of allLeaves(w.root)) leafComputers.add(l.computerId as ComputerId);
         for (const computerId of leafComputers) {
           if (!computerState[computerId]) {
             const fs = buildFs(username, computerId, storyFlags, (p.deliveredEmailIds as string[]) ?? []);

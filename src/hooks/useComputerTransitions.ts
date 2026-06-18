@@ -325,7 +325,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
    */
   const runExitToParent = useCallback((term: Terminal, target: ComputerId) => {
     const store = useGameStore.getState();
-    const sourceComputer = getActiveLeaf(store)?.computerId;
+    const sourceComputer = getActiveLeaf(store)?.computerId as ComputerId | undefined;
 
     // Restore target cwd from computerState (default to its conventional home dir)
     const targetEntry = store.computerState[target];

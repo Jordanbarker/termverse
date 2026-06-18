@@ -8,7 +8,7 @@ import {
   SaveableState,
 } from "../saveManager";
 import { SAVE_FORMAT_VERSION } from "../saveTypes";
-import { makeWindow, SavedPaneNode } from "../paneTypes";
+import { makeWindow, SavedPaneNode } from "@tt/core/terminal/paneTypes";
 import { ComputerId } from "../types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
