@@ -175,7 +175,7 @@ export default function PuzzleTerminal() {
       return;
     }
     // Pane may have been replaced by a challenge advance; only reprint if it survived.
-    if (runtimes.current.has(paneId)) rt.term.write(getPrompt(paneId));
+    if (runtimes.current.has(paneId)) rt.term.write("\r\n" + getPrompt(paneId));
   }
 
   function onData(paneId: string, data: string) {
