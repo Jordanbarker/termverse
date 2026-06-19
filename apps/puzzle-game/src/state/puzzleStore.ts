@@ -271,7 +271,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
     get().checkCompletion();
   },
 
-  renameWindow: (windowId, name) =>
+  renameWindow: (windowId, name) => {
     set((state) => {
       // Empty/whitespace-only clears the name => label reverts to the derived form.
       const trimmed = name.trim();
@@ -280,5 +280,7 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
           w.id === windowId ? { ...w, name: trimmed ? trimmed : undefined } : w
         ),
       };
-    }),
+    });
+    get().checkCompletion();
+  },
 }));

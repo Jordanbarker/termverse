@@ -11,6 +11,7 @@ import { buildPuzzleFs } from "../lib/seed";
 import { structKey, paneTreeMatches } from "../lib/paneCompare";
 import { PUZZLE_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { panesSplit } from "../challenges/panes-split";
+import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import type { PuzzleSnapshot } from "../challenges/types";
 
@@ -52,6 +53,47 @@ describe("panes-split challenge", () => {
     const win2: WindowState = { ...win, root: r2.root, activePaneId: r2.newPaneId };
     expect(structKey(win2.root)).toBe("(h L (v L L))");
     expect(panesSplit.steps[0].isComplete(snap(win2))).toBe(true);
+  });
+});
+
+describe("windows-create challenge", () => {
+  function makeWindows(n: number): WindowState[] {
+    const wins: WindowState[] = [];
+    for (let i = 0; i < n; i++) {
+      resetPaneIdCounters(); // keep ids unique across the constructed windows
+      wins.push(makeWindow(PUZZLE_MACHINE, HOME_DIR));
+    }
+    return wins;
+  }
+
+  function winSnap(windows: WindowState[]): PuzzleSnapshot {
+    return { activeWindow: windows[0], windows, fs: buildPuzzleFs(), cwd: HOME_DIR };
+  }
+
+  it("advances as windows are opened, then on rename", () => {
+    const [open2nd, open3rd, rename] = windowsCreate.steps;
+
+    // one window: nothing satisfied
+    expect(open2nd.isComplete(winSnap(makeWindows(1)))).toBe(false);
+
+    // two windows: step 0 only
+    const two = makeWindows(2);
+    expect(open2nd.isComplete(winSnap(two))).toBe(true);
+    expect(open3rd.isComplete(winSnap(two))).toBe(false);
+
+    // three windows: step 1 yes, rename still no
+    const three = makeWindows(3);
+    expect(open3rd.isComplete(winSnap(three))).toBe(true);
+    expect(rename.isComplete(winSnap(three))).toBe(false);
+
+    // name one of the three: rename step passes
+    const named = three.map((w, i) => (i === 1 ? { ...w, name: "logs" } : w));
+    expect(rename.isComplete(winSnap(named))).toBe(true);
+  });
+
+  it("exposes a 3-window target with one named window for the strip readout", () => {
+    expect(windowsCreate.targetWindows).toHaveLength(3);
+    expect(windowsCreate.targetWindows!.filter((w) => !!w.name)).toHaveLength(1);
   });
 });
 

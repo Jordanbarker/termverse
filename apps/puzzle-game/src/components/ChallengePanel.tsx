@@ -5,6 +5,7 @@ import { usePuzzleStore } from "../state/puzzleStore";
 import { CHALLENGES } from "../challenges/registry";
 import { readGitState } from "../lib/gitState";
 import SchematicView from "./SchematicView";
+import WindowStripView from "./WindowStripView";
 
 export default function ChallengePanel() {
   const challengeIndex = usePuzzleStore((s) => s.challengeIndex);
@@ -75,6 +76,22 @@ export default function ChallengePanel() {
               <div>
                 <div className="mb-1 text-xs uppercase tracking-wide text-[#e6b450]">Target</div>
                 <SchematicView root={challenge.targetWindow.root} />
+              </div>
+            </div>
+          )}
+
+          {challenge.type === "pane" && challenge.targetWindows && (
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className="mb-1 text-xs uppercase tracking-wide text-[#6b7680]">Current</div>
+                <WindowStripView
+                  windows={windows}
+                  activeIndex={windows.findIndex((w) => w.id === activeWindowId)}
+                />
+              </div>
+              <div>
+                <div className="mb-1 text-xs uppercase tracking-wide text-[#e6b450]">Target</div>
+                <WindowStripView windows={challenge.targetWindows} />
               </div>
             </div>
           )}

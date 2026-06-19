@@ -28,6 +28,8 @@ export interface Challenge {
   setup: (base: VirtualFS) => VirtualFS;
   /** Pane challenges: the layout the player must reproduce (RIGHT schematic). */
   targetWindow?: WindowState;
+  /** Window challenges: the window strip the player must reproduce (RIGHT schematic). */
+  targetWindows?: WindowState[];
   /** Git challenges: the repo path validators + the panel readout point at. */
   gitRepoPath?: string;
 }

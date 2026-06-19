@@ -29,12 +29,13 @@ State: `challengeIndex` + `stepIndex` + `awaitingContinue` (completion-gate flag
 
 `checkCompletion()` early-returns while `completed || awaitingContinue` so the still-passing last step doesn't re-fire during the gate.
 
-It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. Keep validators cheap — they run on every keystroke-completed command.
+It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`/`renameWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. (`renameWindow` re-checks because the `windows-create` challenge gates a step on a window having a `name`.) Keep validators cheap — they run on every keystroke-completed command.
 
 ## Existing challenges (`src/challenges/registry.ts`)
 
 `CHALLENGES` is an ordered, linear array — the player advances one at a time.
 - **`panes-split`** (type `pane`) — reproduce a target layout (`(h L (v L L))`). `targetWindow` is built with the same pure `@tt/core/terminal/paneTypes` helpers (`makeWindow`/`makeLeaf`/`splitNode`) the player drives, so the `a`/`b` split ordering lines up; `isComplete` calls `paneTreeMatches()` (`src/lib/paneCompare.ts`, structural compare that ignores ids).
+- **`windows-create`** (type `pane`, `targetWindows` → panel shows a Current/Target **window strip** via `WindowStripView`, not the pane-tree `SchematicView`) — open a 2nd then 3rd tmux window and rename one. Steps read `s.windows.length` for the count and `s.windows.some(w => !!w.name)` for the rename; no FS seed (`setup: (base) => base`). Uses `>=` so overshoot doesn't strand the player. `targetWindows` is three `makeWindow`s with one named `logs`; the strip diagram shows count + labels (ids don't matter).
 - **`git-first-commit`** (type `git`) — stage + commit in `gitRepoPath`, validated against `@tt/core`'s git engine state via `src/lib/gitState.ts`.
 
 ## Adding a challenge
