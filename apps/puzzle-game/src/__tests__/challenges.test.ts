@@ -14,6 +14,7 @@ import { panesSplit } from "../challenges/panes-split";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import { rmBomb } from "../challenges/rm-bomb";
+import { chmodPerms } from "../challenges/chmod-perms";
 import type { PuzzleSnapshot } from "../challenges/types";
 
 function snap(activeWindow: WindowState, fs = buildPuzzleFs(), cwd = HOME_DIR): PuzzleSnapshot {
@@ -159,5 +160,40 @@ describe("rm-bomb challenge", () => {
     let fs = rmBomb.setup(buildPuzzleFs()).removeNode(BOMB).fs!;
     fs = fs.removeNode("/home/player/work/notes.md").fs!;
     expect(step.isComplete(fsSnap(fs))).toBe(false);
+  });
+});
+
+describe("chmod-perms challenge", () => {
+  const SECRETS = "/home/player/vault/secrets.env";
+  const [unlock] = chmodPerms.steps;
+
+  function fsSnap(fs: ReturnType<typeof buildPuzzleFs>): PuzzleSnapshot {
+    const win = makeWindow(PUZZLE_MACHINE, HOME_DIR);
+    return { activeWindow: win, windows: [win], fs, cwd: HOME_DIR };
+  }
+
+  it("seeds secrets.env locked to 600 (unreadable) with the step unsatisfied", () => {
+    const fs = chmodPerms.setup(buildPuzzleFs());
+    const perms = fs.getNode(SECRETS)?.permissions;
+    expect(perms).toBe("rw-------");
+    // The "other" read bit the engine's readFile() checks is off, so `cat` would fail.
+    expect(perms?.[6]).not.toBe("r");
+    expect(unlock.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("completes once read is granted (chmod +r / 644 → rw-r--r--)", () => {
+    const fs = chmodPerms.setup(buildPuzzleFs()).setPermissions(SECRETS, "rw-r--r--").fs!;
+    expect(unlock.isComplete(fsSnap(fs))).toBe(true);
+  });
+
+  it("stays incomplete while still locked at 600", () => {
+    const fs = chmodPerms.setup(buildPuzzleFs()).setPermissions(SECRETS, "rw-------").fs!;
+    expect(unlock.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("does NOT complete on owner-only read (u+r) — the other bit is still off", () => {
+    const fs = chmodPerms.setup(buildPuzzleFs()).setPermissions(SECRETS, "rw-------").fs!;
+    // chmod u+r leaves index 6 unchanged, so the file still can't be cat'd.
+    expect(unlock.isComplete(fsSnap(fs))).toBe(false);
   });
 });

@@ -49,6 +49,7 @@ export default function ChallengePanel() {
         </select>
       </div>
 
+      <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-y-auto">
       {flash && (
         <div className="rounded border border-[#2e7d32] bg-[#11231a] px-3 py-2 text-sm text-[#7ee787]">
           {flash}
@@ -75,7 +76,7 @@ export default function ChallengePanel() {
             </div>
           </div>
 
-          <p className="rounded bg-[#11161d] p-3 text-sm leading-relaxed text-[#b3b1ad]">
+          <p className="whitespace-pre-line rounded bg-[#11161d] p-3 text-sm leading-relaxed text-[#b3b1ad]">
             {challenge.steps[stepIndex]?.instruction}
           </p>
 
@@ -125,8 +126,9 @@ export default function ChallengePanel() {
           </button>
         </div>
       )}
+      </div>
 
-      <div className="mt-auto text-xs leading-relaxed text-[#4a5560]">
+      <div className="text-xs leading-relaxed text-[#4a5560]">
         Prefix is <span className="text-[#b3b1ad]">Ctrl+Space</span>. Split: prefix then{" "}
         <span className="text-[#b3b1ad]">|</span> / <span className="text-[#b3b1ad]">-</span>. Move
         focus: prefix then arrows. Windows: prefix then{" "}

@@ -18,14 +18,21 @@ function rows(node: FSNode, depth: number): React.ReactElement[] {
   const indent = { paddingLeft: `${depth * 14}px` };
   const target = isTarget(node.name);
   const label = isDirectory(node) ? `${node.name}/` : node.name;
+  const typeChar = isDirectory(node) ? "d" : "-";
   const out: React.ReactElement[] = [
     <div
       key={`${depth}-${node.name}`}
-      style={{ ...indent, color: target ? "#ff7b72" : isDirectory(node) ? "#6cb6ff" : "#b3b1ad" }}
-      className="truncate"
+      className="flex items-baseline gap-2 truncate"
+      style={{ color: target ? "#ff7b72" : isDirectory(node) ? "#6cb6ff" : "#b3b1ad" }}
     >
-      {target ? "💣 " : ""}
-      {label}
+      <span className="text-[#6b7680]">
+        {typeChar}
+        {node.permissions}
+      </span>
+      <span style={indent} className="truncate">
+        {target ? "💣 " : ""}
+        {label}
+      </span>
     </div>,
   ];
   if (isDirectory(node)) {
