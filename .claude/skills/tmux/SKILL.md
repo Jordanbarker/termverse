@@ -133,7 +133,7 @@ Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed
 
 **Single-focused-xterm invariant:** `sessionMapRef` and the global cwd/computer refs are keyed on `activePaneId`, so input routes to the right session — keep this invariant when touching focus logic.
 
-`PaneDividers.tsx` overlays one draggable seam per split (computed from the tree, positioned via `nodeBox`); drag converts client coords → ratio and calls `resizePane(splitId, ratio)`. `TabBar.tsx` is the tmux status line: a `[session]` block, window labels (a custom `name` if set, else `index:host:dir`, with a `(n)` pane count, `*` on current), and a "+" dropdown offering home plus only machines with an open pane. Two prompts can take over the status line: the `<prefix> x` `kill-pane? (y/n)` confirm and the `<prefix> r` `(rename-window) <text>` inline text input (both passed in as props, gated in `onData` by `closeConfirmRef`/`renameActiveRef`).
+`PaneDividers.tsx` overlays one draggable seam per split (computed from the tree, positioned via `nodeBox`); drag converts client coords → ratio and calls `resizePane(splitId, ratio)`. A seam bordering the active pane splits half/half — gold (`#e6b450`) flush to the active pane's edge, grey (`#3d4751`) on the inactive neighbour's — so each side shows which pane owns it; other seams are a single dim line that goes gold on hover/drag. `TabBar.tsx` is the tmux status line: a `[session]` block, window labels (a custom `name` if set, else `index:host:dir`, with a `(n)` pane count, `*` on current), and a "+" dropdown offering home plus only machines with an open pane. Two prompts can take over the status line: the `<prefix> x` `kill-pane? (y/n)` confirm and the `<prefix> r` `(rename-window) <text>` inline text input (both passed in as props, gated in `onData` by `closeConfirmRef`/`renameActiveRef`).
 
 ## Adding / Extending
 
@@ -143,7 +143,7 @@ Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed
 - **New copy-mode key:** add it to the `CopyModeController` keydown handler.
 - **Tree changes:** keep `@tt/core/terminal/paneTypes` helpers pure and add cases to `apps/terminal-turmoil/src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
 
-Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md).
+Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md). The unit tests cover the pure tree model but **not** rendering — for visual changes to `PaneDividers`/splits/focus, also run the browser harness `npm run screenshot:panes` (needs a dev server up; `scripts/visual/pane-dividers.mjs`). It drives the rendered terminal via tmux chords, screenshots single → h-split → 2×2 layouts into `screenshots/` (gitignored), and asserts the gold/grey active-pane seam coloring from the live DOM. Point it elsewhere with `TT_URL` (e.g. the puzzle-game dev server).
 
 ## Design Principles
 

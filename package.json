@@ -17,7 +17,8 @@
     "analyze": "npm -w @tt/terminal-turmoil run analyze",
     "generate-data": "npm -w @tt/terminal-turmoil run generate-data",
     "dev:puzzle": "npm -w @tt/puzzle-game run dev",
-    "build:puzzle": "npm -w @tt/puzzle-game run build"
+    "build:puzzle": "npm -w @tt/puzzle-game run build",
+    "screenshot:panes": "node scripts/visual/pane-dividers.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -26,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "playwright": "1.61.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.0.18"
