@@ -8,6 +8,7 @@ import "@xterm/xterm/css/xterm.css";
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { allLeaves, paneRects, nodeBox } from "@tt/core/terminal/paneTypes";
+import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { EditorSession } from "@tt/core/editor/EditorSession";
 import { LessSession } from "@tt/core/pager/LessSession";
@@ -308,6 +309,7 @@ export default function PuzzleTerminal() {
     const container = document.createElement("div");
     container.style.position = "absolute";
     container.style.overflow = "hidden";
+    container.style.padding = PANE_CHROME.padding;
     container.addEventListener("mousedown", () => {
       usePuzzleStore.getState().setActivePane(paneId);
       runtimes.current.get(paneId)?.term.focus();
@@ -390,8 +392,8 @@ export default function PuzzleTerminal() {
         top: `${r.y}px`,
         width: `${r.w}px`,
         height: `${r.h}px`,
-        outline: multi && leaf.id === activeWindow.activePaneId ? "1px solid #e6b450" : "none",
-        outlineOffset: "-1px",
+        outline: multi && leaf.id === activeWindow.activePaneId ? PANE_CHROME.activeOutline : "none",
+        outlineOffset: PANE_CHROME.outlineOffset,
       });
       try { rt.fit.fit(); } catch { /* ignore */ }
     }

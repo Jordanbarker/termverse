@@ -8,6 +8,7 @@ import TabBar from "./TabBar";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../../state/gameStore";
 import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "@tt/core/terminal/paneTypes";
+import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "@tt/core/lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
@@ -498,7 +499,7 @@ export default function TabManager() {
         if (instances.has(leaf.id)) continue;
         const containerEl = document.createElement("div");
         containerEl.className = "absolute";
-        containerEl.style.padding = "8px";
+        containerEl.style.padding = PANE_CHROME.padding;
         containerEl.style.left = "0";
         containerEl.style.top = "0";
         containerEl.style.width = "100%";
@@ -587,8 +588,8 @@ export default function TabManager() {
       el.style.width = `${r.w}px`;
       el.style.height = `${r.h}px`;
       const isActivePane = id === activePaneId;
-      el.style.outline = isActivePane && multi ? "1px solid #e6b450" : "none";
-      el.style.outlineOffset = "-1px";
+      el.style.outline = isActivePane && multi ? PANE_CHROME.activeOutline : "none";
+      el.style.outlineOffset = PANE_CHROME.outlineOffset;
       // Lift the active pane above its sibling panes so the later-painted neighbor
       // below/right can't repaint over the abutting (inset) edge of its outline —
       // otherwise the bottom/right side of the gold box goes missing. Stays below the
