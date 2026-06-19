@@ -45,7 +45,7 @@ const XTERM_OPTIONS = {
   fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
   fontSize: 14,
   lineHeight: 1.2,
-  cursorBlink: true,
+  cursorBlink: false,
   cursorStyle: "block" as const,
   allowProposedApi: true,
 };
