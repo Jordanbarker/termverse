@@ -50,22 +50,30 @@ interface PaneRect {
 }
 
 /**
- * True if a divider's center line abuts an edge of the active pane (and their
- * cross-axis ranges overlap). Such a seam IS the active pane's border on that
- * side, so it should render gold — matching tmux's pane-active-border-style and
- * filling the bottom/right edge the seam would otherwise paint over.
+ * Which side of a divider the active pane sits on, if the divider abuts an edge
+ * of the active pane (and their cross-axis ranges overlap) — else `null`.
+ * The seam is then split half/half: gold flush to the active pane's edge, grey
+ * flush to the inactive neighbour's edge, so the colour shows which pane owns
+ * each side of the shared border.
+ *   "h" divider (vertical line): "L" = active pane left, "R" = active pane right.
+ *   "v" divider (horizontal line): "T" = active pane above, "B" = active pane below.
  */
-function bordersActivePane(d: DividerRect, active: PaneRect): boolean {
+type ActiveSide = "L" | "R" | "T" | "B" | null;
+function activeSide(d: DividerRect, active: PaneRect): ActiveSide {
   if (d.direction === "h") {
     const lineX = d.x + DIVIDER_THICKNESS / 2;
-    const touchesEdge = Math.abs(lineX - active.x) <= 1 || Math.abs(lineX - (active.x + active.w)) <= 1;
     const overlaps = active.y < d.boxY + d.boxH && active.y + active.h > d.boxY;
-    return touchesEdge && overlaps;
+    if (!overlaps) return null;
+    if (Math.abs(lineX - active.x) <= 1) return "R"; // active pane's left edge is the seam
+    if (Math.abs(lineX - (active.x + active.w)) <= 1) return "L"; // active pane's right edge is the seam
+    return null;
   }
   const lineY = d.y + DIVIDER_THICKNESS / 2;
-  const touchesEdge = Math.abs(lineY - active.y) <= 1 || Math.abs(lineY - (active.y + active.h)) <= 1;
   const overlaps = active.x < d.boxX + d.boxW && active.x + active.w > d.boxX;
-  return touchesEdge && overlaps;
+  if (!overlaps) return null;
+  if (Math.abs(lineY - active.y) <= 1) return "B"; // active pane's top edge is the seam
+  if (Math.abs(lineY - (active.y + active.h)) <= 1) return "T"; // active pane's bottom edge is the seam
+  return null;
 }
 
 interface PaneDividersProps {
@@ -90,7 +98,7 @@ export default function PaneDividers({ root, width, height, onResize, activePane
   return (
     <div ref={layerRef} className="absolute inset-0 z-10" style={{ pointerEvents: "none" }}>
       {dividers.map((d) => {
-        const active = activePaneRect ? bordersActivePane(d, activePaneRect) : false;
+        const side = activePaneRect ? activeSide(d, activePaneRect) : null;
         return (
         <div
           key={d.splitId}
@@ -125,20 +133,39 @@ export default function PaneDividers({ root, width, height, onResize, activePane
             pointerEvents: "auto",
           }}
         >
-          {/* Centered line in the hit-strip. Gold when it borders the active pane
-              (it IS that pane's border on this side) or on hover/drag; else dim. */}
-          <div
-            className={
-              active
-                ? "absolute bg-[#e6b450] transition-colors"
-                : "absolute bg-[#3d4751] group-hover:bg-[#e6b450] transition-colors"
-            }
-            style={
-              d.direction === "h"
-                ? { left: "50%", top: 0, width: 1, height: "100%", transform: "translateX(-50%)", pointerEvents: "none" }
-                : { top: "50%", left: 0, height: 1, width: "100%", transform: "translateY(-50%)", pointerEvents: "none" }
-            }
-          />
+          {/* The seam line, centered in the hit-strip. When it borders the active
+              pane it splits half/half — gold flush to the active pane's edge, grey
+              flush to the inactive neighbour's — so each side shows which pane owns
+              it. Otherwise it's a single dim line that goes gold on hover/drag. */}
+          {side ? (
+            <>
+              <div
+                className="absolute bg-[#e6b450]"
+                style={
+                  d.direction === "h"
+                    ? { left: "50%", top: 0, width: 1, height: "100%", transform: side === "L" ? "translateX(-1px)" : "translateX(0)", pointerEvents: "none" }
+                    : { top: "50%", left: 0, height: 1, width: "100%", transform: side === "T" ? "translateY(-1px)" : "translateY(0)", pointerEvents: "none" }
+                }
+              />
+              <div
+                className="absolute bg-[#3d4751]"
+                style={
+                  d.direction === "h"
+                    ? { left: "50%", top: 0, width: 1, height: "100%", transform: side === "L" ? "translateX(0)" : "translateX(-1px)", pointerEvents: "none" }
+                    : { top: "50%", left: 0, height: 1, width: "100%", transform: side === "T" ? "translateY(0)" : "translateY(-1px)", pointerEvents: "none" }
+                }
+              />
+            </>
+          ) : (
+            <div
+              className="absolute bg-[#3d4751] group-hover:bg-[#e6b450] transition-colors"
+              style={
+                d.direction === "h"
+                  ? { left: "50%", top: 0, width: 1, height: "100%", transform: "translateX(-50%)", pointerEvents: "none" }
+                  : { top: "50%", left: 0, height: 1, width: "100%", transform: "translateY(-50%)", pointerEvents: "none" }
+              }
+            />
+          )}
         </div>
         );
       })}

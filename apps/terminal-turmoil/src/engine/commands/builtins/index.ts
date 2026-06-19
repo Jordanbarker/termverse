@@ -3,6 +3,9 @@
 // game's story-coupled builtins (machine topology, player identity,
 // checkpoints) which also self-register into the same registry.
 import "@tt/core/commands/builtins";
+import "./save";
+import "./load";
+import "./newgame";
 import "./hostname";
 import "./shutdown";
 import "./mail";

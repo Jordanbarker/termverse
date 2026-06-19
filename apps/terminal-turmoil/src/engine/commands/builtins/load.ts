@@ -1,5 +1,5 @@
 import { CommandHandler } from "@tt/core/commands/types";
-import { register } from "../registry";
+import { register } from "@tt/core/commands/registry";
 
 const VALID_SLOTS = ["1", "2", "3", "auto"];
 
