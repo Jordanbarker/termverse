@@ -25,6 +25,8 @@ export const windowsCreate: Challenge = {
   title: "Open more windows",
   type: "pane",
   targetWindows,
+  // Pure keyboard-chord challenge — no shell commands needed.
+  commands: [],
   setup: (base) => base,
   steps: [
     {

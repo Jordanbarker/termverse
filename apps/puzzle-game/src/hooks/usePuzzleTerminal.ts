@@ -1,6 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 import { expandAliases, parseChainedPipeline } from "@tt/core/commands/parser";
-import { execute, executeAsync, isAsyncCommand, getCommandList } from "@tt/core/commands/registry";
+import { execute, executeAsync, isAsyncCommand, getAvailableCommands } from "@tt/core/commands/registry";
 import { computeEffects, type ApplyContext, type SessionToStart } from "@tt/core/commands/applyResult";
 import type { CommandContext, CommandResult } from "@tt/core/commands/types";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
@@ -8,6 +8,8 @@ import { findLeaf } from "@tt/core/terminal/paneTypes";
 import type { SuggestionContext } from "@tt/core/suggestions/suggest";
 // Side-effect import: registers every builtin (ls/cd/cat/git/echo/...) into the registry.
 import "@tt/core/commands/builtins";
+// Side-effect import: registers the per-challenge command-allowlist policy.
+import "../lib/availabilityPolicy";
 
 import { usePuzzleStore } from "../state/puzzleStore";
 import { PUZZLE_MACHINE, HOME_DIR, USERNAME, GIT_AUTHOR } from "../lib/machine";
@@ -35,8 +37,9 @@ export function getPrompt(paneId: string): string {
 
 /**
  * Build the context the shared `@tt/core/suggestions` engine needs for ghost-text
- * autosuggestions and TAB completion in a given pane. The puzzle machine has no
- * story-flag gating, so every registered builtin is completable (`getCommandList`).
+ * autosuggestions and TAB completion in a given pane. Completable commands honor
+ * the current challenge's allowlist (`getAvailableCommands`), so suggestions match
+ * what `help` lists.
  */
 export function buildSuggestionContext(paneId: string): SuggestionContext {
   const { windows, fs, aliases } = usePuzzleStore.getState();
@@ -44,7 +47,7 @@ export function buildSuggestionContext(paneId: string): SuggestionContext {
   const cwd = win ? findLeaf(win.root, paneId)?.cwd ?? HOME_DIR : HOME_DIR;
   return {
     commandHistory: parseZshHistory(fs.readFile(HIST_PATH).content ?? ""),
-    commandNames: getCommandList().map((c) => c.name),
+    commandNames: getAvailableCommands(PUZZLE_MACHINE).map((c) => c.name),
     aliasNames: Object.keys(aliases),
     aliases,
     fs,

@@ -34,4 +34,10 @@ export interface Challenge {
   gitRepoPath?: string;
   /** Filesystem challenges: the directory the panel readout renders as a tree. */
   fsWatchPath?: string;
+  /**
+   * Commands the player may use in this challenge (primary names; aliases resolve
+   * automatically). Omitted = every registered command is available. `help` and
+   * `clear` are always available regardless of this list.
+   */
+  commands?: string[];
 }

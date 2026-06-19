@@ -28,6 +28,8 @@ export const panesSplit: Challenge = {
   title: "Split the window",
   type: "pane",
   targetWindow,
+  // Pure keyboard-chord challenge — no shell commands needed.
+  commands: [],
   setup: (base) => base,
   steps: [
     {

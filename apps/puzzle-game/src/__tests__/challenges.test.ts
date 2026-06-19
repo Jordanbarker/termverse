@@ -1,4 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import "@tt/core/commands/builtins"; // register builtins so the registry is populated
+import {
+  setAvailabilityPolicy,
+  resetAvailabilityPolicy,
+  isCommandAvailable,
+  unavailableCommandMessage,
+} from "@tt/core/commands/availability";
+import { getAvailableCommands } from "@tt/core/commands/registry";
+import { PUZZLE_AVAILABILITY_POLICY } from "../lib/availabilityPolicy";
+import { CHALLENGES } from "../challenges/registry";
+import { usePuzzleStore } from "../state/puzzleStore";
 import {
   makeWindow,
   makeLeaf,
@@ -195,5 +206,50 @@ describe("chmod-perms challenge", () => {
     const fs = chmodPerms.setup(buildPuzzleFs()).setPermissions(SECRETS, "rw-------").fs!;
     // chmod u+r leaves index 6 unchanged, so the file still can't be cat'd.
     expect(unlock.isComplete(fsSnap(fs))).toBe(false);
+  });
+});
+
+describe("per-challenge command allowlist", () => {
+  // The policy reads the current challenge from the store, so drive it via loadChallenge.
+  const select = (id: string) =>
+    usePuzzleStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === id));
+
+  beforeAll(() => setAvailabilityPolicy(PUZZLE_AVAILABILITY_POLICY));
+  afterAll(() => resetAvailabilityPolicy());
+
+  it("always allows help and clear, regardless of the challenge list", () => {
+    select("panes-split"); // commands: []
+    expect(isCommandAvailable("help", PUZZLE_MACHINE)).toBe(true);
+    expect(isCommandAvailable("clear", PUZZLE_MACHINE)).toBe(true);
+  });
+
+  it("allows exactly the listed commands (plus help/clear) and hides the rest", () => {
+    select("chmod-perms"); // commands: ["chmod", "cat", "ls", "cd", "pwd"]
+    for (const cmd of ["chmod", "cat", "ls", "cd", "pwd"]) {
+      expect(isCommandAvailable(cmd, PUZZLE_MACHINE)).toBe(true);
+    }
+    expect(isCommandAvailable("git", PUZZLE_MACHINE)).toBe(false);
+    expect(isCommandAvailable("rm", PUZZLE_MACHINE)).toBe(false);
+
+    const listed = getAvailableCommands(PUZZLE_MACHINE).map((c) => c.name).sort();
+    expect(listed).toEqual(["cat", "cd", "chmod", "clear", "help", "ls", "pwd"]);
+  });
+
+  it("blocks off-list commands with a friendly hint message", () => {
+    select("rm-bomb"); // commands: ["find", "rm", "ls", "cat", "cd", "pwd"]
+    expect(isCommandAvailable("chmod", PUZZLE_MACHINE)).toBe(false);
+    const msg = unavailableCommandMessage("chmod", PUZZLE_MACHINE);
+    expect(msg).toContain("chmod");
+    expect(msg).toContain("this challenge");
+  });
+
+  it("checks aliases by their primary name (python3 → python, not listed → blocked)", () => {
+    select("git-first-commit"); // commands: ["git", "ls", "cat", "cd", "pwd"]
+    // python3 resolves to primary `python`, which isn't listed → unavailable.
+    expect(isCommandAvailable("python3", PUZZLE_MACHINE)).toBe(false);
+    // getAvailableCommands lists primaries only (no aliases leak in).
+    const listed = getAvailableCommands(PUZZLE_MACHINE).map((c) => c.name);
+    expect(listed).not.toContain("python3");
+    expect(listed.sort()).toEqual(["cat", "cd", "clear", "git", "help", "ls", "pwd"]);
   });
 });

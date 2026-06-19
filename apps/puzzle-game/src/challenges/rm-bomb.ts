@@ -49,6 +49,7 @@ export const rmBomb: Challenge = {
   title: "Defuse the BOMB",
   type: "fs",
   fsWatchPath: WORK_DIR,
+  commands: ["find", "rm", "ls", "cat", "cd", "pwd"],
   setup,
   steps: [
     {

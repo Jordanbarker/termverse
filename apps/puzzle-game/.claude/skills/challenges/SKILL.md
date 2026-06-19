@@ -14,11 +14,12 @@ This app is built only on `@tt/core` and does **not** import terminal-turmoil st
 - **`PuzzleSnapshot`** — the slice of state a validator may read, built fresh by `checkCompletion`:
   `{ activeWindow: WindowState; windows: WindowState[]; fs: VirtualFS; cwd: string }`.
 - **`Step`** — `{ instruction: string; isComplete: (s: PuzzleSnapshot) => boolean }`. The predicate must be **pure** (read-only over the snapshot).
-- **`Challenge`** — `{ id, title, type: "pane" | "git" | "fs", steps: Step[], setup(base) => VirtualFS, targetWindow?, targetWindows?, gitRepoPath?, fsWatchPath? }`.
+- **`Challenge`** — `{ id, title, type: "pane" | "git" | "fs", steps: Step[], setup(base) => VirtualFS, targetWindow?, targetWindows?, gitRepoPath?, fsWatchPath?, commands? }`.
   - `setup` seeds the challenge FS on top of `buildPuzzleFs()` (`src/lib/seed.ts`).
   - Pane challenges set `targetWindow`/`targetWindows` (the RIGHT-hand schematic the player reproduces).
   - Git challenges set `gitRepoPath` (where the validators + panel readout point).
   - FS challenges set `fsWatchPath` (the directory the panel renders as a tree via `FsTreeView`).
+  - `commands?: string[]` — per-challenge **command allowlist** (primary names; aliases resolve via `getPrimaryName`). When set, only these commands appear in `help` + TAB/ghost-text suggestions and run; everything else prints a friendly hint (exit 127). Omit it for allow-all. `help` and `clear` are **always** available. Enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts` (registered as a side-effect import in `hooks/usePuzzleTerminal.ts`), which reads the current challenge from the store. Existing lists: `panes-split`/`windows-create` → `[]` (keyboard-only); `git-first-commit` → git+nav; `rm-bomb` → find/rm+nav; `chmod-perms` → chmod/cat+nav.
 
 ## Win-detection (`src/state/puzzleStore.ts`)
 
@@ -45,5 +46,6 @@ It's invoked after every command and after **structural** pane/window mutations 
 
 1. Create `src/challenges/<id>.ts` exporting a `Challenge`. Write `setup` to seed only what the challenge needs on top of `buildPuzzleFs()`. For pane challenges build `targetWindow` with `paneTypes` helpers (don't hand-author ids — the compare ignores them). For git challenges set `gitRepoPath` and read state via `gitState.ts`.
 2. Author each `Step` with a clear `instruction` and a pure `isComplete` predicate over `PuzzleSnapshot`.
-3. Append it to `CHALLENGES` in `registry.ts` (order = play order).
-4. Cover it in `src/__tests__/challenges.test.ts`, then `npm run typecheck` + `npx vitest run`.
+3. Set `commands` to the allowlist the player needs (primary names; `help`/`clear` are implicit). Keyboard-only challenges use `[]`; omit the field only if you genuinely want every builtin available.
+4. Append it to `CHALLENGES` in `registry.ts` (order = play order).
+5. Cover it in `src/__tests__/challenges.test.ts`, then `npm run typecheck` + `npx vitest run`.

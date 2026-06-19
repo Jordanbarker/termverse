@@ -26,6 +26,7 @@ export const gitFirstCommit: Challenge = {
   title: "Make your first commit",
   type: "git",
   gitRepoPath: PROJECT_DIR,
+  commands: ["git", "ls", "cat", "cd", "pwd"],
   setup,
   steps: [
     {
