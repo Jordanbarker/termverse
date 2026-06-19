@@ -51,6 +51,7 @@ export interface PuzzleState {
 
   // lifecycle
   loadChallenge: (index: number) => void;
+  restartChallenge: () => void;
   checkCompletion: () => void;
   continueToNext: () => void;
   clearFlash: () => void;
@@ -144,6 +145,10 @@ export const usePuzzleStore = create<PuzzleState>((set, get) => ({
       set({ completed: true, flash: "✓ All challenges complete" });
     }
   },
+
+  // Re-seed the current challenge (fs + panes + steps). Used to recover from a
+  // destructive dead-end like `rm -rf` wiping a challenge's survivors.
+  restartChallenge: () => get().loadChallenge(get().challengeIndex),
 
   continueToNext: () => {
     const state = get();

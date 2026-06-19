@@ -6,6 +6,7 @@ import { CHALLENGES } from "../challenges/registry";
 import { readGitState } from "../lib/gitState";
 import SchematicView from "./SchematicView";
 import WindowStripView from "./WindowStripView";
+import FsTreeView from "./FsTreeView";
 
 export default function ChallengePanel() {
   const challengeIndex = usePuzzleStore((s) => s.challengeIndex);
@@ -17,6 +18,8 @@ export default function ChallengePanel() {
   const activeWindowId = usePuzzleStore((s) => s.activeWindowId);
   const fs = usePuzzleStore((s) => s.fs);
   const clearFlash = usePuzzleStore((s) => s.clearFlash);
+  const restartChallenge = usePuzzleStore((s) => s.restartChallenge);
+  const loadChallenge = usePuzzleStore((s) => s.loadChallenge);
 
   // Auto-clear the transient "✓ complete" banner.
   useEffect(() => {
@@ -30,11 +33,20 @@ export default function ChallengePanel() {
 
   return (
     <aside className="flex h-full w-[420px] shrink-0 flex-col gap-4 border-l border-[#1c2430] bg-[#0d1117] p-5 text-[#b3b1ad]">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-sm font-semibold tracking-wide text-[#e6b450]">TERMINAL PUZZLES</h1>
-        <span className="text-xs text-[#6b7680]">
-          Challenge {Math.min(challengeIndex + 1, CHALLENGES.length)}/{CHALLENGES.length}
-        </span>
+        <select
+          aria-label="Select challenge"
+          value={challengeIndex}
+          onChange={(e) => loadChallenge(Number(e.target.value))}
+          className="max-w-[200px] truncate rounded border border-[#1c2430] bg-[#11161d] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
+        >
+          {CHALLENGES.map((c, i) => (
+            <option key={c.id} value={i}>
+              {i + 1}/{CHALLENGES.length} · {c.title}
+            </option>
+          ))}
+        </select>
       </div>
 
       {flash && (
@@ -99,6 +111,18 @@ export default function ChallengePanel() {
           {challenge.type === "git" && challenge.gitRepoPath && (
             <GitReadout fs={fs} repoPath={challenge.gitRepoPath} />
           )}
+
+          {challenge.type === "fs" && challenge.fsWatchPath && (
+            <FsTreeView fs={fs} watchPath={challenge.fsWatchPath} />
+          )}
+
+          <button
+            type="button"
+            onClick={restartChallenge}
+            className="self-start rounded border border-[#3d4751] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad]"
+          >
+            ↺ Restart challenge
+          </button>
         </div>
       )}
 

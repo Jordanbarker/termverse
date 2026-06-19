@@ -13,6 +13,7 @@ import { PUZZLE_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { panesSplit } from "../challenges/panes-split";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
+import { rmBomb } from "../challenges/rm-bomb";
 import type { PuzzleSnapshot } from "../challenges/types";
 
 function snap(activeWindow: WindowState, fs = buildPuzzleFs(), cwd = HOME_DIR): PuzzleSnapshot {
@@ -119,5 +120,44 @@ describe("git-first-commit challenge", () => {
     // git commit -m "init"
     fs = gitCommit(fs, repo, "init", GIT_AUTHOR, false, false, 1_700_000_000_000).fs;
     expect(gitFirstCommit.steps[1].isComplete(at(fs))).toBe(true);
+  });
+});
+
+describe("rm-bomb challenge", () => {
+  const BOMB = "/home/player/work/reports/2024/BOMB.md";
+  const PARENT = "/home/player/work/reports/2024";
+  const SIBLING = "/home/player/work/reports/2024/q1.md";
+  const step = rmBomb.steps[0];
+
+  function fsSnap(fs = rmBomb.setup(buildPuzzleFs())): PuzzleSnapshot {
+    const win = makeWindow(PUZZLE_MACHINE, HOME_DIR);
+    return { activeWindow: win, windows: [win], fs, cwd: HOME_DIR };
+  }
+
+  it("seeds BOMB.md alongside survivors", () => {
+    const fs = rmBomb.setup(buildPuzzleFs());
+    expect(fs.getNode(BOMB)).not.toBeNull();
+    for (const p of [SIBLING, "/home/player/work/notes.md", "/home/player/work/reports/summary.md"]) {
+      expect(fs.getNode(p)).not.toBeNull();
+    }
+    expect(step.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("completes when only BOMB.md is removed", () => {
+    const fs = rmBomb.setup(buildPuzzleFs()).removeNode(BOMB).fs!;
+    expect(step.isComplete(fsSnap(fs))).toBe(true);
+  });
+
+  it("does NOT complete when rm -rf takes the whole parent dir (sibling lost)", () => {
+    const fs = rmBomb.setup(buildPuzzleFs()).removeNode(PARENT).fs!;
+    expect(fs.getNode(BOMB)).toBeNull(); // bomb gone...
+    expect(fs.getNode(SIBLING)).toBeNull(); // ...but so is q1.md
+    expect(step.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("does NOT complete when a survivor is also removed", () => {
+    let fs = rmBomb.setup(buildPuzzleFs()).removeNode(BOMB).fs!;
+    fs = fs.removeNode("/home/player/work/notes.md").fs!;
+    expect(step.isComplete(fsSnap(fs))).toBe(false);
   });
 });

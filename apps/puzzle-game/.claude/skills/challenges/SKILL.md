@@ -14,10 +14,11 @@ This app is built only on `@tt/core` and does **not** import terminal-turmoil st
 - **`PuzzleSnapshot`** — the slice of state a validator may read, built fresh by `checkCompletion`:
   `{ activeWindow: WindowState; windows: WindowState[]; fs: VirtualFS; cwd: string }`.
 - **`Step`** — `{ instruction: string; isComplete: (s: PuzzleSnapshot) => boolean }`. The predicate must be **pure** (read-only over the snapshot).
-- **`Challenge`** — `{ id, title, type: "pane" | "git", steps: Step[], setup(base) => VirtualFS, targetWindow?, gitRepoPath? }`.
+- **`Challenge`** — `{ id, title, type: "pane" | "git" | "fs", steps: Step[], setup(base) => VirtualFS, targetWindow?, targetWindows?, gitRepoPath?, fsWatchPath? }`.
   - `setup` seeds the challenge FS on top of `buildPuzzleFs()` (`src/lib/seed.ts`).
-  - Pane challenges set `targetWindow` (the RIGHT-hand schematic the player reproduces).
+  - Pane challenges set `targetWindow`/`targetWindows` (the RIGHT-hand schematic the player reproduces).
   - Git challenges set `gitRepoPath` (where the validators + panel readout point).
+  - FS challenges set `fsWatchPath` (the directory the panel renders as a tree via `FsTreeView`).
 
 ## Win-detection (`src/state/puzzleStore.ts`)
 
@@ -37,6 +38,7 @@ It's invoked after every command and after **structural** pane/window mutations 
 - **`panes-split`** (type `pane`) — reproduce a target layout (`(h L (v L L))`). `targetWindow` is built with the same pure `@tt/core/terminal/paneTypes` helpers (`makeWindow`/`makeLeaf`/`splitNode`) the player drives, so the `a`/`b` split ordering lines up; `isComplete` calls `paneTreeMatches()` (`src/lib/paneCompare.ts`, structural compare that ignores ids).
 - **`windows-create`** (type `pane`, `targetWindows` → panel shows a Current/Target **window strip** via `WindowStripView`, not the pane-tree `SchematicView`) — open a 2nd then 3rd tmux window and rename one. Steps read `s.windows.length` for the count and `s.windows.some(w => !!w.name)` for the rename; no FS seed (`setup: (base) => base`). Uses `>=` so overshoot doesn't strand the player. `targetWindows` is three `makeWindow`s with one named `logs`; the strip diagram shows count + labels (ids don't matter).
 - **`git-first-commit`** (type `git`) — stage + commit in `gitRepoPath`, validated against `@tt/core`'s git engine state via `src/lib/gitState.ts`.
+- **`rm-bomb`** (type `fs`, `fsWatchPath` → panel shows the `~/work` subtree via `FsTreeView`) — `find` then `rm` a nested `BOMB.md` without deleting its neighbors. `setup` seeds `BOMB.md` beside a sibling inside a nested dir plus other survivors; the single step's predicate is `fs.getNode(BOMB_PATH) === null && SURVIVORS.every(p => fs.getNode(p) !== null)`, so any `rm -rf` of `~/work` (or of `BOMB.md`'s own dir, which also takes the sibling) deletes a survivor and never passes. Because that soft-locks the run, the panel exposes a **Restart challenge** button wired to the store's `restartChallenge()` (re-runs `loadChallenge(challengeIndex)` to re-seed the current sandbox).
 
 ## Adding a challenge
 

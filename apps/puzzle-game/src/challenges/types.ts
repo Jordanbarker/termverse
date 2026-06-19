@@ -22,7 +22,7 @@ export interface Step {
 export interface Challenge {
   id: string;
   title: string;
-  type: "pane" | "git";
+  type: "pane" | "git" | "fs";
   steps: Step[];
   /** Seed FS for this challenge, applied on top of buildPuzzleFs(). */
   setup: (base: VirtualFS) => VirtualFS;
@@ -32,4 +32,6 @@ export interface Challenge {
   targetWindows?: WindowState[];
   /** Git challenges: the repo path validators + the panel readout point at. */
   gitRepoPath?: string;
+  /** Filesystem challenges: the directory the panel readout renders as a tree. */
+  fsWatchPath?: string;
 }
