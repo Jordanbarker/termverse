@@ -153,8 +153,8 @@ export default function PuzzleTerminal() {
       case "\x1b[B": store.focusDirection("D"); break;
       // window chords
       case "c": store.newWindow(); break;
-      case "n": store.cycleWindow("next"); break;
-      case "p": store.cycleWindow("prev"); break;
+      case "n": case ".": store.cycleWindow("next"); break;
+      case "p": case ",": store.cycleWindow("prev"); break;
       case "r": beginRename(); break;
       default:
         // Jump to window N (1-indexed); ignore everything else.

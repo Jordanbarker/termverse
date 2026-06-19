@@ -213,13 +213,13 @@ export default function TabManager() {
       renameBufferRef.current = win?.name ?? "";
       renameActiveRef.current = true;
       setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
-    } else if (normalized === "n") {
-      // Next window
+    } else if (normalized === "n" || key === ".") {
+      // Next window (n or .)
       const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
       const nextIdx = (idx + 1) % store.windows.length;
       store.setActiveWindow(store.windows[nextIdx].id);
-    } else if (normalized === "p") {
-      // Previous window
+    } else if (normalized === "p" || key === ",") {
+      // Previous window (p or ,)
       const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
       const prevIdx = (idx - 1 + store.windows.length) % store.windows.length;
       store.setActiveWindow(store.windows[prevIdx].id);

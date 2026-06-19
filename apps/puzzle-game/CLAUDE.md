@@ -16,4 +16,4 @@ A terminal-skills puzzle game built **entirely on `@tt/core`** to prove the engi
 
 ## Window/pane UX
 
-Mirrors the live game's multi-window model on a **static theme** (no `~/.tmux.conf`, no home PC): chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename) alongside pane chords `| - o x` + arrow focus. Prefix = Ctrl+Space. Keep-alive logic mirrors `TabManager.tsx`.
+Mirrors the live game's multi-window model on a **static theme** (no `~/.tmux.conf`, no home PC): chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename; `.`/`,` alias next/prev) alongside pane chords `| - o x` + arrow focus. Prefix = Ctrl+Space. Keep-alive logic mirrors `TabManager.tsx`.
