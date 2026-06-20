@@ -16,6 +16,7 @@ import type { ISession, SessionResult } from "@tt/core/session/types";
 import type { SessionToStart } from "@tt/core/commands/applyResult";
 
 import { LineEditor } from "@tt/core/terminal/lineEditor";
+import { useRenameWindowPrompt } from "@tt/core/terminal/useRenameWindowPrompt";
 
 import { usePuzzleStore } from "../state/puzzleStore";
 import { runLine, getPrompt, buildSuggestionContext } from "../hooks/usePuzzleTerminal";
@@ -61,12 +62,10 @@ export default function PuzzleTerminal() {
   // always in the focused pane). Per-pane consumption still uses PaneRuntime.prefix.
   const [prefixActive, setPrefixActive] = useState(false);
 
-  // tmux rename-window modal: refs are read synchronously inside onData; the
-  // prompt string drives the status-line takeover.
-  const renameActiveRef = useRef(false);
-  const renameBufferRef = useRef("");
-  const renameTargetRef = useRef<string | null>(null);
-  const [renamePrompt, setRenamePrompt] = useState<string | null>(null);
+  // tmux rename-window modal (shared @tt/core hook): drives the status-line takeover.
+  const rename = useRenameWindowPrompt((id, name) =>
+    usePuzzleStore.getState().renameWindow(id, name),
+  );
 
   const windows = usePuzzleStore((s) => s.windows);
   const activeWindowId = usePuzzleStore((s) => s.activeWindowId);
@@ -119,10 +118,7 @@ export default function PuzzleTerminal() {
   function beginRename() {
     const store = usePuzzleStore.getState();
     const win = store.windows.find((w) => w.id === store.activeWindowId);
-    renameTargetRef.current = store.activeWindowId;
-    renameBufferRef.current = win?.name ?? "";
-    renameActiveRef.current = true;
-    setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
+    rename.begin(store.activeWindowId, win?.name ?? "");
   }
 
   function handlePrefix(paneId: string, data: string) {
@@ -176,29 +172,7 @@ export default function PuzzleTerminal() {
     // tmux rename-window modal — route keys here before anything else. (Rename
     // can't begin mid-session since the prefix is gated behind no active session,
     // but gating first matches the live game and is harmless.)
-    if (renameActiveRef.current) {
-      if (data === "\r" || data === "\n") {
-        const target = renameTargetRef.current;
-        if (target) usePuzzleStore.getState().renameWindow(target, renameBufferRef.current);
-      } else if (data === "\x1b" || data === "\x03") {
-        // Esc / Ctrl+C — cancel without applying.
-      } else if (data === "\x7f" || data === "\b") {
-        renameBufferRef.current = renameBufferRef.current.slice(0, -1);
-        setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
-        return;
-      } else if (data.length === 1 && data >= " ") {
-        renameBufferRef.current += data;
-        setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
-        return;
-      } else {
-        return; // ignore other control/escape sequences
-      }
-      renameActiveRef.current = false;
-      renameTargetRef.current = null;
-      renameBufferRef.current = "";
-      setRenamePrompt(null);
-      return;
-    }
+    if (rename.handleData(data)) return;
 
     const session = sessions.current.get(paneId);
     if (session) {
@@ -340,7 +314,7 @@ export default function PuzzleTerminal() {
     <div className="flex h-full w-full flex-col bg-[#0a0e14]">
       <PuzzleTabBar
         prefixActive={prefixActive}
-        renamePrompt={renamePrompt}
+        renamePrompt={rename.prompt}
         onNewWindow={() => usePuzzleStore.getState().newWindow()}
         onSelectWindow={(id) => usePuzzleStore.getState().selectWindow(id)}
         onCloseWindow={(id) => usePuzzleStore.getState().closeWindow(id)}

@@ -15,6 +15,7 @@ import { seedImmediatePiper } from "../../engine/piper/delivery";
 import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "@tt/core/terminal/tmuxConfig";
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
 import { CopyModeController } from "@tt/core/terminal/copyMode";
+import { useRenameWindowPrompt } from "@tt/core/terminal/useRenameWindowPrompt";
 import { sessionUsesAltScreen } from "@tt/core/session/types";
 import { copyToClipboard } from "@tt/core/lib/clipboard";
 import { ComputerId } from "../../state/types";
@@ -156,11 +157,13 @@ export default function TabManager() {
   const closeConfirmRef = useRef(false); // synchronous flag read inside onData
   const paneToCloseRef = useRef<string | null>(null); // which pane the confirm targets
 
-  // tmux rename-window: inline text prompt shown in the status bar.
-  const [renamePrompt, setRenamePrompt] = useState<string | null>(null);
-  const renameActiveRef = useRef(false); // synchronous gate read inside onData
-  const renameBufferRef = useRef(""); // accumulated typed name
-  const renameTargetRef = useRef<string | null>(null); // window id being renamed
+  // tmux rename-window: inline text prompt shown in the status bar (shared @tt/core hook).
+  // begin/handleData are referentially stable; renamePrompt drives the status bar.
+  const {
+    begin: beginRename,
+    handleData: handleRenameData,
+    prompt: renamePrompt,
+  } = useRenameWindowPrompt((id, name) => useGameStore.getState().renameWindow(id, name));
 
   // Track pane IDs we've seen to tell restored panes (show prompt) from brand-new ones
   const knownPaneIdsRef = useRef<Set<string>>(new Set());
@@ -209,10 +212,7 @@ export default function TabManager() {
     } else if (normalized === "r") {
       // Rename the active window — tmux rename-window (inline text prompt).
       const win = store.windows.find((w) => w.id === store.activeWindowId);
-      renameTargetRef.current = store.activeWindowId;
-      renameBufferRef.current = win?.name ?? "";
-      renameActiveRef.current = true;
-      setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
+      beginRename(store.activeWindowId, win?.name ?? "");
     } else if (normalized === "n" || key === ".") {
       // Next window (n or .)
       const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
@@ -230,7 +230,7 @@ export default function TabManager() {
         store.setActiveWindow(store.windows[winIdx].id);
       }
     }
-  }, []);
+  }, [beginRename]);
 
   // Resize the divider nearest the focused pane by a cell-sized step. tmux moves
   // borders in grid cells; our model is ratio-based, so convert cells -> ratio
@@ -359,32 +359,7 @@ export default function TabManager() {
       if (gamePhaseRef.current !== "playing") return;
 
       // tmux rename-window: the inline prompt consumes keys until Enter/Esc.
-      if (renameActiveRef.current) {
-        if (data === "\r" || data === "\n") {
-          // Commit the new name.
-          const target = renameTargetRef.current;
-          if (target) useGameStore.getState().renameWindow(target, renameBufferRef.current);
-        } else if (data === "\x1b" || data === "\x03") {
-          // Esc / Ctrl+C — cancel without applying.
-        } else if (data === "\x7f" || data === "\b") {
-          // Backspace — drop the last char and keep editing.
-          renameBufferRef.current = renameBufferRef.current.slice(0, -1);
-          setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
-          return;
-        } else if (data.length === 1 && data >= " ") {
-          // Printable character (single byte; skips CSI/arrow escape sequences).
-          renameBufferRef.current += data;
-          setRenamePrompt(`(rename-window) ${renameBufferRef.current}`);
-          return;
-        } else {
-          return; // ignore other control/escape sequences
-        }
-        renameActiveRef.current = false;
-        renameTargetRef.current = null;
-        renameBufferRef.current = "";
-        setRenamePrompt(null);
-        return;
-      }
+      if (handleRenameData(data)) return;
 
       // tmux confirm-before-kill: the next key answers the close prompt.
       if (closeConfirmRef.current) {
@@ -470,7 +445,7 @@ export default function TabManager() {
     });
 
     return { term, fitAddon, containerEl, onDataDisposable, copyMode, lastW: 0, lastH: 0 };
-  }, [handleCtrlBAction, applyResize, armRepeat, clearRepeat]);
+  }, [handleCtrlBAction, applyResize, armRepeat, clearRepeat, handleRenameData]);
 
   // Mount/unmount pane instances when the set of panes changes (split/close/window add)
   useEffect(() => {

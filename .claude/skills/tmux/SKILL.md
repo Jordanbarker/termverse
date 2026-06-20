@@ -9,7 +9,7 @@ The terminal is a faithful tmux model: **windows** (the tabs in the status line,
 
 This skill covers the pane tree model, the Zustand window/pane state and actions, the hardcoded prefix chords, the live `~/.tmux.conf` parsing (prefix/theme/keybindings), repeat-mode resize, copy mode, and how the panes are rendered into xterm.
 
-> **Shared engine:** the pure pane model + helpers live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (see the Architecture map below for the full core-vs-app split). These are reused by the second app `apps/puzzle-game`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + trimmed status line (`PuzzleTabBar.tsx`). The puzzle now mirrors the live game's multi-window UX: a pulsing `PREFIX` indicator, clickable `idx:label (paneCount)` tabs, and chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename; `.`/`,` alias next/prev) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and rename/prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
+> **Shared engine:** the pure pane model + helpers live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (see the Architecture map below for the full core-vs-app split). These are reused by the second app `apps/puzzle-game`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + a thin status-line wrapper (`PuzzleTabBar.tsx`). Both games render the **same** status line and rename prompt from core: `@tt/core/components/TmuxStatusBar` (PREFIX indicator, `idx:label (paneCount)` tabs, modal takeover, app-injected `trailing` control), `@tt/core/terminal/windowLabel` (tab labels), and `@tt/core/terminal/useRenameWindowPrompt` (the `(rename-window)` keystroke handling). The puzzle mirrors the live game's multi-window UX: chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename; `.`/`,` alias next/prev) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
 
 ## Architecture
 
@@ -19,10 +19,14 @@ packages/core/src/terminal/
 ├── paneTypes.ts                # PURE tree model + helpers (no React, no store) (__tests__/)
 ├── tmuxConfig.ts               # parseTmuxPrefix / parseTmuxTheme / parseTmuxBindings (__tests__/)
 ├── copyMode.ts                 # CopyModeController (per-pane vi-style scroller/yanker)
+├── windowLabel.ts              # PURE status-line label derivation (host:dir, (n) count) (__tests__/)
+├── renameWindowPrompt.ts       # PURE applyRenameKey reducer for the rename prompt (__tests__/)
+├── useRenameWindowPrompt.ts    # React hook wrapping applyRenameKey (refs/state + onCommit)
 └── ansiPalette.ts              # ANSI_COLORS — single source of truth for xterm + status-bar colors
 
 packages/core/src/components/
-└── PaneDividers.tsx            # Draggable seams overlaying split boundaries
+├── PaneDividers.tsx            # Draggable seams overlaying split boundaries
+└── TmuxStatusBar.tsx           # Shared tmux status line (PREFIX indicator, tabs, modal takeover, trailing slot)
 
 # APP — apps/terminal-turmoil/src (the narrative game's store + renderer)
 apps/terminal-turmoil/src/state/
@@ -30,7 +34,7 @@ apps/terminal-turmoil/src/state/
 
 apps/terminal-turmoil/src/components/Terminal/
 ├── TabManager.tsx              # Orchestrator: prefix handling, xterm pane lifecycle, layout, copy-mode UI
-└── TabBar.tsx                  # tmux status line ([session] block, window labels, "+" dropdown, kill-pane prompt)
+└── TabBar.tsx                  # thin wrapper over @tt/core TmuxStatusBar (injects the multi-computer "+" dropdown)
 
 apps/terminal-turmoil/src/story/filesystem/home/
 └── dotfiles.ts                 # The player's ~/.tmux.conf (prefix, pane binds, status colors)
@@ -100,7 +104,7 @@ The prefix key arms "prefix mode" (default Ctrl+Space); the next key fires an ac
 | `-` | `splitPane(activePaneId, "v")` — stacked |
 | `o` | `cyclePane()` |
 | `c` | `addWindow(...)` (new window on active pane's computer) |
-| `r` | Rename the active window via an inline `(rename-window) <text>` text prompt in the status bar (type, Backspace edits, Enter applies via `renameWindow`, Esc/Ctrl+C cancels; empty Enter reverts to the derived label) |
+| `r` | Rename the active window via an inline `(rename-window) <text>` text prompt in the status bar (type, Backspace edits, Enter applies via `renameWindow`, Esc/Ctrl+C cancels; empty Enter reverts to the derived label). Keystrokes are handled by the shared `@tt/core/terminal/useRenameWindowPrompt` hook |
 | `x` | Kill **focused pane** via a `confirm-before` `kill-pane? (y/n)` prompt in the status bar (blocked if it's the only pane of the only window) |
 | `n` / `.` | Next window |
 | `p` / `,` | Previous window |
@@ -134,13 +138,14 @@ Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed
 
 **Single-focused-xterm invariant:** `sessionMapRef` and the global cwd/computer refs are keyed on `activePaneId`, so input routes to the right session — keep this invariant when touching focus logic.
 
-`PaneDividers.tsx` overlays one draggable seam per split (computed from the tree, positioned via `nodeBox`); drag converts client coords → ratio and calls `resizePane(splitId, ratio)`. A seam bordering the active pane splits half/half — gold (`#e6b450`) flush to the active pane's edge, grey (`#3d4751`) on the inactive neighbour's — so each side shows which pane owns it; other seams are a single dim line that goes gold on hover/drag. `TabBar.tsx` is the tmux status line: a `[session]` block, window labels (a custom `name` if set, else `index:host:dir`, with a `(n)` pane count, `*` on current), and a "+" dropdown offering home plus only machines with an open pane. Two prompts can take over the status line: the `<prefix> x` `kill-pane? (y/n)` confirm and the `<prefix> r` `(rename-window) <text>` inline text input (both passed in as props, gated in `onData` by `closeConfirmRef`/`renameActiveRef`).
+`PaneDividers.tsx` overlays one draggable seam per split (computed from the tree, positioned via `nodeBox`); drag converts client coords → ratio and calls `resizePane(splitId, ratio)`. A seam bordering the active pane splits half/half — gold (`#e6b450`) flush to the active pane's edge, grey (`#3d4751`) on the inactive neighbour's — so each side shows which pane owns it; other seams are a single dim line that goes gold on hover/drag. The status line is the shared `@tt/core/components/TmuxStatusBar` (window labels via `@tt/core/terminal/windowLabel`: a custom `name` if set, else `index:host:dir` + `(n)` pane count, `*` on current); `TabBar.tsx` wraps it, passing its store-derived props and injecting the "+" dropdown (home plus only machines with an open pane) as the `trailing` slot. Two prompts take over the bar via the shared component's `modalText` prop: the `<prefix> x` `kill-pane? (y/n)` confirm (TT-only, gated in `onData` by `closeConfirmRef`) and the `<prefix> r` `(rename-window) <text>` input, whose keystrokes are owned by the shared `useRenameWindowPrompt` hook (`handleData` consumes keys in `onData`; `begin` opens it; `prompt` feeds `modalText`).
 
 ## Adding / Extending
 
 - **New prefix chord:** add a branch in `TabManager.handleCtrlBAction` keyed on `key`/`normalized`; call the matching store action.
 - **New `.tmux.conf`-driven bind:** the focus/resize parser already covers `select-pane`/`resize-pane`. For a brand-new directive, extend `parseTmuxBindings` (or a new parser) + its `PaneBinding` variant, and add tests in `packages/core/src/terminal/__tests__/tmuxConfig.test.ts`.
 - **Theme colors:** add named colors to `ANSI_COLORS` (keeps xterm + status bar in sync); extend `parseTmuxTheme`/`TabBarTheme` for new style targets.
+- **New status-bar element / modal:** edit the shared `@tt/core/components/TmuxStatusBar` so **both** apps inherit it; pass app-specific bits as props or via the `trailing` slot, and route a new takeover through the `modalText` prop. (TT's multi-computer "+" dropdown stays app-side as the `trailing` node.)
 - **New copy-mode key:** add it to the `CopyModeController` keydown handler.
 - **Tree changes:** keep `@tt/core/terminal/paneTypes` helpers pure and add cases to `apps/terminal-turmoil/src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
 

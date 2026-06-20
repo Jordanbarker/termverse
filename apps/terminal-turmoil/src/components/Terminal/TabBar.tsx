@@ -2,12 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useGameStore } from "../../state/gameStore";
-import { WindowState, allLeaves, findLeaf, firstLeaf } from "@tt/core/terminal/paneTypes";
+import { PaneLeaf, allLeaves } from "@tt/core/terminal/paneTypes";
+import { windowLabel } from "@tt/core/terminal/windowLabel";
 import { COMPUTERS, ComputerId } from "../../state/types";
 import { TabBarTheme } from "@tt/core/terminal/tmuxConfig";
-import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
-
-const PREFIX_BLUE = ANSI_COLORS.blue;
+import TmuxStatusBar from "@tt/core/components/TmuxStatusBar";
 
 interface TabBarProps {
   onNewWindow: (computerId?: ComputerId) => void;
@@ -21,37 +20,6 @@ interface TabBarProps {
   renamePrompt?: string | null;
   /** Bar colors parsed from `~/.tmux.conf` (drives the inline styles). */
   theme: TabBarTheme;
-}
-
-function abbreviateCwd(cwd: string, username: string): string {
-  const homeDir = `/home/${username}`;
-  let display = cwd;
-  if (display === homeDir) return "~";
-  if (display.startsWith(homeDir + "/")) {
-    display = "~" + display.slice(homeDir.length);
-  }
-  // Show only the last path segment for brevity
-  const lastSlash = display.lastIndexOf("/");
-  if (lastSlash > 0) {
-    return display.slice(lastSlash + 1);
-  }
-  return display;
-}
-
-/** A window's status-line label comes from its focused pane; a pane count is
- *  appended (tmux-style) when the window is split. */
-function windowLabel(win: WindowState, username: string): string {
-  const count = allLeaves(win.root).length;
-  // A custom name (tmux rename-window) replaces the derived host:dir; the pane
-  // count is still appended when split, matching tmux.
-  const base = win.name
-    ? win.name
-    : (() => {
-        const leaf = findLeaf(win.root, win.activePaneId) ?? firstLeaf(win.root);
-        const host = COMPUTERS[leaf.computerId as ComputerId]?.promptHostname ?? leaf.computerId;
-        return `${host}:${abbreviateCwd(leaf.cwd, username)}`;
-      })();
-  return count > 1 ? `${base} (${count})` : base;
 }
 
 export default function TabBar({
@@ -106,87 +74,45 @@ export default function TabBar({
     onNewWindow(computerId);
   };
 
+  const resolveHost = (leaf: PaneLeaf) =>
+    COMPUTERS[leaf.computerId as ComputerId]?.promptHostname ?? leaf.computerId;
+
   return (
-    <div
-      className="flex items-center border-b font-mono text-xs select-none"
-      style={{ backgroundColor: theme.statusBg, borderBottomColor: theme.statusBg }}
-    >
-      {closeConfirm || renamePrompt ? (
-        // tmux confirm-before-kill / rename-window takes over the status line.
-        <span className="px-2 py-0.5 font-bold" style={{ color: theme.currentFg }}>
-          {closeConfirm ?? renamePrompt}
-        </span>
-      ) : (
-      <>
-      {/* tmux status-left: prefix-state indicator. Blank (space reserved) at rest; "PREFIX" in blue when armed. */}
-      <span
-        className={`px-2 py-0.5 font-bold transition-colors ${prefixActive ? "animate-pulse" : ""}`}
-        style={{
-          visibility: prefixActive ? "visible" : "hidden",
-          color: PREFIX_BLUE,
-        }}
-      >
-        PREFIX
-      </span>
-      {windows.map((win, idx) => {
-        const isActive = win.id === activeWindowId;
-        return (
+    <TmuxStatusBar
+      windows={windows}
+      activeWindowId={activeWindowId}
+      label={(win) => windowLabel(win, { username, resolveHost })}
+      onSelectWindow={onSelectWindow}
+      onCloseWindow={onCloseWindow}
+      prefixActive={prefixActive}
+      modalText={closeConfirm ?? renamePrompt}
+      theme={theme}
+      trailing={
+        // Multi-computer new-window dropdown — the one piece beyond the shared bar.
+        <div className="relative" ref={dropdownRef}>
           <button
-            key={win.id}
-            onClick={() => onSelectWindow(win.id)}
-            className={`relative flex items-center gap-1.5 px-3 py-0.5 transition-opacity ${
-              isActive ? "font-medium" : "opacity-70 hover:opacity-100"
-            }`}
-            style={
-              isActive
-                ? { backgroundColor: theme.currentBg, color: theme.currentFg }
-                : { backgroundColor: theme.windowBg, color: theme.windowFg }
-            }
+            onClick={handlePlusClick}
+            disabled={windows.length >= 5}
+            className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+            style={{ color: theme.statusFg }}
           >
-            <span className="truncate max-w-[220px]">
-              {idx + 1}:{windowLabel(win, username)}
-              {isActive && " *"}
-            </span>
-            {windows.length > 1 && (
-              <span
-                role="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloseWindow(win.id);
-                }}
-                className="ml-1 hover:text-red-700 transition-colors"
-              >
-                x
-              </span>
-            )}
+            +
           </button>
-        );
-      })}
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={handlePlusClick}
-          disabled={windows.length >= 5}
-          className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-          style={{ color: theme.statusFg }}
-        >
-          +
-        </button>
-        {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-0.5 bg-[#1a1f29] border border-[#2a2f3a] rounded shadow-lg z-50 min-w-[140px]">
-            {availableComputers.map((id) => (
-              <button
-                key={id}
-                onClick={() => handleComputerSelect(id)}
-                className="block w-full text-left px-3 py-1 text-[#b3b1ad] hover:bg-[#253340] transition-colors"
-              >
-                {COMPUTERS[id]?.promptHostname ?? id}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      </>
-      )}
-    </div>
+          {dropdownOpen && (
+            <div className="absolute top-full left-0 mt-0.5 bg-[#1a1f29] border border-[#2a2f3a] rounded shadow-lg z-50 min-w-[140px]">
+              {availableComputers.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => handleComputerSelect(id)}
+                  className="block w-full text-left px-3 py-1 text-[#b3b1ad] hover:bg-[#253340] transition-colors"
+                >
+                  {COMPUTERS[id]?.promptHostname ?? id}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      }
+    />
   );
 }

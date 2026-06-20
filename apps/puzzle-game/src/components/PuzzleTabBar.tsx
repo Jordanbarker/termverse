@@ -1,15 +1,15 @@
 "use client";
 
-import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
 import { usePuzzleStore } from "../state/puzzleStore";
 import { windowLabel } from "../lib/windowLabel";
-
-const PREFIX_BLUE = ANSI_COLORS.blue;
+import TmuxStatusBar, { StatusBarTheme } from "@tt/core/components/TmuxStatusBar";
 
 // Static status-line palette (the puzzle has no ~/.tmux.conf to parse).
-const THEME = {
+// windowBg "transparent" matches the live game's inactive-tab look.
+const THEME: StatusBarTheme = {
   statusBg: "#11161d",
   statusFg: "#6b7680",
+  windowBg: "transparent",
   windowFg: "#b3b1ad",
   currentBg: "#253340",
   currentFg: "#e6b450",
@@ -36,72 +36,25 @@ export default function PuzzleTabBar({
   const activeWindowId = usePuzzleStore((s) => s.activeWindowId);
 
   return (
-    <div
-      className="flex items-center border-b font-mono text-xs select-none"
-      style={{ backgroundColor: THEME.statusBg, borderBottomColor: THEME.statusBg }}
-    >
-      {renamePrompt ? (
-        // tmux rename-window takes over the status line.
-        <span className="px-2 py-0.5 font-bold" style={{ color: THEME.currentFg }}>
-          {renamePrompt}
-        </span>
-      ) : (
-        <>
-          {/* tmux status-left: prefix-state indicator. Blank (space reserved) at
-              rest; "PREFIX" in blue when armed. */}
-          <span
-            className={`px-2 py-0.5 font-bold transition-colors ${prefixActive ? "animate-pulse" : ""}`}
-            style={{
-              visibility: prefixActive ? "visible" : "hidden",
-              color: PREFIX_BLUE,
-            }}
-          >
-            PREFIX
-          </span>
-          {windows.map((win, idx) => {
-            const isActive = win.id === activeWindowId;
-            return (
-              <button
-                key={win.id}
-                onClick={() => onSelectWindow(win.id)}
-                className={`relative flex items-center gap-1.5 px-3 py-0.5 transition-opacity ${
-                  isActive ? "font-medium" : "opacity-70 hover:opacity-100"
-                }`}
-                style={
-                  isActive
-                    ? { backgroundColor: THEME.currentBg, color: THEME.currentFg }
-                    : { color: THEME.windowFg }
-                }
-              >
-                <span className="truncate max-w-[220px]">
-                  {idx + 1}:{windowLabel(win)}
-                  {isActive && " *"}
-                </span>
-                {windows.length > 1 && (
-                  <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCloseWindow(win.id);
-                    }}
-                    className="ml-1 hover:text-red-500 transition-colors"
-                  >
-                    x
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          <button
-            onClick={onNewWindow}
-            disabled={windows.length >= 5}
-            className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-            style={{ color: THEME.statusFg }}
-          >
-            +
-          </button>
-        </>
-      )}
-    </div>
+    <TmuxStatusBar
+      windows={windows}
+      activeWindowId={activeWindowId}
+      label={windowLabel}
+      onSelectWindow={onSelectWindow}
+      onCloseWindow={onCloseWindow}
+      prefixActive={prefixActive}
+      modalText={renamePrompt}
+      theme={THEME}
+      trailing={
+        <button
+          onClick={onNewWindow}
+          disabled={windows.length >= 5}
+          className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+          style={{ color: THEME.statusFg }}
+        >
+          +
+        </button>
+      }
+    />
   );
 }
