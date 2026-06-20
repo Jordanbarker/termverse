@@ -17,6 +17,11 @@
 /.next/
 /out/
 
+# monorepo workspace apps (nested build artifacts + deps)
+apps/*/.next/
+apps/*/out/
+**/node_modules/
+
 # production
 /build
 
@@ -39,3 +44,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python (generate_data tooling)
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# visual screenshot harness output
+/screenshots/

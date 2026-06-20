@@ -1,8 +1,8 @@
-# Terminal Turmoil
+# Termoil
 
 A workplace mystery, played from a zsh-themed terminal. 
 
-Play it from your browser: https://jordanbarker.github.io/terminal-turmoil/
+Play it from your browser: https://jordanbarker.github.io/termverse/termoil/
 
 ## What it looks like
 
@@ -25,7 +25,7 @@ npm run dev
 Saves live in `localStorage`. To start over from scratch, in your browser devtools:
 
 ```js
-localStorage.removeItem('terminal-turmoil-save'); location.reload();
+localStorage.removeItem('termoil-save'); location.reload();
 ```
 
 ### Spoilers!

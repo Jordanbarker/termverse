@@ -26,10 +26,19 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      - run: npm run build         # termoil     -> apps/termoil/out
+      - run: npm run build:crunch  # term-crunch -> apps/term-crunch/out
+      - name: Assemble Pages site
+        run: |
+          mkdir -p _site
+          cp site/index.html _site/
+          mkdir -p _site/termoil
+          cp -r apps/termoil/out/. _site/termoil/
+          mkdir -p _site/term-crunch
+          cp -r apps/term-crunch/out/. _site/term-crunch/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: out
+          path: _site
 
   deploy:
     needs: build

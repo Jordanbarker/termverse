@@ -1,6 +1,6 @@
 ---
 name: commands
-description: "Command parser, registry, pipeline execution, and how to add new commands. Use this skill whenever adding a new terminal command, modifying the command parser or pipeline, working on applyResult.ts/computeEffects(), or touching files under src/engine/commands/ (except dbt.ts, mail.ts, snow.ts which have their own skills)."
+description: "Command parser, registry, pipeline execution, and how to add new commands. This is a SHARED @tt/core engine skill — the generic parser/registry/pipeline lives in packages/core/src/commands and is consumed by both apps/termoil and apps/term-crunch. Use this skill whenever adding a new terminal command, modifying the command parser or pipeline, working on applyResult.ts/computeEffects(), or touching files under the commands engine (resolve bare src/engine/commands/... paths as packages/core/src/commands or apps/termoil/src/engine/commands), except dbt.ts, mail.ts, snow.ts which have their own skills."
 ---
 
 # Command System
@@ -18,10 +18,10 @@ src/engine/commands/
 ├── builtins/
 │   ├── index.ts           # Side-effect imports that register all commands
 │   ├── cat.ts, ls.ts, cd.ts, grep.ts, find.ts, diff.ts, ...  # Individual commands
-│   ├── dbt.ts             # (see dbt skill)
-│   ├── git.ts             # Git subcommand dispatch (init, add, commit, checkout, etc.)
-│   ├── mail.ts            # (see email skill)
-│   └── snow.ts            # (see snowflake skill)
+│   ├── dbt.ts             # core builtin (see dbt skill)
+│   ├── git.ts             # core builtin — Git subcommand dispatch (init, add, commit, checkout, etc.)
+│   ├── snow.ts            # core builtin (see snowflake skill)
+│   └── (mail.ts)          # NOT in core — app-only, at apps/termoil/src/engine/commands/builtins/mail.ts (see email skill)
 └── helpTexts.ts           # HELP_TEXTS lookup for --help output
 
 src/engine/session/

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>termverse</title>
+    <meta name="description" content="A collection of browser games that teach the terminal." />
+    <meta name="theme-color" content="#0a0e14" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0e14;
+        --panel: #11161f;
+        --border: #1f2733;
+        --fg: #c9d4e3;
+        --muted: #6b7889;
+        --accent: #f0b429;
+        --prompt: #5ec27a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Cascadia Code", monospace;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+      main { width: 100%; max-width: 640px; }
+      .prompt { color: var(--prompt); }
+      h1 { font-size: 1.6rem; margin: 0 0 0.25rem; letter-spacing: 0.04em; }
+      .tagline { color: var(--muted); margin: 0 0 2rem; font-size: 0.9rem; }
+      ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
+      a.game {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem 1.15rem;
+        transition: border-color 0.15s ease, transform 0.15s ease;
+      }
+      a.game:hover { border-color: var(--accent); transform: translateY(-2px); }
+      .game .name { font-size: 1.1rem; color: var(--accent); }
+      .game .desc { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+      footer { color: var(--muted); font-size: 0.75rem; margin-top: 2rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1><span class="prompt">$</span> termverse</h1>
+      <p class="tagline">A collection of browser games built on a shared terminal engine.</p>
+      <ul>
+        <li>
+          <a class="game" href="./termoil/">
+            <div class="name">termoil</div>
+            <div class="desc">A workplace mystery played at the command line. Learn Linux, git, and data tooling as the story unfolds.</div>
+          </a>
+        </li>
+        <li>
+          <a class="game" href="./term-crunch/">
+            <div class="name">term-crunch</div>
+            <div class="desc">Bite-size terminal-skills challenges. Beat each task as fast as you can and chase your best times.</div>
+          </a>
+        </li>
+      </ul>
+      <footer>Built on @tt/core.</footer>
+    </main>
+  </body>
+</html>

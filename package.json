@@ -1,34 +1,33 @@
 {
-  "name": "terminal-turmoil",
+  "name": "termverse",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "npm -w @tt/termoil run dev",
+    "build": "npm -w @tt/termoil run build",
+    "start": "npm -w @tt/termoil run start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm --workspaces --if-present run typecheck",
     "test": "vitest run",
-    "check": "npm run typecheck && npm test && npm run build",
-    "analyze": "ANALYZE=true next build",
-    "generate-data": "python3 scripts/generate_data/main.py"
-  },
-  "dependencies": {
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
-    "next": "^16.2.9",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "zustand": "^5.0.11"
+    "check": "npm run typecheck && npm test && npm run build && npm run build:crunch",
+    "analyze": "npm -w @tt/termoil run analyze",
+    "generate-data": "npm -w @tt/termoil run generate-data",
+    "dev:crunch": "npm -w @tt/term-crunch run dev",
+    "build:crunch": "npm -w @tt/term-crunch run build",
+    "screenshot:panes": "node scripts/visual/pane-dividers.mjs"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^16.2.6",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "playwright": "1.61.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.0.18"

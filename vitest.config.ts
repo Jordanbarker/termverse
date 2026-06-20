@@ -8,7 +8,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      // Order matters: the more specific @tt/core alias must precede @.
+      "@tt/core": path.resolve(__dirname, "./packages/core/src"),
+      "@": path.resolve(__dirname, "./apps/termoil/src"),
     },
   },
 });
