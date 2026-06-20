@@ -7,7 +7,7 @@ import { ANSI_COLORS } from "../terminal/ansiPalette";
 const PREFIX_BLUE = ANSI_COLORS.blue;
 
 /** The status-bar colors this component reads. `TabBarTheme` is a superset, so
- *  it is structurally assignable here; puzzle-game supplies a static palette. */
+ *  it is structurally assignable here; term-crunch supplies a static palette. */
 export interface StatusBarTheme {
   /** The bar background. */
   statusBg: string;

@@ -27,13 +27,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build         # terminal-turmoil -> apps/terminal-turmoil/out
-      - run: npm run build:puzzle  # puzzle-game      -> apps/puzzle-game/out
+      - run: npm run build:crunch  # term-crunch      -> apps/term-crunch/out
       - name: Assemble Pages site
         run: |
           mkdir -p _site
           cp -r apps/terminal-turmoil/out/. _site/
-          mkdir -p _site/puzzle-game
-          cp -r apps/puzzle-game/out/. _site/puzzle-game/
+          mkdir -p _site/term-crunch
+          cp -r apps/term-crunch/out/. _site/term-crunch/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

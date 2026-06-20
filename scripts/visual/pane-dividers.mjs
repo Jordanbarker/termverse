@@ -16,7 +16,7 @@
  *   TT_URL=http://localhost:3000/ npm run screenshot:panes
  *   node scripts/visual/pane-dividers.mjs <url> <outDir>
  *
- * Requires a dev server already running (npm run dev / npm run dev:puzzle).
+ * Requires a dev server already running (npm run dev / npm run dev:crunch).
  */
 import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";

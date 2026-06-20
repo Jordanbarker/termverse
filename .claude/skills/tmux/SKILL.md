@@ -1,6 +1,6 @@
 ---
 name: tmux
-description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). The pure pane model lives in the SHARED @tt/core engine (@tt/core/terminal/paneTypes + PaneDividers) and is reused by both apps/terminal-turmoil and apps/puzzle-game. Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching paneTypes.ts, the Terminal components (TabManager/TabBar/PaneDividers), the terminal engine (tmuxConfig/copyMode/ansiPalette), or the home ~/.tmux.conf in apps/terminal-turmoil/src/story/filesystem/home/dotfiles.ts."
+description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). The pure pane model lives in the SHARED @tt/core engine (@tt/core/terminal/paneTypes + PaneDividers) and is reused by both apps/terminal-turmoil and apps/term-crunch. Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching paneTypes.ts, the Terminal components (TabManager/TabBar/PaneDividers), the terminal engine (tmuxConfig/copyMode/ansiPalette), or the home ~/.tmux.conf in apps/terminal-turmoil/src/story/filesystem/home/dotfiles.ts."
 ---
 
 # Tmux Multiplexer
@@ -9,7 +9,7 @@ The terminal is a faithful tmux model: **windows** (the tabs in the status line,
 
 This skill covers the pane tree model, the Zustand window/pane state and actions, the hardcoded prefix chords, the live `~/.tmux.conf` parsing (prefix/theme/keybindings), repeat-mode resize, copy mode, and how the panes are rendered into xterm.
 
-> **Shared engine:** the pure pane model + helpers live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (see the Architecture map below for the full core-vs-app split). These are reused by the second app `apps/puzzle-game`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + a thin status-line wrapper (`PuzzleTabBar.tsx`). Both games render the **same** status line and rename prompt from core: `@tt/core/components/TmuxStatusBar` (PREFIX indicator, `idx:label (paneCount)` tabs, modal takeover, app-injected `trailing` control), `@tt/core/terminal/windowLabel` (tab labels), and `@tt/core/terminal/useRenameWindowPrompt` (the `(rename-window)` keystroke handling). The puzzle mirrors the live game's multi-window UX: chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename; `.`/`,` alias next/prev) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
+> **Shared engine:** the pure pane model + helpers live in `@tt/core/terminal/paneTypes` and `PaneDividers` in `@tt/core/components/PaneDividers` (see the Architecture map below for the full core-vs-app split). These are reused by the second app `apps/term-crunch`, which ports the window/pane actions into its own lean store (`puzzleStore.ts`) and a trimmed renderer (`PuzzleTerminal.tsx`) + a thin status-line wrapper (`PuzzleTabBar.tsx`). Both games render the **same** status line and rename prompt from core: `@tt/core/components/TmuxStatusBar` (PREFIX indicator, `idx:label (paneCount)` tabs, modal takeover, app-injected `trailing` control), `@tt/core/terminal/windowLabel` (tab labels), and `@tt/core/terminal/useRenameWindowPrompt` (the `(rename-window)` keystroke handling). The puzzle mirrors the live game's multi-window UX: chords `<prefix> c/n/p/1-9/r` (new/cycle/jump/rename; `.`/`,` alias next/prev) alongside the pane chords `| - o x` + arrow focus. Its status line uses a **static theme** (no `~/.tmux.conf` parsing — there's no home PC), and prefix/keep-alive logic mirrors `TabManager.tsx` (cross-window `liveIds`, `display:none` for non-active windows so buffers persist). Keep `paneTypes` helpers pure and store-agnostic so both apps can share them.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ apps/terminal-turmoil/src/components/Terminal/
 apps/terminal-turmoil/src/story/filesystem/home/
 └── dotfiles.ts                 # The player's ~/.tmux.conf (prefix, pane binds, status colors)
 ```
-(The second app, `apps/puzzle-game`, ports the same `@tt/core` model into its own `puzzleStore.ts` + `PuzzleTerminal.tsx`/`PuzzleTabBar.tsx`.)
+(The second app, `apps/term-crunch`, ports the same `@tt/core` model into its own `puzzleStore.ts` + `PuzzleTerminal.tsx`/`PuzzleTabBar.tsx`.)
 
 ## Core Types (`paneTypes.ts`)
 
@@ -149,7 +149,7 @@ Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed
 - **New copy-mode key:** add it to the `CopyModeController` keydown handler.
 - **Tree changes:** keep `@tt/core/terminal/paneTypes` helpers pure and add cases to `apps/terminal-turmoil/src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
 
-Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md). The unit tests cover the pure tree model but **not** rendering — for visual changes to `PaneDividers`/splits/focus, also run the browser harness `npm run screenshot:panes` (needs a dev server up; `scripts/visual/pane-dividers.mjs`). It drives the rendered terminal via tmux chords, screenshots single → h-split → 2×2 layouts into `screenshots/` (gitignored), and asserts the gold/grey active-pane seam coloring from the live DOM. Point it elsewhere with `TT_URL` (e.g. the puzzle-game dev server).
+Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md). The unit tests cover the pure tree model but **not** rendering — for visual changes to `PaneDividers`/splits/focus, also run the browser harness `npm run screenshot:panes` (needs a dev server up; `scripts/visual/pane-dividers.mjs`). It drives the rendered terminal via tmux chords, screenshots single → h-split → 2×2 layouts into `screenshots/` (gitignored), and asserts the gold/grey active-pane seam coloring from the live DOM. Point it elsewhere with `TT_URL` (e.g. the term-crunch dev server).
 
 ## Design Principles
 

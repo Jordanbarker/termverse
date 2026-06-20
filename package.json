@@ -13,11 +13,11 @@
     "lint": "eslint",
     "typecheck": "npm --workspaces --if-present run typecheck",
     "test": "vitest run",
-    "check": "npm run typecheck && npm test && npm run build && npm run build:puzzle",
+    "check": "npm run typecheck && npm test && npm run build && npm run build:crunch",
     "analyze": "npm -w @tt/terminal-turmoil run analyze",
     "generate-data": "npm -w @tt/terminal-turmoil run generate-data",
-    "dev:puzzle": "npm -w @tt/puzzle-game run dev",
-    "build:puzzle": "npm -w @tt/puzzle-game run build",
+    "dev:crunch": "npm -w @tt/term-crunch run dev",
+    "build:crunch": "npm -w @tt/term-crunch run build",
     "screenshot:panes": "node scripts/visual/pane-dividers.mjs"
   },
   "devDependencies": {

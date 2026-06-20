@@ -1,0 +1,53 @@
+---
+name: challenges
+description: "How term-crunch's declarative challenge framework and state-based win-detection work (apps/term-crunch). Use this skill whenever adding or modifying a term-crunch challenge, changing win-detection, or touching files under apps/term-crunch/src/challenges/, the store's checkCompletion in apps/term-crunch/src/state/gameStore.ts, or the compare/seed helpers in apps/term-crunch/src/lib/."
+---
+
+# Challenge Framework
+
+Term Crunch (`@tt/term-crunch`) is a linear sequence of self-contained challenges, each a pure declarative definition. Win-detection is **live and state-based**: after every command and pane mutation the store re-derives a read-only snapshot and asks the current step's predicate whether it is satisfied. No scripted commands, no event log — just "does the current state match?".
+
+This app is built only on `@tt/core` and does **not** import terminal-turmoil story code. See `apps/term-crunch/CLAUDE.md` for the surrounding structure.
+
+## The shape (`src/challenges/types.ts`)
+
+- **`ChallengeSnapshot`** — the slice of state a validator may read, built fresh by `checkCompletion`:
+  `{ activeWindow: WindowState; windows: WindowState[]; fs: VirtualFS; cwd: string }`.
+- **`Step`** — `{ instruction: string; isComplete: (s: ChallengeSnapshot) => boolean }`. The predicate must be **pure** (read-only over the snapshot).
+- **`Challenge`** — `{ id, title, type: "pane" | "git" | "fs", steps: Step[], setup(base) => VirtualFS, targetWindow?, targetWindows?, gitRepoPath?, fsWatchPath?, commands? }`.
+  - `setup` seeds the challenge FS on top of `buildBaseFs()` (`src/lib/seed.ts`).
+  - Pane challenges set `targetWindow`/`targetWindows` (the RIGHT-hand schematic the player reproduces).
+  - Git challenges set `gitRepoPath` (where the validators + panel readout point).
+  - FS challenges set `fsWatchPath` (the directory the panel renders as a tree via `FsTreeView`).
+  - `commands?: string[]` — per-challenge **command allowlist** (primary names; aliases resolve via `getPrimaryName`). When set, only these commands appear in `help` + TAB/ghost-text suggestions and run; everything else prints a friendly hint (exit 127). Omit it for allow-all. `help` and `clear` are **always** available. Enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts` (registered as a side-effect import in `hooks/useTerminal.ts`), which reads the current challenge from the store. Existing lists: `panes-split`/`windows-create` → `[]` (keyboard-only); `git-first-commit` → git+nav; `rm-bomb` → find/rm+nav; `chmod-perms` → chmod/cat+nav.
+
+## Win-detection (`src/state/gameStore.ts`)
+
+State: `challengeIndex` + `stepIndex` + `awaitingContinue` (completion-gate flag). `checkCompletion()` builds a `ChallengeSnapshot`, runs `challenge.steps[stepIndex].isComplete(snap)`, and:
+- not satisfied → return;
+- more steps remain → advance `stepIndex` (flash "✓ Step complete");
+- last step, more challenges remain → set `awaitingContinue` (panel shows "✓ {title} complete! Press Enter to continue", terminal input frozen); `continueToNext()` (Enter) then calls `loadChallenge(next)`, resetting FS + panes for its sandbox;
+- last step of the last challenge → set `completed` (flash "✓ All challenges complete").
+
+`checkCompletion()` early-returns while `completed || awaitingContinue` so the still-passing last step doesn't re-fire during the gate.
+
+On the last-step branches it also captures timing: `elapsed = Date.now() - challengeStartTime` (stamped by `loadChallenge`), sets `lastElapsedMs`/`lastWasBest`, and updates `bestTimes[challenge.id]` when it beats the prior best. `bestTimes` is the only field persisted (zustand `persist`, `name: "term-crunch-progress"`); the panel shows the live/best time via `formatElapsed` (`@tt/core/lib/format`).
+
+It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`/`renameWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. (`renameWindow` re-checks because the `windows-create` challenge gates a step on a window having a `name`.) Keep validators cheap — they run on every keystroke-completed command.
+
+## Existing challenges (`src/challenges/registry.ts`)
+
+`CHALLENGES` is an ordered, linear array — the player advances one at a time.
+- **`panes-split`** (type `pane`) — reproduce a target layout (`(h L (v L L))`). `targetWindow` is built with the same pure `@tt/core/terminal/paneTypes` helpers (`makeWindow`/`makeLeaf`/`splitNode`) the player drives, so the `a`/`b` split ordering lines up; `isComplete` calls `paneTreeMatches()` (`src/lib/paneCompare.ts`, structural compare that ignores ids).
+- **`windows-create`** (type `pane`, `targetWindows` → panel shows a Current/Target **window strip** via `WindowStripView`, not the pane-tree `SchematicView`) — open a 2nd then 3rd tmux window and rename one. Steps read `s.windows.length` for the count and `s.windows.some(w => !!w.name)` for the rename; no FS seed (`setup: (base) => base`). Uses `>=` so overshoot doesn't strand the player. `targetWindows` is three `makeWindow`s with one named `logs`; the strip diagram shows count + labels (ids don't matter).
+- **`git-first-commit`** (type `git`) — stage + commit in `gitRepoPath`, validated against `@tt/core`'s git engine state via `src/lib/gitState.ts`.
+- **`rm-bomb`** (type `fs`, `fsWatchPath` → panel shows the `~/work` subtree via `FsTreeView`) — `find` then `rm` a nested `BOMB.md` without deleting its neighbors. `setup` seeds `BOMB.md` beside a sibling inside a nested dir plus other survivors; the single step's predicate is `fs.getNode(BOMB_PATH) === null && SURVIVORS.every(p => fs.getNode(p) !== null)`, so any `rm -rf` of `~/work` (or of `BOMB.md`'s own dir, which also takes the sibling) deletes a survivor and never passes. Because that soft-locks the run, the panel exposes a **Restart challenge** button wired to the store's `restartChallenge()` (re-runs `loadChallenge(challengeIndex)` to re-seed the current sandbox).
+- **`chmod-perms`** (type `fs`, `fsWatchPath` → `~/vault` subtree via `FsTreeView`) — teaches `chmod` (symbolic vs octal) by unlocking a file you can't read. `setup` seeds `secrets.env`, then `setPermissions(..., "rw-------")` to lock it (600). **Single step**: grant read so `cat secrets.env` works. Predicate `fs.getNode(SECRETS)?.permissions[6] === "r"` — note index **6** (the "other" read bit), because that is the bit `VirtualFS.readFile()` / `checkPermission()` actually enforces for `cat`/`less`/`head`/`tail`. So the step passes exactly when the file becomes cat-readable: `chmod +r` (who="" → `ugo`), `chmod 644`, `chmod o+r` all set index 6; **`chmod u+r` alone does NOT** (leaves index 6 off, file still unreadable). Completion fires on the chmod (a state predicate can't observe a `cat`); the read is the payoff. The instruction states the objective (unlock the file so it can be read) plus a conceptual `chmod` primer (symbolic vs octal); it deliberately does **not** print the literal `chmod +r secrets.env` answer, so the player derives the command from the primer + the live permission string in the panel. Relies on `whitespace-pre-line` on `ChallengePanel`'s instruction `<p>` for line breaks. `FsTreeView` renders each node's `permissions` string so `-rw-------` → `-rw-r--r--` is visible in the panel.
+
+## Adding a challenge
+
+1. Create `src/challenges/<id>.ts` exporting a `Challenge`. Write `setup` to seed only what the challenge needs on top of `buildBaseFs()`. For pane challenges build `targetWindow` with `paneTypes` helpers (don't hand-author ids — the compare ignores them). For git challenges set `gitRepoPath` and read state via `gitState.ts`.
+2. Author each `Step` with a clear `instruction` and a pure `isComplete` predicate over `ChallengeSnapshot`.
+3. Set `commands` to the allowlist the player needs (primary names; `help`/`clear` are implicit). Keyboard-only challenges use `[]`; omit the field only if you genuinely want every builtin available.
+4. Append it to `CHALLENGES` in `registry.ts` (order = play order).
+5. Cover it in `src/__tests__/challenges.test.ts`, then `npm run typecheck` + `npx vitest run`.

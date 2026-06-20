@@ -8,7 +8,7 @@ const eslintConfig = defineConfig([
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next (broadened to nested workspace apps,
-    // e.g. apps/puzzle-game/out, so generated bundles aren't linted).
+    // e.g. apps/term-crunch/out, so generated bundles aren't linted).
     "**/.next/**",
     "**/out/**",
     "**/build/**",
