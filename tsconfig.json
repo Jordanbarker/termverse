@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./apps/terminal-turmoil/src/*"],
+      "@/*": ["./apps/termoil/src/*"],
       "@tt/core": ["./packages/core/src/index.ts"],
       "@tt/core/*": ["./packages/core/src/*"]
     }

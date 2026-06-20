@@ -3,7 +3,7 @@
  *
  * Several commands surface an in-game "now": `date`, `git commit` timestamps,
  * dbt log prefixes, and Snowflake `current_timestamp()`. How that time is
- * derived (in terminal-turmoil it advances with story progression) is a game
+ * derived (in termoil it advances with story progression) is a game
  * decision, so the app injects a GameClock via CommandContext.clock. Absent =>
  * callers fall back to the real wall clock.
  */

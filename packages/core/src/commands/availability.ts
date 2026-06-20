@@ -9,7 +9,7 @@ import { MachineId } from "@tt/core/machine";
  * consults it. The default policy allows every registered command everywhere,
  * so a game that does not gate anything needs no policy at all.
  *
- * terminal-turmoil registers its policy from src/story/availabilityPolicy.ts.
+ * termoil registers its policy from src/story/availabilityPolicy.ts.
  */
 export interface AvailabilityPolicy {
   /** Is `commandName` usable on `computer` given the current flags? */

@@ -3,7 +3,7 @@
 - Day 1 (player starts at NexaCorp): 2026-02-23 (Monday)
 - Day 2: 2026-02-24
 
-A chronological reference for narrative dates scattered across Terminal Turmoil's source. Use this when adding dated content to catch continuity drift (a new email pre-dating Jin's resignation, a log entry on the wrong weekday, a board action after the fiscal close).
+A chronological reference for narrative dates scattered across Termoil's source. Use this when adding dated content to catch continuity drift (a new email pre-dating Jin's resignation, a log entry on the wrong weekday, a board action after the fiscal close).
 
 **Source of truth = source files.** This doc is derived and can drift. When in doubt, re-read:
 

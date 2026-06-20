@@ -1,12 +1,11 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
   output: "export",
-  // Nested under the termverse GitHub Pages site (one project Pages site served
-  // at /termverse/). Both games ship in one artifact; see .github/workflows/deploy.yml.
-  basePath: isProd ? "/termverse/term-crunch" : "",
+  basePath: isProd ? "/termverse/termoil" : "",
   images: { unoptimized: true },
   trailingSlash: true,
   // @tt/core lives outside this app's root, so Next must be told to compile
@@ -14,4 +13,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@tt/core"],
 };
 
-export default nextConfig;
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
+
+export default withBundleAnalyzer(nextConfig);

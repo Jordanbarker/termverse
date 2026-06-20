@@ -13,7 +13,7 @@ import { useGameStore } from "../state/gameStore";
  *
  * `help` and `clear` are always available so the player can orient and reset.
  *
- * Mirrors terminal-turmoil's src/story/availabilityPolicy.ts seam usage; the
+ * Mirrors termoil's src/story/availabilityPolicy.ts seam usage; the
  * current challenge is read lazily from the store so import order doesn't matter.
  */
 const ALWAYS_AVAILABLE = new Set(["help", "clear"]);

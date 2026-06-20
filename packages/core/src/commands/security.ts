@@ -8,7 +8,7 @@
  * default, and the case for any non-story game built on this engine), no
  * operation is ever flagged.
  *
- * The turmoil app supplies its NexaCorp policy from src/story/security.ts.
+ * The termoil app supplies its NexaCorp policy from src/story/security.ts.
  */
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import type { MachineId } from "@tt/core/machine";

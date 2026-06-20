@@ -7,7 +7,7 @@ description: "How term-crunch's declarative challenge framework and state-based 
 
 Term Crunch (`@tt/term-crunch`) is a linear sequence of self-contained challenges, each a pure declarative definition. Win-detection is **live and state-based**: after every command and pane mutation the store re-derives a read-only snapshot and asks the current step's predicate whether it is satisfied. No scripted commands, no event log — just "does the current state match?".
 
-This app is built only on `@tt/core` and does **not** import terminal-turmoil story code. See `apps/term-crunch/CLAUDE.md` for the surrounding structure.
+This app is built only on `@tt/core` and does **not** import termoil story code. See `apps/term-crunch/CLAUDE.md` for the surrounding structure.
 
 ## The shape (`src/challenges/types.ts`)
 

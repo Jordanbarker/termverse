@@ -1,5 +1,5 @@
 {
-  "name": "terminal-turmoil",
+  "name": "termverse",
   "version": "0.1.0",
   "private": true,
   "workspaces": [
@@ -7,15 +7,15 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm -w @tt/terminal-turmoil run dev",
-    "build": "npm -w @tt/terminal-turmoil run build",
-    "start": "npm -w @tt/terminal-turmoil run start",
+    "dev": "npm -w @tt/termoil run dev",
+    "build": "npm -w @tt/termoil run build",
+    "start": "npm -w @tt/termoil run start",
     "lint": "eslint",
     "typecheck": "npm --workspaces --if-present run typecheck",
     "test": "vitest run",
     "check": "npm run typecheck && npm test && npm run build && npm run build:crunch",
-    "analyze": "npm -w @tt/terminal-turmoil run analyze",
-    "generate-data": "npm -w @tt/terminal-turmoil run generate-data",
+    "analyze": "npm -w @tt/termoil run analyze",
+    "generate-data": "npm -w @tt/termoil run generate-data",
     "dev:crunch": "npm -w @tt/term-crunch run dev",
     "build:crunch": "npm -w @tt/term-crunch run build",
     "screenshot:panes": "node scripts/visual/pane-dividers.mjs"

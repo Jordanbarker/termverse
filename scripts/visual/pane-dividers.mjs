@@ -3,7 +3,7 @@
  * Visual harness for the @tt/core PaneDividers component.
  *
  * Drives the *rendered* terminal in a real browser (the headless scripts in
- * apps/terminal-turmoil/scripts/ exercise only the command engine, never the
+ * apps/termoil/scripts/ exercise only the command engine, never the
  * DOM), splits panes via tmux key chords, screenshots each layout, and probes
  * the live divider geometry so a visual regression in the gold/grey active-pane
  * seam is caught with both an image and a hard assertion.

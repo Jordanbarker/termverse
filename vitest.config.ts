@@ -10,7 +10,7 @@ export default defineConfig({
     alias: {
       // Order matters: the more specific @tt/core alias must precede @.
       "@tt/core": path.resolve(__dirname, "./packages/core/src"),
-      "@": path.resolve(__dirname, "./apps/terminal-turmoil/src"),
+      "@": path.resolve(__dirname, "./apps/termoil/src"),
     },
   },
 });

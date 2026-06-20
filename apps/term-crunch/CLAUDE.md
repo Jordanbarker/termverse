@@ -1,10 +1,10 @@
 # Term Crunch (`@tt/term-crunch`)
 
-A terminal-skills challenge game built **entirely on `@tt/core`** to prove the engine-reuse pattern. basePath `/terminal-turmoil/term-crunch`. Run via `npm run dev:crunch` / `npm run build:crunch`.
+A terminal-skills challenge game built **entirely on `@tt/core`** to prove the engine-reuse pattern. basePath `/termverse/term-crunch`. Run via `npm run dev:crunch` / `npm run build:crunch`.
 
 > Monorepo-wide context (`@tt/core`, tech stack, deploy) lives in the repo-root `.claude/CLAUDE.md`. The shared engine skills `tmux` and `commands` (both apply to `@tt/core`) are at root; this app's own skill is `apps/term-crunch:challenges`.
 
-**It does NOT import terminal-turmoil's story code** — none of terminal-turmoil's `gameStore`/`COMPUTERS`, no story flags, no `.tmux.conf` parsing, no emails/piper/chip. (term-crunch has its own lean `useGameStore` in `state/gameStore.ts`; the rule is about not reaching into the sibling app.) Keep it that way: anything shared must come through `@tt/core`, and `@tt/core/terminal/paneTypes` helpers must stay pure and store-agnostic so both apps share them.
+**It does NOT import termoil's story code** — none of termoil's `gameStore`/`COMPUTERS`, no story flags, no `.tmux.conf` parsing, no emails/piper/chip. (term-crunch has its own lean `useGameStore` in `state/gameStore.ts`; the rule is about not reaching into the sibling app.) Keep it that way: anything shared must come through `@tt/core`, and `@tt/core/terminal/paneTypes` helpers must stay pure and store-agnostic so both apps share them.
 
 ## Structure (`apps/term-crunch/src/`)
 

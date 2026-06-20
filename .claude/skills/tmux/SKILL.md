@@ -1,6 +1,6 @@
 ---
 name: tmux
-description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). The pure pane model lives in the SHARED @tt/core engine (@tt/core/terminal/paneTypes + PaneDividers) and is reused by both apps/terminal-turmoil and apps/term-crunch. Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching paneTypes.ts, the Terminal components (TabManager/TabBar/PaneDividers), the terminal engine (tmuxConfig/copyMode/ansiPalette), or the home ~/.tmux.conf in apps/terminal-turmoil/src/story/filesystem/home/dotfiles.ts."
+description: "How the in-game tmux multiplexer works — the window/pane binary tree, prefix bindings, copy mode, status line, and ~/.tmux.conf parsing (prefix/theme/keybindings). The pure pane model lives in the SHARED @tt/core engine (@tt/core/terminal/paneTypes + PaneDividers) and is reused by both apps/termoil and apps/term-crunch. Use this skill whenever modifying windows/panes, split/resize/focus logic, copy mode, the tmux status bar, or touching paneTypes.ts, the Terminal components (TabManager/TabBar/PaneDividers), the terminal engine (tmuxConfig/copyMode/ansiPalette), or the home ~/.tmux.conf in apps/termoil/src/story/filesystem/home/dotfiles.ts."
 ---
 
 # Tmux Multiplexer
@@ -28,15 +28,15 @@ packages/core/src/components/
 ├── PaneDividers.tsx            # Draggable seams overlaying split boundaries
 └── TmuxStatusBar.tsx           # Shared tmux status line (PREFIX indicator, tabs, modal takeover, trailing slot)
 
-# APP — apps/terminal-turmoil/src (the narrative game's store + renderer)
-apps/terminal-turmoil/src/state/
+# APP — apps/termoil/src (the narrative game's store + renderer)
+apps/termoil/src/state/
 └── gameStore.ts                # windows[] + activeWindowId state, all window/pane actions
 
-apps/terminal-turmoil/src/components/Terminal/
+apps/termoil/src/components/Terminal/
 ├── TabManager.tsx              # Orchestrator: prefix handling, xterm pane lifecycle, layout, copy-mode UI
 └── TabBar.tsx                  # thin wrapper over @tt/core TmuxStatusBar (injects the multi-computer "+" dropdown)
 
-apps/terminal-turmoil/src/story/filesystem/home/
+apps/termoil/src/story/filesystem/home/
 └── dotfiles.ts                 # The player's ~/.tmux.conf (prefix, pane binds, status colors)
 ```
 (The second app, `apps/term-crunch`, ports the same `@tt/core` model into its own `puzzleStore.ts` + `PuzzleTerminal.tsx`/`PuzzleTabBar.tsx`.)
@@ -147,7 +147,7 @@ Rendering is **hybrid**: xterm pane containers are imperative, long-lived, keyed
 - **Theme colors:** add named colors to `ANSI_COLORS` (keeps xterm + status bar in sync); extend `parseTmuxTheme`/`TabBarTheme` for new style targets.
 - **New status-bar element / modal:** edit the shared `@tt/core/components/TmuxStatusBar` so **both** apps inherit it; pass app-specific bits as props or via the `trailing` slot, and route a new takeover through the `modalText` prop. (TT's multi-computer "+" dropdown stays app-side as the `trailing` node.)
 - **New copy-mode key:** add it to the `CopyModeController` keydown handler.
-- **Tree changes:** keep `@tt/core/terminal/paneTypes` helpers pure and add cases to `apps/terminal-turmoil/src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
+- **Tree changes:** keep `@tt/core/terminal/paneTypes` helpers pure and add cases to `apps/termoil/src/state/__tests__/paneTypes.test.ts`. Wire new tree edits through a `gameStore.ts` action (never mutate the tree in components).
 
 Run `npm run typecheck` and `npx vitest run` after changes (per CLAUDE.md). The unit tests cover the pure tree model but **not** rendering — for visual changes to `PaneDividers`/splits/focus, also run the browser harness `npm run screenshot:panes` (needs a dev server up; `scripts/visual/pane-dividers.mjs`). It drives the rendered terminal via tmux chords, screenshots single → h-split → 2×2 layouts into `screenshots/` (gitignored), and asserts the gold/grey active-pane seam coloring from the live DOM. Point it elsewhere with `TT_URL` (e.g. the term-crunch dev server).
 
