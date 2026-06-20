@@ -91,6 +91,13 @@ export default function ChallengePanel() {
         <div className="rounded border border-[#2e7d32] bg-[#11231a] p-4 text-sm text-[#7ee787]">
           🎉 All challenges complete. Nicely done.
         </div>
+      ) : challengeStartTime === 0 ? (
+        // Pre-mount / pre-seed: challengeStartTime is 0 at SSR and on the first
+        // client render (loadChallenge runs in a post-mount effect). Render a
+        // neutral placeholder so the server HTML and first client render agree —
+        // this defers the persisted-bestTimes and Date.now() reads below past
+        // hydration, where they'd otherwise diverge for a returning player.
+        <div className="text-sm text-[#6b7680]">Loading challenge…</div>
       ) : (
         <div className="flex flex-col gap-4">
           <div>
