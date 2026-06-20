@@ -15,18 +15,11 @@ import { LessSession } from "@tt/core/pager/LessSession";
 import type { ISession, SessionResult } from "@tt/core/session/types";
 import type { SessionToStart } from "@tt/core/commands/applyResult";
 
+import { LineEditor } from "@tt/core/terminal/lineEditor";
+
 import { usePuzzleStore } from "../state/puzzleStore";
 import { runLine, getPrompt, buildSuggestionContext } from "../hooks/usePuzzleTerminal";
 import { HOME_DIR } from "../lib/machine";
-import {
-  type LineSuggestState,
-  makeLineSuggestState,
-  clearGhost,
-  renderGhost,
-  acceptGhost,
-  clearCompletion,
-  handleTab,
-} from "../lib/lineSuggest";
 import PuzzleTabBar from "./PuzzleTabBar";
 
 const PREFIX = "\x00"; // Ctrl+Space
@@ -54,10 +47,8 @@ interface PaneRuntime {
   term: XTerm;
   fit: FitAddon;
   container: HTMLDivElement;
-  buffer: string;
   prefix: boolean;
-  histIndex: number;
-  suggest: LineSuggestState;
+  editor: LineEditor;
 }
 
 export default function PuzzleTerminal() {
@@ -85,11 +76,6 @@ export default function PuzzleTerminal() {
   function historyEntries(): string[] {
     const content = usePuzzleStore.getState().fs.readFile(`${HOME_DIR}/.zsh_history`).content ?? "";
     return parseZshHistory(content);
-  }
-
-  function setLine(rt: PaneRuntime, paneId: string, text: string) {
-    rt.buffer = text;
-    rt.term.write("\x1b[2K\r" + getPrompt(paneId) + text);
   }
 
   function startSessionFor(paneId: string, s: SessionToStart) {
@@ -165,11 +151,8 @@ export default function PuzzleTerminal() {
     }
   }
 
-  async function handleLine(paneId: string, rt: PaneRuntime) {
-    const line = rt.buffer;
-    rt.buffer = "";
-    rt.histIndex = -1;
-    rt.term.write("\r\n");
+  async function handleLine(paneId: string, rt: PaneRuntime, line: string) {
+    // The editor already cleared its line state and wrote the trailing newline.
     const { startSession } = await runLine(rt.term, paneId, line);
     if (startSession) {
       startSessionFor(paneId, startSession);
@@ -236,69 +219,10 @@ export default function PuzzleTerminal() {
       return;
     }
 
-    // An open completion menu/state intercepts TAB (cycle) and cancel keys; any
-    // other key tears it down (keeping the completed text) and falls through.
-    if (rt.suggest.completion) {
-      if (data === "\t") {
-        const promptWidth = rt.term.buffer.active.cursorX - rt.buffer.length;
-        rt.buffer = handleTab(rt.term, rt.buffer, promptWidth, buildSuggestionContext(paneId), rt.suggest);
-        return;
-      }
-      if (data === "\x1b" || data === "\x03") {
-        rt.buffer = clearCompletion(rt.term, rt.buffer, rt.suggest, true);
-        return;
-      }
-      rt.buffer = clearCompletion(rt.term, rt.buffer, rt.suggest, false);
-    }
-
-    if (data === "\t") {
-      const promptWidth = rt.term.buffer.active.cursorX - rt.buffer.length;
-      clearGhost(rt.term, rt.suggest);
-      rt.buffer = handleTab(rt.term, rt.buffer, promptWidth, buildSuggestionContext(paneId), rt.suggest);
-    } else if (data === "\r") {
-      clearGhost(rt.term, rt.suggest);
-      void handleLine(paneId, rt);
-    } else if (data === "\x7f" || data === "\b") {
-      if (rt.buffer.length > 0) {
-        clearGhost(rt.term, rt.suggest);
-        rt.buffer = rt.buffer.slice(0, -1);
-        rt.term.write("\b \b");
-        renderGhost(rt.term, rt.buffer, buildSuggestionContext(paneId), rt.suggest);
-      }
-    } else if (data === "\x03") {
-      clearGhost(rt.term, rt.suggest);
-      rt.buffer = "";
-      rt.term.write("^C\r\n" + getPrompt(paneId));
-    } else if (data === "\x1b[A") {
-      const hist = historyEntries();
-      if (hist.length === 0) return;
-      clearGhost(rt.term, rt.suggest);
-      rt.histIndex = rt.histIndex < 0 ? hist.length - 1 : Math.max(0, rt.histIndex - 1);
-      setLine(rt, paneId, hist[rt.histIndex]);
-      renderGhost(rt.term, rt.buffer, buildSuggestionContext(paneId), rt.suggest);
-    } else if (data === "\x1b[B") {
-      const hist = historyEntries();
-      if (rt.histIndex < 0) return;
-      clearGhost(rt.term, rt.suggest);
-      if (rt.histIndex >= hist.length - 1) {
-        rt.histIndex = -1;
-        setLine(rt, paneId, "");
-      } else {
-        rt.histIndex += 1;
-        setLine(rt, paneId, hist[rt.histIndex]);
-      }
-      renderGhost(rt.term, rt.buffer, buildSuggestionContext(paneId), rt.suggest);
-    } else if (data === "\x1b[C") {
-      // Right arrow — accept the ghost suggestion (zsh-style); no-op if none.
-      rt.buffer = acceptGhost(rt.term, rt.buffer, buildSuggestionContext(paneId), rt.suggest);
-    } else if (data.startsWith("\x1b")) {
-      // other escape sequences (left arrow, fn keys) — ignored in v1
-    } else if (data.charCodeAt(0) >= 0x20) {
-      clearGhost(rt.term, rt.suggest);
-      rt.buffer += data;
-      rt.term.write(data);
-      renderGhost(rt.term, rt.buffer, buildSuggestionContext(paneId), rt.suggest);
-    }
+    // Cursor-aware line editing (arrows, Home/End, word-skip, Ctrl+A/E/U/K/L/W/D,
+    // ghost/TAB completion) is owned by the shared @tt/core LineEditor.
+    const res = rt.editor.handleData(rt.term, data);
+    if (res?.type === "submit") void handleLine(paneId, rt, res.input);
   }
 
   function ensurePane(paneId: string) {
@@ -324,10 +248,12 @@ export default function PuzzleTerminal() {
       term,
       fit,
       container,
-      buffer: "",
       prefix: false,
-      histIndex: -1,
-      suggest: makeLineSuggestState(),
+      editor: new LineEditor({
+        getContext: () => buildSuggestionContext(paneId),
+        getHistory: historyEntries,
+        getPrompt: () => getPrompt(paneId),
+      }),
     };
     runtimes.current.set(paneId, rt);
     term.onData((data) => onData(paneId, data));

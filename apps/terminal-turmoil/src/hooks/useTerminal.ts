@@ -28,7 +28,6 @@ import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "@tt/core/commands/types";
 import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
-import { CTRL_A, CTRL_BACKSPACE, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_U } from "@tt/core/terminal/keyCodes";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "@tt/core/commands/redirection";
@@ -204,7 +203,6 @@ export function useTerminal() {
   const commandLine = useCommandLine({
     cwdRef,
     activeComputerRef,
-    writePrompt,
     getPrompt,
   });
 
@@ -421,343 +419,280 @@ export function useTerminal() {
       const activePaneId = getActivePaneId(useGameStore.getState());
       if (busyRef.current && activePaneId === busyPaneIdRef.current) return;
 
-      // Handle special characters
-      for (let i = 0; i < data.length; i++) {
-        const char = data[i];
-        const code = char.charCodeAt(0);
+      // Cursor-aware line editing (arrows, Home/End, word-skip, Ctrl+A/E/U/K/L/W/D,
+      // ghost/TAB completion) is owned by the shared @tt/core LineEditor.
+      const result = commandLine.handleData(term, data);
+      if (!result) return;
 
-        // CSI escape sequences (arrows, modifiers like Option+Arrow)
-        if (char === "\x1b" && data[i + 1] === "[") {
-          let j = i + 2;
-          while (j < data.length && data[j] >= "0" && data[j] <= "?") j++;
-          const params = data.slice(i + 2, j);
-          const final = data[j] ?? "";
-          i = j;
+      // Command submitted — expand aliases textually, then parse chain of pipelines
+      const computerId = activeComputerRef.current;
+      const userAliases = useGameStore.getState().computerState[computerId]?.aliases ?? {};
+      const expandedInput = expandAliases(result.input, userAliases);
+      const chain = parseChainedPipeline(expandedInput);
 
-          const parts = params.split(";");
-          const modifier = parts.length > 1 ? parseInt(parts[1], 10) : 0;
-
-          if (final === "~") {
-            const keyCode = parts.length > 0 ? parseInt(parts[0], 10) : 0;
-            if (keyCode === 3 && (modifier === 3 || modifier === 5)) {
-              commandLine.deleteWordForward(term);
-            } else if (keyCode === 3) {
-              commandLine.deleteCharForward(term);
-            }
-            continue;
-          }
-
-          commandLine.handleArrow(term, final, modifier);
-          continue;
-        }
-
-        if (char === "\x1b" && i + 1 < data.length && data[i + 1].charCodeAt(0) === 127) {
-          i += 1;
-          commandLine.deleteWordBackward(term);
-          continue;
-        }
-
-        // Ctrl+W (0x17) or Ctrl+Backspace (xterm.js sends 0x08)
-        if (code === 23 || code === CTRL_BACKSPACE) {
-          commandLine.deleteWordBackward(term);
-          continue;
-        }
-
-        if (code === CTRL_A) {
-          commandLine.handleArrow(term, "H");
-          continue;
-        }
-        if (code === CTRL_E) {
-          commandLine.handleArrow(term, "F");
-          continue;
-        }
-        if (code === CTRL_U) {
-          commandLine.killWholeLine(term);
-          continue;
-        }
-        if (code === CTRL_K) {
-          commandLine.killToEnd(term);
-          continue;
-        }
-        if (code === CTRL_L) {
-          commandLine.clearScreenAndRedraw(term);
-          continue;
-        }
-
-        // Ctrl+D: delete-char mid-line; EOF (submits `exit`) on an empty line
-        const result = code === CTRL_D ? commandLine.handleEof(term) : commandLine.handleChar(term, char, code);
-        if (!result) continue;
-
-        // Command submitted — expand aliases textually, then parse chain of pipelines
-        const computerId = activeComputerRef.current;
-        const userAliases = useGameStore.getState().computerState[computerId]?.aliases ?? {};
-        const expandedInput = expandAliases(result.input, userAliases);
-        const chain = parseChainedPipeline(expandedInput);
-
-        // Check for parse errors in any segment
-        for (const seg of chain) {
-          const parseError = seg.pipeline.find((p) => p.error);
-          if (parseError) {
-            term.write(colorize(parseError.error!, ansi.red));
-            writePrompt(term);
-            continue;
-          }
-        }
-
-        // Check if first segment parse error already handled (continue above skips outer for)
-        // Re-check to avoid double-handling — if any segment had error, we already wrote it
-        const hasParseError = chain.some((seg) => seg.pipeline.some((p) => p.error));
-        if (hasParseError) {
-          // The error was already written above, prompt was written, skip execution
-          continue;
-        }
-
-        // Check for empty input (single empty pipeline)
-        if (chain.length === 1 && chain[0].pipeline.length === 1 && !chain[0].pipeline[0].command) {
+      // Check for parse errors in any segment
+      for (const seg of chain) {
+        const parseError = seg.pipeline.find((p) => p.error);
+        if (parseError) {
+          term.write(colorize(parseError.error!, ansi.red));
           writePrompt(term);
           continue;
         }
+      }
 
-        // Capture tab ID at submission time (before async enqueue)
-        const submittingPaneId = getActivePaneId(useGameStore.getState());
+      // Check if first segment parse error already handled (continue above skips outer for)
+      // Re-check to avoid double-handling — if any segment had error, we already wrote it
+      const hasParseError = chain.some((seg) => seg.pipeline.some((p) => p.error));
+      if (hasParseError) {
+        // The error was already written above, prompt was written, skip execution
+        return;
+      }
 
-        // Gate input while command is queued/executing
-        busyRef.current = true;
-        busyPaneIdRef.current = submittingPaneId ?? null;
+      // Check for empty input (single empty pipeline)
+      if (chain.length === 1 && chain[0].pipeline.length === 1 && !chain[0].pipeline[0].command) {
+        writePrompt(term);
+        return;
+      }
 
-        // Enqueue command execution to serialize FS mutations per computer
-        enqueueCommand(computerId, async () => {
-          try {
-          const store = useGameStore.getState();
-          const initialFs = store.computerState[computerId]!.fs;
-          const homeDir = initialFs.homeDir;
+      // Capture tab ID at submission time (before async enqueue)
+      const submittingPaneId = getActivePaneId(useGameStore.getState());
 
-          const applyCommandResult = (
-            cmdResult: import("@tt/core/commands/types").CommandResult,
-            parsedCmd: import("@tt/core/commands/types").ParsedCommand,
-            runningFs: VirtualFS,
-            isFinal: boolean
-          ) => {
-            const latestStore = useGameStore.getState();
-            const targetComputer = cmdResult.transitionTo;
-            const effects = computeEffects(cmdResult, {
-              parsedCommand: parsedCmd.command,
-              parsedArgs: parsedCmd.args,
-              cwd: cwdRef.current,
-              homeDir,
-              activeComputer: computerId,
-              username: latestStore.username,
-              deliveredEmailIds: latestStore.deliveredEmailIds,
-              deliveredPiperIds: latestStore.deliveredPiperIds,
-              storyFlags: latestStore.storyFlags,
-              fs: runningFs,
-              targetComputerExists: targetComputer ? !!latestStore.computerState[targetComputer as ComputerId] : undefined,
-              processDeliveries,
-              renderSavesList,
-              renderCheckpointsList,
-            });
+      // Gate input while command is queued/executing
+      busyRef.current = true;
+      busyPaneIdRef.current = submittingPaneId ?? null;
 
-            if (!isFinal) {
-              // Per-segment: apply story flags, deliveries to store (needed for gating)
-              // but do NOT write FS, notifications, or prompt
-              for (const update of effects.storyFlagUpdates) {
-                useGameStore.getState().setStoryFlag(update.flag, update.value);
-                if (update.toast) {
-                  useGameStore.getState().addToast(update.toast);
-                }
+      // Enqueue command execution to serialize FS mutations per computer
+      enqueueCommand(computerId, async () => {
+        try {
+        const store = useGameStore.getState();
+        const initialFs = store.computerState[computerId]!.fs;
+        const homeDir = initialFs.homeDir;
+
+        const applyCommandResult = (
+          cmdResult: import("@tt/core/commands/types").CommandResult,
+          parsedCmd: import("@tt/core/commands/types").ParsedCommand,
+          runningFs: VirtualFS,
+          isFinal: boolean
+        ) => {
+          const latestStore = useGameStore.getState();
+          const targetComputer = cmdResult.transitionTo;
+          const effects = computeEffects(cmdResult, {
+            parsedCommand: parsedCmd.command,
+            parsedArgs: parsedCmd.args,
+            cwd: cwdRef.current,
+            homeDir,
+            activeComputer: computerId,
+            username: latestStore.username,
+            deliveredEmailIds: latestStore.deliveredEmailIds,
+            deliveredPiperIds: latestStore.deliveredPiperIds,
+            storyFlags: latestStore.storyFlags,
+            fs: runningFs,
+            targetComputerExists: targetComputer ? !!latestStore.computerState[targetComputer as ComputerId] : undefined,
+            processDeliveries,
+            renderSavesList,
+            renderCheckpointsList,
+          });
+
+          if (!isFinal) {
+            // Per-segment: apply story flags, deliveries to store (needed for gating)
+            // but do NOT write FS, notifications, or prompt
+            for (const update of effects.storyFlagUpdates) {
+              useGameStore.getState().setStoryFlag(update.flag, update.value);
+              if (update.toast) {
+                useGameStore.getState().addToast(update.toast);
               }
-              if (effects.newDeliveredEmailIds.length > 0) {
-                useGameStore.getState().addDeliveredEmails(effects.newDeliveredEmailIds);
-              }
-              if (effects.newDeliveredPiperIds.length > 0) {
-                useGameStore.getState().addDeliveredPiperMessages(effects.newDeliveredPiperIds);
-              }
-              if (effects.newCwd) {
-                cwdRef.current = effects.newCwd;
-                useGameStore.getState().setActivePaneCwd(effects.newCwd);
-              }
-              if (effects.clearScreen) {
-                term.clear();
-              }
-              if (effects.output) {
-                term.write(effects.output.replace(/\n/g, "\r\n"));
-              }
-              // Check if segment triggers session/incremental/transition — must stop chain
-              if (effects.startSession || effects.incrementalLines || effects.transitionTo) {
-                return executeEffects(term, effects, submittingPaneId);
-              }
-              return false;
             }
+            if (effects.newDeliveredEmailIds.length > 0) {
+              useGameStore.getState().addDeliveredEmails(effects.newDeliveredEmailIds);
+            }
+            if (effects.newDeliveredPiperIds.length > 0) {
+              useGameStore.getState().addDeliveredPiperMessages(effects.newDeliveredPiperIds);
+            }
+            if (effects.newCwd) {
+              cwdRef.current = effects.newCwd;
+              useGameStore.getState().setActivePaneCwd(effects.newCwd);
+            }
+            if (effects.clearScreen) {
+              term.clear();
+            }
+            if (effects.output) {
+              term.write(effects.output.replace(/\n/g, "\r\n"));
+            }
+            // Check if segment triggers session/incremental/transition — must stop chain
+            if (effects.startSession || effects.incrementalLines || effects.transitionTo) {
+              return executeEffects(term, effects, submittingPaneId);
+            }
+            return false;
+          }
 
-            return executeEffects(term, effects, submittingPaneId);
-          };
+          return executeEffects(term, effects, submittingPaneId);
+        };
 
-          let runningFs = initialFs;
-          const initialMounts = store.computerState[computerId]?.mounts ?? {};
-          let runningMounts: Mounts = initialMounts;
-          let lastExitCode = 0;
-          let earlyReturn = false;
-          let wroteOutput = false;
+        let runningFs = initialFs;
+        const initialMounts = store.computerState[computerId]?.mounts ?? {};
+        let runningMounts: Mounts = initialMounts;
+        let lastExitCode = 0;
+        let earlyReturn = false;
+        let wroteOutput = false;
 
-          for (let ci = 0; ci < chain.length; ci++) {
-            const seg = chain[ci];
+        for (let ci = 0; ci < chain.length; ci++) {
+          const seg = chain[ci];
 
-            // Check chain operator logic
-            if (seg.operator === '&&' && lastExitCode !== 0) continue;
-            if (seg.operator === '||' && lastExitCode === 0) continue;
-            // ';' and null (first): always execute
+          // Check chain operator logic
+          if (seg.operator === '&&' && lastExitCode !== 0) continue;
+          if (seg.operator === '||' && lastExitCode === 0) continue;
+          // ';' and null (first): always execute
 
-            const pipeline = [...seg.pipeline];
+          const pipeline = [...seg.pipeline];
 
-            // Extract redirection from last pipeline command (per-segment)
-            const lastSegment = pipeline[pipeline.length - 1];
-            const { command: stripped, redirects, parseError } =
-              extractStdoutRedirect(lastSegment.raw);
-            if (parseError) {
+          // Extract redirection from last pipeline command (per-segment)
+          const lastSegment = pipeline[pipeline.length - 1];
+          const { command: stripped, redirects, parseError } =
+            extractStdoutRedirect(lastSegment.raw);
+          if (parseError) {
+            if (wroteOutput) term.write("\r\n");
+            term.write(colorize(parseError, ansi.red));
+            wroteOutput = true;
+            lastExitCode = 1;
+            continue;
+          }
+          if (redirects.length > 0) {
+            // zsh opens redirect targets before exec — a bad target means the command never runs
+            const precheckError = precheckRedirects(redirects, cwdRef.current, homeDir, runningFs);
+            if (precheckError) {
               if (wroteOutput) term.write("\r\n");
-              term.write(colorize(parseError, ansi.red));
+              term.write(colorize(precheckError, ansi.red));
               wroteOutput = true;
               lastExitCode = 1;
               continue;
             }
-            if (redirects.length > 0) {
-              // zsh opens redirect targets before exec — a bad target means the command never runs
-              const precheckError = precheckRedirects(redirects, cwdRef.current, homeDir, runningFs);
-              if (precheckError) {
-                if (wroteOutput) term.write("\r\n");
-                term.write(colorize(precheckError, ansi.red));
-                wroteOutput = true;
-                lastExitCode = 1;
-                continue;
-              }
-              pipeline[pipeline.length - 1] = parseInput(stripped);
+            pipeline[pipeline.length - 1] = parseInput(stripped);
+          }
+
+          // Async detection per segment
+          const hasAsyncCmd = pipeline.some((p) => isAsyncCommand(p.command));
+          if (hasAsyncCmd) {
+            if (wroteOutput) term.write("\r\n");
+            term.write(colorize("Loading...", ansi.dim));
+          }
+
+          // Execute pipeline for this segment
+          let stdin: string | undefined; // reset per chain segment
+          let lastResult: import("@tt/core/commands/types").CommandResult = { output: "" };
+          const allTriggerEvents: import("../engine/mail/delivery").GameEvent[] = [];
+          let pipelineViolation: import("../story/security").SecurityViolation | undefined;
+
+          for (let pi = 0; pi < pipeline.length; pi++) {
+            const p = pipeline[pi];
+            if (!p.command) continue;
+
+            const ctx = buildCommandContext(
+              runningFs,
+              cwdRef.current,
+              computerId,
+              homeDir,
+              stdin,
+              p.rawArgs,
+              pi < pipeline.length - 1 || redirects.length > 0,
+              useGameStore.getState(),
+              runningMounts
+            );
+
+            if (isAsyncCommand(p.command)) {
+              lastResult = await executeAsync(p.command, p.args, p.flags, ctx);
+            } else {
+              lastResult = execute(p.command, p.args, p.flags, ctx);
             }
 
-            // Async detection per segment
-            const hasAsyncCmd = pipeline.some((p) => isAsyncCommand(p.command));
-            if (hasAsyncCmd) {
-              if (wroteOutput) term.write("\r\n");
-              term.write(colorize("Loading...", ansi.dim));
+            if (lastResult.triggerEvents) {
+              allTriggerEvents.push(...lastResult.triggerEvents);
             }
 
-            // Execute pipeline for this segment
-            let stdin: string | undefined; // reset per chain segment
-            let lastResult: import("@tt/core/commands/types").CommandResult = { output: "" };
-            const allTriggerEvents: import("../engine/mail/delivery").GameEvent[] = [];
-            let pipelineViolation: import("../story/security").SecurityViolation | undefined;
+            if (lastResult.securityViolation && !pipelineViolation) {
+              pipelineViolation = lastResult.securityViolation;
+            }
 
-            for (let pi = 0; pi < pipeline.length; pi++) {
-              const p = pipeline[pi];
-              if (!p.command) continue;
-
-              const ctx = buildCommandContext(
-                runningFs,
-                cwdRef.current,
-                computerId,
-                homeDir,
-                stdin,
-                p.rawArgs,
-                pi < pipeline.length - 1 || redirects.length > 0,
-                useGameStore.getState(),
-                runningMounts
-              );
-
-              if (isAsyncCommand(p.command)) {
-                lastResult = await executeAsync(p.command, p.args, p.flags, ctx);
-              } else {
-                lastResult = execute(p.command, p.args, p.flags, ctx);
-              }
-
-              if (lastResult.triggerEvents) {
-                allTriggerEvents.push(...lastResult.triggerEvents);
-              }
-
-              if (lastResult.securityViolation && !pipelineViolation) {
-                pipelineViolation = lastResult.securityViolation;
-              }
-
-              // Intermediate pipeline commands: generate file_read events
-              if (pi < pipeline.length - 1 && commandReadsFiles(p.command)) {
-                for (const arg of p.args) {
-                  if (!arg.startsWith("-")) {
-                    const absPath = resolvePath(arg, cwdRef.current, homeDir);
-                    if (!runningFs.readFile(absPath).error) {
-                      allTriggerEvents.push({ type: "file_read" as const, detail: absPath });
-                    }
+            // Intermediate pipeline commands: generate file_read events
+            if (pi < pipeline.length - 1 && commandReadsFiles(p.command)) {
+              for (const arg of p.args) {
+                if (!arg.startsWith("-")) {
+                  const absPath = resolvePath(arg, cwdRef.current, homeDir);
+                  if (!runningFs.readFile(absPath).error) {
+                    allTriggerEvents.push({ type: "file_read" as const, detail: absPath });
                   }
                 }
               }
-
-              if (lastResult.newFs) {
-                runningFs = lastResult.newFs;
-              }
-
-              if (lastResult.newMounts) {
-                runningMounts = lastResult.newMounts;
-              }
-
-              stdin = stripAnsi(lastResult.output);
             }
 
-            if (allTriggerEvents.length > 0) {
-              lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
+            if (lastResult.newFs) {
+              runningFs = lastResult.newFs;
             }
 
-            if (pipelineViolation && !lastResult.securityViolation) {
-              lastResult = { ...lastResult, securityViolation: pipelineViolation };
+            if (lastResult.newMounts) {
+              runningMounts = lastResult.newMounts;
             }
 
-            if (redirects.length > 0 && lastResult) {
-              const redir = applyRedirection(redirects, lastResult, cwdRef.current, homeDir, runningFs, computerId, computerId === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined);
-              lastResult = redir.result;
-              runningFs = redir.fs;
-            }
-
-            lastExitCode = lastResult.exitCode ?? 0;
-            if (lastResult.output) wroteOutput = true;
-
-            if (hasAsyncCmd) {
-              term.write("\r\x1b[K");
-            }
-
-            const isFinal = ci === chain.length - 1 || isChainEarlyReturn(lastResult);
-            earlyReturn = applyCommandResult(lastResult, pipeline[pipeline.length - 1], runningFs, isFinal) ?? false;
-
-            // If segment triggers session/incremental/transition, stop chain
-            if (isChainEarlyReturn(lastResult) || earlyReturn) break;
+            stdin = stripAnsi(lastResult.output);
           }
 
-          // Append command to .zsh_history in the virtual filesystem (HIST_IGNORE_DUPS)
-          const historyPath = `${homeDir}/.zsh_history`;
-          const existing = runningFs.readFile(historyPath);
-          const prev = existing.content ?? "";
-          const lastLine = prev.trimEnd().split("\n").pop() ?? "";
-          if (!result.skipHistory && lastLine !== result.input) {
-            const suffix = prev.endsWith("\n") || prev === "" ? "" : "\n";
-            const historyUpdated = prev + suffix + result.input + "\n";
-            const histWrite = runningFs.writeFile(historyPath, historyUpdated);
-            if (histWrite.fs) runningFs = histWrite.fs;
+          if (allTriggerEvents.length > 0) {
+            lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
           }
 
-          // Write final FS to store once
-          if (runningFs !== initialFs) {
-            useGameStore.getState().setComputerFs(computerId, runningFs);
+          if (pipelineViolation && !lastResult.securityViolation) {
+            lastResult = { ...lastResult, securityViolation: pipelineViolation };
           }
 
-          // Write final mounts to store once
-          if (runningMounts !== initialMounts) {
-            useGameStore.getState().setComputerMounts(computerId, runningMounts);
+          if (redirects.length > 0 && lastResult) {
+            const redir = applyRedirection(redirects, lastResult, cwdRef.current, homeDir, runningFs, computerId, computerId === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined);
+            lastResult = redir.result;
+            runningFs = redir.fs;
           }
 
-          if (!earlyReturn) {
-            writePrompt(term);
+          lastExitCode = lastResult.exitCode ?? 0;
+          if (lastResult.output) wroteOutput = true;
+
+          if (hasAsyncCmd) {
+            term.write("\r\x1b[K");
           }
-          } finally {
-            busyRef.current = false;
-            busyPaneIdRef.current = null;
-          }
-        });
-      }
+
+          const isFinal = ci === chain.length - 1 || isChainEarlyReturn(lastResult);
+          earlyReturn = applyCommandResult(lastResult, pipeline[pipeline.length - 1], runningFs, isFinal) ?? false;
+
+          // If segment triggers session/incremental/transition, stop chain
+          if (isChainEarlyReturn(lastResult) || earlyReturn) break;
+        }
+
+        // Append command to .zsh_history in the virtual filesystem (HIST_IGNORE_DUPS)
+        const historyPath = `${homeDir}/.zsh_history`;
+        const existing = runningFs.readFile(historyPath);
+        const prev = existing.content ?? "";
+        const lastLine = prev.trimEnd().split("\n").pop() ?? "";
+        if (!result.skipHistory && lastLine !== result.input) {
+          const suffix = prev.endsWith("\n") || prev === "" ? "" : "\n";
+          const historyUpdated = prev + suffix + result.input + "\n";
+          const histWrite = runningFs.writeFile(historyPath, historyUpdated);
+          if (histWrite.fs) runningFs = histWrite.fs;
+        }
+
+        // Write final FS to store once
+        if (runningFs !== initialFs) {
+          useGameStore.getState().setComputerFs(computerId, runningFs);
+        }
+
+        // Write final mounts to store once
+        if (runningMounts !== initialMounts) {
+          useGameStore.getState().setComputerMounts(computerId, runningMounts);
+        }
+
+        if (!earlyReturn) {
+          writePrompt(term);
+        }
+        } finally {
+          busyRef.current = false;
+          busyPaneIdRef.current = null;
+        }
+      });
     },
     [writePrompt, sessionRouter, commandLine, executeEffects]
   );
