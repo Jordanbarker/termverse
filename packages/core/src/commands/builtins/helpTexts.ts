@@ -393,6 +393,8 @@ export const HELP_TEXTS: Record<string, string> = {
     "  git branch [-a|-r] [<name>|-d <name>] List, create, or delete branches",
     "  git switch [-c] <branch>    Switch (or create and switch) branches",
     "  git checkout [-b] <branch>  Switch or create branches (legacy)",
+    "  git rebase <branch>         Reapply commits on top of another branch",
+    "  git rebase --continue|--abort  Resume or cancel an in-progress rebase",
     "  git diff [--staged]         Show changes",
     "  git push [-u] [origin br]   Update remote refs",
     "  git pull [origin branch]    Fetch and merge from remote",

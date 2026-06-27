@@ -8,6 +8,7 @@ import {
   listBranches, createBranch, deleteBranch, gitCheckout, gitDiffFiles,
   gitStashSave, gitStashPop, gitStashList,
   gitClone, gitPush, gitPull,
+  gitRebase, gitRebaseContinue, gitRebaseAbort,
   type BranchListMode,
 } from "@tt/core/git/repo";
 import { formatStatus, formatLog, formatDiff, formatBranches } from "@tt/core/git/output";
@@ -73,6 +74,7 @@ const GIT_SUBCOMMAND_FLAGS: Record<string, KnownFlags> = {
   branch: { short: ["d", "D", "a", "r"] },
   checkout: { short: ["b"] },
   switch: { short: ["c"] },
+  rebase: { long: ["continue", "abort"] },
   diff: { long: ["staged", "cached"] },
   stash: {},
   push: { short: ["u", "f"] },
@@ -213,6 +215,22 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
         return { output: msg, exitCode: 128 };
       }
       return { output: result.output, newFs: result.fs, triggerEvents: result.triggerEvents };
+    }
+
+    case "rebase": {
+      if (flags["abort"]) {
+        const result = gitRebaseAbort(ctx.fs, root);
+        if (result.error) return { output: result.error, exitCode: 128 };
+        return { output: result.output, newFs: result.fs };
+      }
+      if (flags["continue"]) {
+        const result = gitRebaseContinue(ctx.fs, root);
+        if (result.error) return { output: result.error, exitCode: 1 };
+        return { output: result.output, newFs: result.fs };
+      }
+      const result = gitRebase(ctx.fs, root, subArgs[0]);
+      if (result.error) return { output: result.error, exitCode: result.error.startsWith("fatal:") ? 128 : 1 };
+      return { output: result.output, newFs: result.fs };
     }
 
     case "diff": {

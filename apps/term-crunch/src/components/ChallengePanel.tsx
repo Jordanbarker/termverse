@@ -204,7 +204,9 @@ function GitReadout({ fs, repoPath }: { fs: ReturnType<typeof useGameStore.getSt
       {row("commits", String(g.commitCount))}
       {row("latest", g.latestMessage ?? "-")}
       {row("staged", g.staged.length ? g.staged.join(", ") : "-")}
-      {row("working tree", g.clean ? "clean" : "dirty")}
+      {g.rebaseInProgress &&
+        row("rebase", g.conflictFiles.length ? `conflict: ${g.conflictFiles.join(", ")}` : "in progress")}
+      {row("working tree", g.clean ? "clean" : g.rebaseInProgress ? "rebasing" : "dirty")}
     </div>
   );
 }

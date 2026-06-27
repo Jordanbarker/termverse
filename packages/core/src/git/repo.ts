@@ -1,7 +1,7 @@
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { isDirectory, isFile } from "@tt/core/filesystem/types";
 import { normalizePath } from "@tt/core/lib/pathUtils";
-import { GitCommit, GitIndex, GitRepo, GitStashEntry } from "./types";
+import { GitCommit, GitIndex, GitRepo, GitStashEntry, GitRebaseState } from "./types";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -71,6 +71,14 @@ export function readStash(fs: VirtualFS, root: string): GitStashEntry[] {
     try { return JSON.parse(file.content); } catch { /* fall through */ }
   }
   return [];
+}
+
+export function readRebaseState(fs: VirtualFS, root: string): GitRebaseState | null {
+  const file = fs.readFile(`${root}/.git/rebase-state.json`);
+  if (file.content) {
+    try { return JSON.parse(file.content); } catch { /* fall through */ }
+  }
+  return null;
 }
 
 export function readHead(fs: VirtualFS, root: string): string {
@@ -250,9 +258,15 @@ export function gitAdd(fs: VirtualFS, root: string, paths: string[], allFlag: bo
     }
   }
 
-  // Only stage files that differ from HEAD
+  // Unmerged paths in a rebase must always re-stage, even when the resolved content
+  // equals HEAD (player resolved "in favor of one side"). HEAD here is the original
+  // branch tip, not the rebase target, so content-equality is not a meaningful signal.
+  const rebaseState = readRebaseState(fs, root);
+  const unmerged = new Set(rebaseState?.conflictFiles ?? []);
+
+  // Only stage files that differ from HEAD (or are unmerged during a rebase)
   for (const [relPath, content] of Object.entries(filesToStage)) {
-    if (headTree[relPath] !== content) {
+    if (headTree[relPath] !== content || unmerged.has(relPath)) {
       index.staged[relPath] = content;
     }
     // If it was in deleted, remove from deleted since it exists again
@@ -376,6 +390,8 @@ export interface StatusResult {
   staged: { path: string; status: "new file" | "modified" | "deleted" }[];
   unstaged: { path: string; status: "modified" | "deleted" }[];
   untracked: string[];
+  /** Present while a rebase is in progress; `unmerged` excludes paths already `git add`ed. */
+  rebase?: { onto: string; branch: string; unmerged: string[] };
 }
 
 export function gitStatus(fs: VirtualFS, root: string): StatusResult {
@@ -423,6 +439,21 @@ export function gitStatus(fs: VirtualFS, root: string): StatusResult {
     if (!(path in trackedTree) && !(path in repo.index.staged)) {
       untracked.push(path);
     }
+  }
+
+  // During a rebase, unresolved conflict files show as "both modified" under Unmerged
+  // paths until `git add`ed; pull them out of the plain unstaged list.
+  const rebaseState = readRebaseState(fs, root);
+  if (rebaseState) {
+    const unmerged = rebaseState.conflictFiles.filter((f) => !(f in repo.index.staged));
+    const unmergedSet = new Set(unmerged);
+    return {
+      branch: repo.currentBranch,
+      staged,
+      unstaged: unstaged.filter((u) => !unmergedSet.has(u.path)),
+      untracked,
+      rebase: { onto: rebaseState.onto, branch: rebaseState.originalBranch, unmerged },
+    };
   }
 
   return { branch: repo.currentBranch, staged, unstaged, untracked };
@@ -1044,4 +1075,286 @@ export function gitPull(
   }
 
   return { fs, output: "Already up to date." };
+}
+
+// ── git rebase ───────────────────────────────────────────────────────
+
+function writeRebaseState(fs: VirtualFS, root: string, state: GitRebaseState): VirtualFS {
+  return writeOrFail(fs, `${root}/.git/rebase-state.json`, JSON.stringify(state));
+}
+
+function clearRebaseState(fs: VirtualFS, root: string): VirtualFS {
+  const path = `${root}/.git/rebase-state.json`;
+  return fs.getNode(path) ? removeOrFail(fs, path) : fs;
+}
+
+/** Detect git conflict markers anywhere in a file's content. */
+export function hasConflictMarkers(content: string): boolean {
+  return /^<{7} /m.test(content) || /^={7}\s*$/m.test(content) || /^>{7} /m.test(content);
+}
+
+/** All ancestor hashes of `hash`, inclusive. */
+function ancestorSet(fs: VirtualFS, root: string, hash: string): Set<string> {
+  const set = new Set<string>();
+  let current: string | null = hash;
+  while (current && !set.has(current)) {
+    set.add(current);
+    current = readCommit(fs, root, current)?.parent ?? null;
+  }
+  return set;
+}
+
+/** Commits reachable from branchTip but not upstreamTip, oldest first (the work to replay). */
+export function commitsToReplay(fs: VirtualFS, root: string, upstreamTip: string, branchTip: string): GitCommit[] {
+  const upstreamAncestors = ancestorSet(fs, root, upstreamTip);
+  const out: GitCommit[] = [];
+  let current: string | null = branchTip;
+  while (current && !upstreamAncestors.has(current)) {
+    const commit = readCommit(fs, root, current);
+    if (!commit) break;
+    out.push(commit);
+    current = commit.parent;
+  }
+  return out.reverse();
+}
+
+function ensureTrailingNewline(s: string): string {
+  return s === "" || s.endsWith("\n") ? s : s + "\n";
+}
+
+/**
+ * File-level 3-way merge. Values are `undefined` when the file is absent on that side.
+ * Returns `content: undefined` for "file should not exist". When both sides changed the
+ * same file differently, returns the whole file wrapped in conflict markers.
+ */
+function threeWayMergeFile(
+  base: string | undefined, ours: string | undefined, theirs: string | undefined, theirsLabel: string,
+): { content: string | undefined; conflict: boolean } {
+  if (ours === theirs) return { content: ours, conflict: false };
+  if (ours === base) return { content: theirs, conflict: false }; // only theirs changed (incl. add/delete)
+  if (theirs === base) return { content: ours, conflict: false }; // only ours changed
+  const content =
+    `<<<<<<< HEAD\n${ensureTrailingNewline(ours ?? "")}=======\n${ensureTrailingNewline(theirs ?? "")}>>>>>>> ${theirsLabel}\n`;
+  return { content, conflict: true };
+}
+
+function writeFileWithDirs(fs: VirtualFS, root: string, relPath: string, content: string): VirtualFS {
+  const parts = relPath.split("/");
+  for (let i = 1; i < parts.length; i++) {
+    fs = mkdirOrFail(fs, `${root}/${parts.slice(0, i).join("/")}`);
+  }
+  return writeOrFail(fs, `${root}/${relPath}`, content);
+}
+
+/**
+ * Overwrite the working tree with `newTree`, deleting any `removable` (tracked) path not
+ * in it. Writes the VFS directly — bypasses gitCheckout's dirty-overwrite guard, which
+ * would refuse the mid-rebase working state. Untracked files (outside `removable`) survive.
+ */
+function writeTreeToWorkingDir(
+  fs: VirtualFS, root: string, newTree: Record<string, string>, removable: Iterable<string>,
+): VirtualFS {
+  for (const [relPath, content] of Object.entries(newTree)) {
+    fs = writeFileWithDirs(fs, root, relPath, content);
+  }
+  for (const path of removable) {
+    if (!(path in newTree)) {
+      const abs = `${root}/${path}`;
+      if (fs.getNode(abs)) fs = removeOrFail(fs, abs);
+    }
+  }
+  return fs;
+}
+
+/** Merge a single replayed commit's tree onto `onto`. */
+function mergeCommitOnto(
+  fs: VirtualFS, root: string, commit: GitCommit, onto: string,
+): { tree: Record<string, string>; conflictFiles: string[] } {
+  const parentTree = commit.parent ? (readCommit(fs, root, commit.parent)?.tree ?? {}) : {};
+  const ontoTree = readCommit(fs, root, onto)?.tree ?? {};
+  const theirsTree = commit.tree;
+  const label = `${commit.hash.slice(0, 7)} (${commit.message.split("\n")[0]})`;
+
+  const allPaths = new Set([...Object.keys(parentTree), ...Object.keys(ontoTree), ...Object.keys(theirsTree)]);
+  const tree: Record<string, string> = {};
+  const conflictFiles: string[] = [];
+  for (const path of allPaths) {
+    const m = threeWayMergeFile(parentTree[path], ontoTree[path], theirsTree[path], label);
+    if (m.conflict) {
+      conflictFiles.push(path);
+      tree[path] = m.content as string;
+    } else if (m.content !== undefined) {
+      tree[path] = m.content;
+    }
+  }
+  conflictFiles.sort();
+  return { tree, conflictFiles };
+}
+
+function trackedUnion(fs: VirtualFS, root: string, ...hashes: string[]): Set<string> {
+  const set = new Set<string>();
+  for (const h of hashes) {
+    const tree = readCommit(fs, root, h)?.tree ?? {};
+    for (const p of Object.keys(tree)) set.add(p);
+  }
+  return set;
+}
+
+function finalizeRebase(fs: VirtualFS, root: string, state: GitRebaseState): VirtualFS {
+  fs = writeRefOrFail(fs, `${root}/.git/refs/heads/${state.originalBranch}`, state.onto);
+  fs = writeOrFail(fs, `${root}/.git/HEAD`, `ref: refs/heads/${state.originalBranch}`);
+  const finalTree = readCommit(fs, root, state.onto)?.tree ?? {};
+  fs = writeTreeToWorkingDir(fs, root, finalTree, trackedUnion(fs, root, state.originalHead, state.onto));
+  fs = writeOrFail(fs, `${root}/.git/index.json`, JSON.stringify({ staged: {}, deleted: [] }));
+  fs = clearRebaseState(fs, root);
+  return fs;
+}
+
+/**
+ * Replay `state.todo` onto `state.onto`, oldest first. Stops and persists rebase state on
+ * the first conflict; finalizes (moves the branch ref, restores the working tree, clears
+ * index + state) when the todo list drains.
+ */
+function replayNext(fs: VirtualFS, root: string, state: GitRebaseState): { fs: VirtualFS; output: string } {
+  while (state.todo.length > 0) {
+    const hash = state.todo[0];
+    const commit = readCommit(fs, root, hash);
+    if (!commit) { state.todo.shift(); continue; }
+
+    const { tree, conflictFiles } = mergeCommitOnto(fs, root, commit, state.onto);
+
+    if (conflictFiles.length > 0) {
+      const removable = trackedUnion(fs, root, state.onto, hash, commit.parent ?? "");
+      fs = writeTreeToWorkingDir(fs, root, tree, removable);
+      state.current = hash;
+      state.conflictFiles = conflictFiles;
+      fs = writeRebaseState(fs, root, state);
+      const lines: string[] = [];
+      for (const f of conflictFiles) {
+        lines.push(`Auto-merging ${f}`);
+        lines.push(`CONFLICT (content): Merge conflict in ${f}`);
+      }
+      lines.push(`error: could not apply ${hash.slice(0, 7)}... ${commit.message.split("\n")[0]}`);
+      lines.push(`hint: Resolve all conflicts manually, mark them as resolved with`);
+      lines.push(`hint: "git add <conflicted_files>", then run "git rebase --continue".`);
+      return { fs, output: lines.join("\n") };
+    }
+
+    fs = commitReplayed(fs, root, state, commit, tree);
+  }
+  fs = finalizeRebase(fs, root, state);
+  return { fs, output: `Successfully rebased and updated refs/heads/${state.originalBranch}.` };
+}
+
+/** Write a replayed commit onto `state.onto`, advance onto, and pop the todo head. */
+function commitReplayed(
+  fs: VirtualFS, root: string, state: GitRebaseState, original: GitCommit, tree: Record<string, string>,
+): VirtualFS {
+  const newHash = shortHash(`rebase${original.message}${original.timestamp}${state.onto}${JSON.stringify(tree)}`);
+  const replayed: GitCommit = {
+    hash: newHash, parent: state.onto, message: original.message,
+    author: original.author, timestamp: original.timestamp, tree,
+  };
+  fs = writeOrFail(fs, `${root}/.git/objects/${newHash}.json`, JSON.stringify(replayed));
+  state.onto = newHash;
+  state.todo.shift();
+  state.current = null;
+  state.conflictFiles = [];
+  return fs;
+}
+
+export function gitRebase(fs: VirtualFS, root: string, upstream: string | undefined): { fs: VirtualFS; output: string; error?: string } {
+  if (readRebaseState(fs, root)) {
+    return { fs, output: "", error: 'fatal: It seems that there is already a rebase in progress.\nUse "git rebase (--continue | --abort)".' };
+  }
+  if (!upstream) {
+    return { fs, output: "", error: "fatal: invalid upstream (no upstream specified)" };
+  }
+  const branch = getCurrentBranch(readHead(fs, root));
+  if (!branch) {
+    return { fs, output: "", error: "fatal: It looks like 'git rebase' is being run with a detached HEAD." };
+  }
+  const upstreamTip = fs.readFile(`${root}/.git/refs/heads/${upstream}`).content?.trim();
+  if (!upstreamTip) {
+    return { fs, output: "", error: `fatal: invalid upstream '${upstream}'` };
+  }
+  const status = gitStatus(fs, root);
+  if (status.staged.length > 0 || status.unstaged.length > 0) {
+    return { fs, output: "", error: "error: cannot rebase: You have unstaged changes.\nerror: Please commit or stash them." };
+  }
+  const branchTip = resolveHead(fs, root);
+  if (!branchTip) {
+    return { fs, output: "", error: "fatal: no commits on current branch" };
+  }
+
+  // Upstream already merged in → nothing to do.
+  if (ancestorSet(fs, root, branchTip).has(upstreamTip)) {
+    return { fs, output: `Current branch ${branch} is up to date.` };
+  }
+
+  const toReplay = commitsToReplay(fs, root, upstreamTip, branchTip);
+  if (toReplay.length === 0) {
+    // Branch is strictly behind upstream → fast-forward.
+    fs = writeRefOrFail(fs, `${root}/.git/refs/heads/${branch}`, upstreamTip);
+    const finalTree = readCommit(fs, root, upstreamTip)?.tree ?? {};
+    fs = writeTreeToWorkingDir(fs, root, finalTree, trackedUnion(fs, root, branchTip, upstreamTip));
+    return { fs, output: `Successfully rebased and updated refs/heads/${branch}.` };
+  }
+
+  const state: GitRebaseState = {
+    onto: upstreamTip,
+    originalBranch: branch,
+    originalHead: branchTip,
+    todo: toReplay.map((c) => c.hash),
+    current: null,
+    conflictFiles: [],
+  };
+  return replayNext(fs, root, state);
+}
+
+export function gitRebaseContinue(fs: VirtualFS, root: string): { fs: VirtualFS; output: string; error?: string } {
+  const state = readRebaseState(fs, root);
+  if (!state) {
+    return { fs, output: "", error: "fatal: no rebase in progress?" };
+  }
+
+  if (state.current) {
+    const index = readIndex(fs, root);
+    for (const f of state.conflictFiles) {
+      const staged = f in index.staged;
+      const node = fs.getNode(`${root}/${f}`);
+      const working = node && isFile(node) ? node.content : "";
+      if (!staged || hasConflictMarkers(working) || hasConflictMarkers(index.staged[f] ?? "")) {
+        return { fs, output: "", error: "error: you must edit all merge conflicts and then mark them as resolved using git add" };
+      }
+    }
+
+    const commit = readCommit(fs, root, state.current);
+    if (!commit) {
+      return { fs, output: "", error: `fatal: could not read commit ${state.current}` };
+    }
+    // Recompute the clean merge, then overlay the staged resolutions for conflict files.
+    const { tree } = mergeCommitOnto(fs, root, commit, state.onto);
+    for (const f of state.conflictFiles) {
+      tree[f] = index.staged[f];
+    }
+    fs = commitReplayed(fs, root, state, commit, tree);
+    fs = writeOrFail(fs, `${root}/.git/index.json`, JSON.stringify({ staged: {}, deleted: [] }));
+  }
+
+  return replayNext(fs, root, state);
+}
+
+export function gitRebaseAbort(fs: VirtualFS, root: string): { fs: VirtualFS; output: string; error?: string } {
+  const state = readRebaseState(fs, root);
+  if (!state) {
+    return { fs, output: "", error: "fatal: no rebase in progress?" };
+  }
+  fs = writeRefOrFail(fs, `${root}/.git/refs/heads/${state.originalBranch}`, state.originalHead);
+  fs = writeOrFail(fs, `${root}/.git/HEAD`, `ref: refs/heads/${state.originalBranch}`);
+  const origTree = readCommit(fs, root, state.originalHead)?.tree ?? {};
+  fs = writeTreeToWorkingDir(fs, root, origTree, trackedUnion(fs, root, state.originalHead, state.onto));
+  fs = writeOrFail(fs, `${root}/.git/index.json`, JSON.stringify({ staged: {}, deleted: [] }));
+  fs = clearRebaseState(fs, root);
+  return { fs, output: "" };
 }

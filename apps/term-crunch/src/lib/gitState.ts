@@ -1,5 +1,5 @@
 import type { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { findRepoRoot, getCommitLog, gitStatus, listBranches } from "@tt/core/git/repo";
+import { findRepoRoot, getCommitLog, gitStatus, listBranches, readRebaseState } from "@tt/core/git/repo";
 
 /**
  * Flattened, validator-friendly view of a git repo's state, read straight from
@@ -17,6 +17,10 @@ export interface GitReadout {
   unstaged: string[];
   untracked: string[];
   clean: boolean;
+  /** True while a `git rebase` is in progress. */
+  rebaseInProgress: boolean;
+  /** Files still carrying unresolved conflict markers during a rebase. */
+  conflictFiles: string[];
 }
 
 const EMPTY: GitReadout = {
@@ -29,6 +33,8 @@ const EMPTY: GitReadout = {
   unstaged: [],
   untracked: [],
   clean: true,
+  rebaseInProgress: false,
+  conflictFiles: [],
 };
 
 /**
@@ -43,9 +49,11 @@ export function readGitState(fs: VirtualFS, atPath: string): GitReadout {
   const log = getCommitLog(fs, root);
   const status = gitStatus(fs, root);
   const { current } = listBranches(fs, root);
+  const rebase = readRebaseState(fs, root);
   const staged = status.staged.map((s) => s.path);
   const unstaged = status.unstaged.map((s) => s.path);
   const untracked = status.untracked;
+  const conflictFiles = status.rebase?.unmerged ?? [];
 
   return {
     hasRepo: true,
@@ -56,6 +64,8 @@ export function readGitState(fs: VirtualFS, atPath: string): GitReadout {
     staged,
     unstaged,
     untracked,
-    clean: staged.length === 0 && unstaged.length === 0 && untracked.length === 0,
+    clean: !rebase && staged.length === 0 && unstaged.length === 0 && untracked.length === 0,
+    rebaseInProgress: !!rebase,
+    conflictFiles,
   };
 }

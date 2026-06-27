@@ -44,6 +44,15 @@ interface GitStashEntry {
   message: string;
 }
 
+interface GitRebaseState {                       // .git/rebase-state.json; present only mid-rebase
+  onto: string;                                  // commit being built on; advances as commits replay
+  originalBranch: string;                        // branch being rebased (moved to final tip at the end)
+  originalHead: string;                          // that branch's tip before rebase (for --abort)
+  todo: string[];                                // ORIGINAL hashes still to replay, oldest first
+  current: string | null;                        // original hash stopped on a conflict
+  conflictFiles: string[];                       // working-tree files carrying conflict markers
+}
+
 interface GitRepo {
   root: string;                                  // Absolute path of the repo root (where .git/ lives)
   head: string;                                  // "ref: refs/heads/main" or a raw hash
@@ -75,6 +84,7 @@ Mirrors real git enough to be discoverable by `ls .git/` / `cat .git/HEAD`:
 ├── config                    # "[remote \"origin\"]\n\turl = ..." sections
 ├── index.json                # GitIndex serialized
 ├── stash.json                # GitStashEntry[] serialized
+├── rebase-state.json         # GitRebaseState serialized (present only mid-rebase)
 ├── objects/<hash>.json       # GitCommit serialized
 └── refs/
     └── heads/<branch>        # Plain text: commit hash
@@ -107,6 +117,7 @@ Supported subcommands today (all in the switch in `git.ts`):
 | `branch` / `branch <name>` / `branch -d <name>` / `branch -a` / `branch -r` | `listBranches` / `createBranch` / `deleteBranch` | `branch <name>` emits `git_checkout_b` (counts as branch creation for cascade). `-a` lists locals + `remotes/<remote>/<branch>`, `-r` lists only remotes; both reject a positional branch name with `fatal: branch name required` (exit 128). `listBranches(fs, root, mode)` returns `{ branches, remotes, current }` — callers that don't need remotes can ignore the `remotes` field. |
 | `checkout <ref>` / `checkout -b <name>` | `gitCheckout` / `createBranch` | `-b` emits `git_checkout_b` |
 | `switch <branch>` / `switch -c <name>` | `gitCheckout` / `createBranch` | `-c` emits `git_checkout_b` |
+| `rebase <upstream>` / `rebase --continue` / `rebase --abort` | `gitRebase` / `gitRebaseContinue` / `gitRebaseAbort` | Replays the current branch's commits onto `<upstream>` (file-level 3-way merge). On overlap, writes whole-file `<<<<<<< / ======= / >>>>>>>` markers, persists `GitRebaseState`, and stops; player resolves + `git add` + `--continue`. HEAD stays on the branch (no detach) — `rebase-state.json` is the source of truth. `--continue` requires conflict files staged AND marker-free (`gitAdd` re-stages unmerged paths unconditionally). `git status` reports "interactive rebase in progress" + "both modified" Unmerged paths. Fast-forwards when behind; "up to date" when upstream is already an ancestor. No `git merge` / `--onto` / interactive todo. |
 | `diff` / `diff --staged` | `gitDiffFiles` + diff lib | Unified-diff output |
 | `stash` / `stash pop` / `stash list` | `gitStashSave` / `gitStashPop` / `gitStashList` | One-deep stack (no `--keep-index`) |
 | `push` / `push origin <branch>` | `gitPush` | Updates the remote's branch ref + appends commits to `REMOTE_REPOS` in-memory entry |

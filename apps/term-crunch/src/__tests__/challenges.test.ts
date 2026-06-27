@@ -18,13 +18,14 @@ import {
   resetPaneIdCounters,
   type WindowState,
 } from "@tt/core/terminal/paneTypes";
-import { findRepoRoot, gitAdd, gitCommit } from "@tt/core/git/repo";
+import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue } from "@tt/core/git/repo";
 import { buildBaseFs } from "../lib/seed";
 import { structKey, paneTreeMatches } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { panesSplit } from "../challenges/panes-split";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
+import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
 import type { ChallengeSnapshot } from "../challenges/types";
@@ -136,6 +137,75 @@ describe("git-first-commit challenge", () => {
   });
 });
 
+describe("git-rebase challenge", () => {
+  const repo = gitRebaseChallenge.gitRepoPath!;
+  const CONFIG = `${repo}/config.txt`;
+  const [step1, step2, step3] = gitRebaseChallenge.steps;
+
+  function write(fs: ReturnType<typeof gitRebaseChallenge.setup>, content: string) {
+    const r = fs.writeFile(CONFIG, content);
+    if (!r.fs) throw new Error(r.error);
+    return r.fs;
+  }
+
+  it("seeds a feature branch that conflicts with main on rebase", () => {
+    const fs = gitRebaseChallenge.setup(buildBaseFs());
+    expect(findRepoRoot(fs, repo)).toBe(repo);
+    const win = makeWindow(CRUNCH_MACHINE, repo);
+    // freshly seeded: nothing done yet
+    expect(step1.isComplete(snap(win, fs, repo))).toBe(false);
+    expect(step3.isComplete(snap(win, fs, repo))).toBe(false);
+  });
+
+  it("walks the full rebase → resolve → continue flow", () => {
+    let fs = gitRebaseChallenge.setup(buildBaseFs());
+    const win = makeWindow(CRUNCH_MACHINE, repo);
+    const at = (f: typeof fs) => snap(win, f, repo);
+
+    // git rebase main → conflict
+    fs = gitRebase(fs, repo, "main").fs;
+    expect(step1.isComplete(at(fs))).toBe(true);
+    expect(step2.isComplete(at(fs))).toBe(false); // markers present, not staged
+
+    // player edits config.txt (removes markers), still unstaged
+    fs = write(fs, "host = localhost\nport = 8080\ntimeout = 90\n");
+    expect(step2.isComplete(at(fs))).toBe(false);
+
+    // git add config.txt → resolved + staged
+    fs = gitAdd(fs, repo, ["config.txt"], false).fs;
+    expect(step2.isComplete(at(fs))).toBe(true);
+    expect(step3.isComplete(at(fs))).toBe(false); // still mid-rebase
+
+    // git rebase --continue → done
+    fs = gitRebaseContinue(fs, repo).fs;
+    expect(step3.isComplete(at(fs))).toBe(true);
+  });
+
+  it("accepts resolving in favor of one side (content equals a parent version)", () => {
+    let fs = gitRebaseChallenge.setup(buildBaseFs());
+    const win = makeWindow(CRUNCH_MACHINE, repo);
+    const at = (f: typeof fs) => snap(win, f, repo);
+
+    fs = gitRebase(fs, repo, "main").fs;
+    // resolve to exactly main's version — equal to HEAD-side content, no markers
+    fs = write(fs, "host = localhost\nport = 8080\ntimeout = 45\n");
+    fs = gitAdd(fs, repo, ["config.txt"], false).fs;
+    expect(step2.isComplete(at(fs))).toBe(true);
+
+    fs = gitRebaseContinue(fs, repo).fs;
+    expect(step3.isComplete(at(fs))).toBe(true);
+  });
+
+  it("does NOT complete step 2 while conflict markers remain", () => {
+    let fs = gitRebaseChallenge.setup(buildBaseFs());
+    const win = makeWindow(CRUNCH_MACHINE, repo);
+    fs = gitRebase(fs, repo, "main").fs;
+    // stage the still-conflicted file (markers intact)
+    fs = gitAdd(fs, repo, ["config.txt"], false).fs;
+    expect(step2.isComplete(snap(win, fs, repo))).toBe(false);
+  });
+});
+
 describe("rm-bomb challenge", () => {
   const BOMB = "/home/player/work/reports/2024/BOMB.md";
   const PARENT = "/home/player/work/reports/2024";
@@ -242,23 +312,30 @@ describe("group-relative completion gate", () => {
     useGameStore.getState().loadChallenge(0);
   });
 
-  it("finishing the only challenge in a single-challenge track completes the track (no continue gate)", () => {
+  it("finishing the last challenge in a track completes the track (no continue gate)", () => {
     const state = useGameStore.getState;
     useGameStore.setState({ activeCategory: "git" });
-    state().loadChallenge(0); // git track has exactly one challenge (git-first-commit)
-    expect(getCategory("git").challenges).toHaveLength(1);
+    const gitChallenges = getCategory("git").challenges;
+    const lastIndex = gitChallenges.length - 1;
+    state().loadChallenge(lastIndex); // the final git challenge (git-rebase)
+    expect(gitChallenges[lastIndex].id).toBe("git-rebase");
 
-    const repo = gitFirstCommit.gitRepoPath!;
+    const repo = gitRebaseChallenge.gitRepoPath!;
+    const config = `${repo}/config.txt`;
 
-    // step 1: stage README → advance within the challenge
-    useGameStore.setState({ fs: gitAdd(state().fs, repo, ["README.md"], false).fs });
+    // step 1: git rebase main → conflict → advance within the challenge
+    useGameStore.setState({ fs: gitRebase(state().fs, repo, "main").fs });
     state().checkCompletion();
     expect(state().stepIndex).toBe(1);
 
-    // step 2: commit → last step of the only challenge in the track → done
-    useGameStore.setState({
-      fs: gitCommit(state().fs, repo, "init", GIT_AUTHOR, false, false, 1_700_000_000_000).fs,
-    });
+    // step 2: resolve markers + stage → advance to the final step
+    useGameStore.setState({ fs: state().fs.writeFile(config, "host = localhost\nport = 8080\ntimeout = 90\n").fs! });
+    useGameStore.setState({ fs: gitAdd(state().fs, repo, ["config.txt"], false).fs });
+    state().checkCompletion();
+    expect(state().stepIndex).toBe(2);
+
+    // step 3: git rebase --continue → last step of the final challenge → done, no gate
+    useGameStore.setState({ fs: gitRebaseContinue(state().fs, repo).fs });
     state().checkCompletion();
     expect(state().completed).toBe(true);
     expect(state().awaitingContinue).toBe(false);

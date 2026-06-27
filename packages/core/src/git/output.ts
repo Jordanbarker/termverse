@@ -8,7 +8,25 @@ export function formatStatus(status: StatusResult, short: boolean, plain: boolea
   if (short) return formatStatusShort(status);
 
   const lines: string[] = [];
-  lines.push(`On branch ${status.branch ?? "(detached HEAD)"}`);
+  if (status.rebase) {
+    const onto = status.rebase.onto.slice(0, 7);
+    lines.push(`interactive rebase in progress; onto ${onto}`);
+    lines.push(`You are currently rebasing branch '${status.rebase.branch}' on '${onto}'.`);
+    lines.push('  (fix conflicts and then run "git rebase --continue")');
+    lines.push('  (use "git rebase --abort" to check out the original branch)');
+  } else {
+    lines.push(`On branch ${status.branch ?? "(detached HEAD)"}`);
+  }
+
+  if (status.rebase && status.rebase.unmerged.length > 0) {
+    lines.push("");
+    lines.push("Unmerged paths:");
+    lines.push('  (use "git add <file>..." to mark resolution)');
+    for (const f of status.rebase.unmerged) {
+      const label = `\tboth modified:   ${f}`;
+      lines.push(plain ? label : colorize(label, ansi.red));
+    }
+  }
 
   if (status.staged.length > 0) {
     lines.push("");
@@ -40,7 +58,7 @@ export function formatStatus(status: StatusResult, short: boolean, plain: boolea
     }
   }
 
-  if (status.staged.length === 0 && status.unstaged.length === 0 && status.untracked.length === 0) {
+  if (!status.rebase && status.staged.length === 0 && status.unstaged.length === 0 && status.untracked.length === 0) {
     lines.push("nothing to commit, working tree clean");
   }
 
@@ -49,6 +67,9 @@ export function formatStatus(status: StatusResult, short: boolean, plain: boolea
 
 function formatStatusShort(status: StatusResult): string {
   const lines: string[] = [];
+  for (const f of status.rebase?.unmerged ?? []) {
+    lines.push(`UU ${f}`);
+  }
   for (const s of status.staged) {
     const prefix = s.status === "new file" ? "A " : s.status === "deleted" ? "D " : "M ";
     lines.push(`${prefix} ${s.path}`);

@@ -21,6 +21,20 @@ export interface GitStashEntry {
   message: string;
 }
 
+/**
+ * In-progress rebase, persisted to .git/rebase-state.json (sibling of index.json).
+ * Present only while a rebase is running; cleared on finalize/abort. The file is the
+ * source of truth — HEAD stays on `originalBranch` for the whole rebase (no detach).
+ */
+export interface GitRebaseState {
+  onto: string; // commit hash currently being built on; advances as commits replay
+  originalBranch: string; // branch being rebased (moved to the final tip at the end)
+  originalHead: string; // that branch's tip before rebase started (for --abort)
+  todo: string[]; // ORIGINAL commit hashes still to replay, oldest first ([0] = current when conflicted)
+  current: string | null; // original hash stopped on a conflict (null when not conflicted)
+  conflictFiles: string[]; // working-tree files carrying conflict markers
+}
+
 /** Parsed repo state (read from .git/ files) */
 export interface GitRepo {
   root: string;
