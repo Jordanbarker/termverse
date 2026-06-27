@@ -19,7 +19,7 @@ import {
 } from "@tt/core/terminal/paneTypes";
 import { CRUNCH_MACHINE, HOME_DIR, MAX_PANES_PER_WINDOW, MAX_WINDOWS } from "../lib/machine";
 import { buildBaseFs } from "../lib/seed";
-import { CHALLENGES } from "../challenges/registry";
+import { getCategory, DEFAULT_CATEGORY } from "../challenges/categories";
 import type { ChallengeSnapshot } from "../challenges/types";
 
 /** cwd of the focused pane (single window in v1, but written defensively). */
@@ -44,6 +44,7 @@ export interface GameState {
   activeWindowId: string;
 
   // challenge progress
+  activeCategory: string; // selected track id; challengeIndex is relative to its challenge list
   challengeIndex: number;
   stepIndex: number;
   completed: boolean;
@@ -57,6 +58,7 @@ export interface GameState {
   lastWasBest: boolean; // whether lastElapsedMs set a new record
 
   // lifecycle
+  selectCategory: (id: string) => void;
   loadChallenge: (index: number) => void;
   restartChallenge: () => void;
   checkCompletion: () => void;
@@ -93,6 +95,7 @@ export const useGameStore = create<GameState>()(
   aliases: {},
   windows: [],
   activeWindowId: "",
+  activeCategory: DEFAULT_CATEGORY,
   challengeIndex: 0,
   stepIndex: 0,
   completed: false,
@@ -103,8 +106,13 @@ export const useGameStore = create<GameState>()(
   lastElapsedMs: null,
   lastWasBest: false,
 
+  selectCategory: (id) => {
+    set({ activeCategory: id });
+    get().loadChallenge(0); // start the newly selected track from its first challenge
+  },
+
   loadChallenge: (index) => {
-    const challenge = CHALLENGES[index];
+    const challenge = getCategory(get().activeCategory).challenges[index];
     if (!challenge) return;
     resetPaneIdCounters();
     const fs = challenge.setup(buildBaseFs());
@@ -128,7 +136,8 @@ export const useGameStore = create<GameState>()(
   checkCompletion: () => {
     const state = get();
     if (state.completed || state.awaitingContinue) return;
-    const challenge = CHALLENGES[state.challengeIndex];
+    const group = getCategory(state.activeCategory);
+    const challenge = group.challenges[state.challengeIndex];
     if (!challenge) return;
 
     const activeWindow = state.windows.find((w) => w.id === state.activeWindowId) ?? state.windows[0];
@@ -157,7 +166,7 @@ export const useGameStore = create<GameState>()(
     const bestTimes = isBest ? { ...state.bestTimes, [challenge.id]: elapsed } : state.bestTimes;
 
     const nextIndex = state.challengeIndex + 1;
-    if (nextIndex < CHALLENGES.length) {
+    if (nextIndex < group.challenges.length) {
       // Pause on a completion gate; the next challenge loads on continueToNext()
       // (Enter), so the player gets a beat to register the win before the fs +
       // panes reset for the next sandbox. Clear flash so it doesn't compete.
@@ -320,7 +329,7 @@ export const useGameStore = create<GameState>()(
       name: "term-crunch-progress",
       // Only personal bests survive a refresh; fs/windows/challenge index reseed
       // on mount (GameShell calls loadChallenge(0) when windows.length === 0).
-      partialize: (s) => ({ bestTimes: s.bestTimes }),
+      partialize: (s) => ({ bestTimes: s.bestTimes, activeCategory: s.activeCategory }),
       // Vitest runs in a node env where localStorage is absent (or a partial
       // stub lacking setItem); fall back to an in-memory no-op so the store works
       // under tests without throwing.

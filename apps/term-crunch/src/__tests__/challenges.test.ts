@@ -9,6 +9,7 @@ import {
 import { getAvailableCommands } from "@tt/core/commands/registry";
 import { CRUNCH_AVAILABILITY_POLICY } from "../lib/availabilityPolicy";
 import { CHALLENGES } from "../challenges/registry";
+import { getCategory } from "../challenges/categories";
 import { useGameStore } from "../state/gameStore";
 import {
   makeWindow,
@@ -206,6 +207,61 @@ describe("chmod-perms challenge", () => {
     const fs = chmodPerms.setup(buildBaseFs()).setPermissions(SECRETS, "rw-------").fs!;
     // chmod u+r leaves index 6 unchanged, so the file still can't be cat'd.
     expect(unlock.isComplete(fsSnap(fs))).toBe(false);
+  });
+});
+
+describe("categories", () => {
+  it("'all' contains every challenge in registry order", () => {
+    expect(getCategory("all").challenges).toEqual(CHALLENGES);
+  });
+
+  it("type-derived groups contain only their type and are non-empty", () => {
+    const cases: Array<[string, "git" | "pane" | "fs"]> = [
+      ["git", "git"],
+      ["panes", "pane"],
+      ["fs", "fs"],
+    ];
+    for (const [id, type] of cases) {
+      const cs = getCategory(id).challenges;
+      expect(cs.length).toBeGreaterThan(0);
+      expect(cs.every((c) => c.type === type)).toBe(true);
+    }
+  });
+
+  it("falls back to the 'all' group for an unknown id", () => {
+    expect(getCategory("bogus")).toBe(getCategory("all"));
+  });
+});
+
+describe("group-relative completion gate", () => {
+  // The store's challengeIndex + completion gate are relative to the active
+  // category. Restore the default "all" track afterward so the allowlist suite
+  // (which loads challenges by global registry index) still lines up.
+  afterAll(() => {
+    useGameStore.setState({ activeCategory: "all" });
+    useGameStore.getState().loadChallenge(0);
+  });
+
+  it("finishing the only challenge in a single-challenge track completes the track (no continue gate)", () => {
+    const state = useGameStore.getState;
+    useGameStore.setState({ activeCategory: "git" });
+    state().loadChallenge(0); // git track has exactly one challenge (git-first-commit)
+    expect(getCategory("git").challenges).toHaveLength(1);
+
+    const repo = gitFirstCommit.gitRepoPath!;
+
+    // step 1: stage README → advance within the challenge
+    useGameStore.setState({ fs: gitAdd(state().fs, repo, ["README.md"], false).fs });
+    state().checkCompletion();
+    expect(state().stepIndex).toBe(1);
+
+    // step 2: commit → last step of the only challenge in the track → done
+    useGameStore.setState({
+      fs: gitCommit(state().fs, repo, "init", GIT_AUTHOR, false, false, 1_700_000_000_000).fs,
+    });
+    state().checkCompletion();
+    expect(state().completed).toBe(true);
+    expect(state().awaitingContinue).toBe(false);
   });
 });
 

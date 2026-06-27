@@ -5,7 +5,7 @@ description: "How term-crunch's declarative challenge framework and state-based 
 
 # Challenge Framework
 
-Term Crunch (`@tt/term-crunch`) is a linear sequence of self-contained challenges, each a pure declarative definition. Win-detection is **live and state-based**: after every command and pane mutation the store re-derives a read-only snapshot and asks the current step's predicate whether it is satisfied. No scripted commands, no event log — just "does the current state match?".
+Term Crunch (`@tt/term-crunch`) is a sequence of self-contained challenges, each a pure declarative definition, grouped into selectable **categories** (tracks). Win-detection is **live and state-based**: after every command and pane mutation the store re-derives a read-only snapshot and asks the current step's predicate whether it is satisfied. No scripted commands, no event log — just "does the current state match?".
 
 This app is built only on `@tt/core` and does **not** import termoil story code. See `apps/term-crunch/CLAUDE.md` for the surrounding structure.
 
@@ -19,19 +19,25 @@ This app is built only on `@tt/core` and does **not** import termoil story code.
   - Pane challenges set `targetWindow`/`targetWindows` (the RIGHT-hand schematic the player reproduces).
   - Git challenges set `gitRepoPath` (where the validators + panel readout point).
   - FS challenges set `fsWatchPath` (the directory the panel renders as a tree via `FsTreeView`).
-  - `commands?: string[]` — per-challenge **command allowlist** (primary names; aliases resolve via `getPrimaryName`). When set, only these commands appear in `help` + TAB/ghost-text suggestions and run; everything else prints a friendly hint (exit 127). Omit it for allow-all. `help` and `clear` are **always** available. Enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts` (registered as a side-effect import in `hooks/useTerminal.ts`), which reads the current challenge from the store. Existing lists: `panes-split`/`windows-create` → `[]` (keyboard-only); `git-first-commit` → git+nav; `rm-bomb` → find/rm+nav; `chmod-perms` → chmod/cat+nav.
+  - `commands?: string[]` — per-challenge **command allowlist** (primary names; aliases resolve via `getPrimaryName`). When set, only these commands appear in `help` + TAB/ghost-text suggestions and run; everything else prints a friendly hint (exit 127). Omit it for allow-all. `help` and `clear` are **always** available. Enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts` (registered as a side-effect import in `hooks/useTerminal.ts`), which resolves the current challenge from the store via `getCategory(activeCategory).challenges[challengeIndex]` (the index is **category-relative** — see Categories below). Existing lists: `panes-split`/`windows-create` → `[]` (keyboard-only); `git-first-commit` → git+nav; `rm-bomb` → find/rm+nav; `chmod-perms` → chmod/cat+nav.
+
+## Categories (`src/challenges/categories.ts`)
+
+The player picks a **track** from a panel dropdown. Categories are pure filters over the linear `CHALLENGES` registry, derived from each challenge's `type` — no per-challenge data: `all` (the full registry, in order), `panes` (type `pane`), `git` (type `git`), `fs` (type `fs`). `CATEGORIES` is the static list, `SELECTABLE_CATEGORIES` drops any empty group (for the dropdown), and `getCategory(id)` looks one up with a safe fallback to `all` (covers a stale persisted id).
+
+The store's `challengeIndex` is **relative to the active category's `challenges` list**, not the global registry. Anything resolving the current challenge must go through `getCategory(activeCategory).challenges[challengeIndex]` (store `loadChallenge`/`checkCompletion`, `ChallengePanel`, `availabilityPolicy`) — never `CHALLENGES[challengeIndex]`. `selectCategory(id)` sets `activeCategory` then `loadChallenge(0)` to start that track fresh. Default track is `DEFAULT_CATEGORY` (`"all"`), which mirrors registry order — so a global index still resolves correctly under the default (e.g. tests that `loadChallenge(CHALLENGES.findIndex(...))`).
 
 ## Win-detection (`src/state/gameStore.ts`)
 
-State: `challengeIndex` + `stepIndex` + `awaitingContinue` (completion-gate flag). `checkCompletion()` builds a `ChallengeSnapshot`, runs `challenge.steps[stepIndex].isComplete(snap)`, and:
+State: `activeCategory` + `challengeIndex` (category-relative) + `stepIndex` + `awaitingContinue` (completion-gate flag). `checkCompletion()` resolves `group = getCategory(activeCategory)`, builds a `ChallengeSnapshot`, runs `group.challenges[challengeIndex].steps[stepIndex].isComplete(snap)`, and:
 - not satisfied → return;
 - more steps remain → advance `stepIndex` (flash "✓ Step complete");
-- last step, more challenges remain → set `awaitingContinue` (panel shows "✓ {title} complete! Press Enter to continue", terminal input frozen); `continueToNext()` (Enter) then calls `loadChallenge(next)`, resetting FS + panes for its sandbox;
-- last step of the last challenge → set `completed` (flash "✓ All challenges complete").
+- last step, more challenges remain **in the group** → set `awaitingContinue` (panel shows "✓ {title} complete! Press Enter to continue", terminal input frozen); `continueToNext()` (Enter) then calls `loadChallenge(next)`, resetting FS + panes for its sandbox;
+- last step of the last challenge **in the group** → set `completed` (flash "✓ All challenges complete"). The gate length is `group.challenges.length`, so a single-challenge track (e.g. `git`) completes immediately rather than showing a continue gate.
 
 `checkCompletion()` early-returns while `completed || awaitingContinue` so the still-passing last step doesn't re-fire during the gate.
 
-On the last-step branches it also captures timing: `elapsed = Date.now() - challengeStartTime` (stamped by `loadChallenge`), sets `lastElapsedMs`/`lastWasBest`, and updates `bestTimes[challenge.id]` when it beats the prior best. `bestTimes` is the only field persisted (zustand `persist`, `name: "term-crunch-progress"`); the panel shows the live/best time via `formatElapsed` (`@tt/core/lib/format`).
+On the last-step branches it also captures timing: `elapsed = Date.now() - challengeStartTime` (stamped by `loadChallenge`), sets `lastElapsedMs`/`lastWasBest`, and updates `bestTimes[challenge.id]` when it beats the prior best. `bestTimes` (keyed by `challenge.id`, so it is category-independent and carries across tracks) and `activeCategory` are the persisted fields (zustand `persist`, `name: "term-crunch-progress"`); the panel shows the live/best time via `formatElapsed` (`@tt/core/lib/format`).
 
 It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`/`renameWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. (`renameWindow` re-checks because the `windows-create` challenge gates a step on a window having a `name`.) Keep validators cheap — they run on every keystroke-completed command.
 
@@ -49,5 +55,5 @@ It's invoked after every command and after **structural** pane/window mutations 
 1. Create `src/challenges/<id>.ts` exporting a `Challenge`. Write `setup` to seed only what the challenge needs on top of `buildBaseFs()`. For pane challenges build `targetWindow` with `paneTypes` helpers (don't hand-author ids — the compare ignores them). For git challenges set `gitRepoPath` and read state via `gitState.ts`.
 2. Author each `Step` with a clear `instruction` and a pure `isComplete` predicate over `ChallengeSnapshot`.
 3. Set `commands` to the allowlist the player needs (primary names; `help`/`clear` are implicit). Keyboard-only challenges use `[]`; omit the field only if you genuinely want every builtin available.
-4. Append it to `CHALLENGES` in `registry.ts` (order = play order).
+4. Append it to `CHALLENGES` in `registry.ts` (order = play order). Its `type` decides which category it lands in automatically (`categories.ts` filters on it) — no edit there unless you're adding a brand-new category.
 5. Cover it in `src/__tests__/challenges.test.ts`, then `npm run typecheck` + `npx vitest run`.

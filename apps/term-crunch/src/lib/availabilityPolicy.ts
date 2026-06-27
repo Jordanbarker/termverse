@@ -1,7 +1,7 @@
 import type { AvailabilityPolicy } from "@tt/core/commands/availability";
 import { setAvailabilityPolicy } from "@tt/core/commands/availability";
 import { getPrimaryName } from "@tt/core/commands/registry";
-import { CHALLENGES } from "../challenges/registry";
+import { getCategory } from "../challenges/categories";
 import { useGameStore } from "../state/gameStore";
 
 /**
@@ -19,7 +19,8 @@ import { useGameStore } from "../state/gameStore";
 const ALWAYS_AVAILABLE = new Set(["help", "clear"]);
 
 function isAvailable(commandName: string): boolean {
-  const challenge = CHALLENGES[useGameStore.getState().challengeIndex];
+  const { activeCategory, challengeIndex } = useGameStore.getState();
+  const challenge = getCategory(activeCategory).challenges[challengeIndex];
   if (!challenge?.commands) return true; // no allowlist → allow all
   if (ALWAYS_AVAILABLE.has(commandName)) return true;
   return challenge.commands.includes(getPrimaryName(commandName));

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatElapsed } from "@tt/core/lib/format";
 import { useGameStore } from "../state/gameStore";
-import { CHALLENGES } from "../challenges/registry";
+import { getCategory, SELECTABLE_CATEGORIES } from "../challenges/categories";
 import { readGitState } from "../lib/gitState";
 import SchematicView from "./SchematicView";
 import WindowStripView from "./WindowStripView";
@@ -21,6 +21,8 @@ export default function ChallengePanel() {
   const clearFlash = useGameStore((s) => s.clearFlash);
   const restartChallenge = useGameStore((s) => s.restartChallenge);
   const loadChallenge = useGameStore((s) => s.loadChallenge);
+  const activeCategory = useGameStore((s) => s.activeCategory);
+  const selectCategory = useGameStore((s) => s.selectCategory);
   const challengeStartTime = useGameStore((s) => s.challengeStartTime);
   const bestTimes = useGameStore((s) => s.bestTimes);
   const lastElapsedMs = useGameStore((s) => s.lastElapsedMs);
@@ -33,7 +35,8 @@ export default function ChallengePanel() {
     return () => clearTimeout(t);
   }, [flash, clearFlash]);
 
-  const challenge = CHALLENGES[challengeIndex];
+  const category = getCategory(activeCategory);
+  const challenge = category.challenges[challengeIndex];
   const activeWindow = windows.find((w) => w.id === activeWindowId) ?? windows[0];
 
   // Tick once a second to re-render the live timer while a challenge is in progress.
@@ -50,17 +53,31 @@ export default function ChallengePanel() {
 
   return (
     <aside className="flex h-full w-[420px] shrink-0 flex-col gap-4 border-l border-[#1c2430] bg-[#0d1117] p-5 text-[#b3b1ad]">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-sm font-semibold tracking-wide text-[#e6b450]">TERM CRUNCH</h1>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-sm font-semibold tracking-wide text-[#e6b450]">TERM CRUNCH</h1>
+          <select
+            aria-label="Select category"
+            value={activeCategory}
+            onChange={(e) => selectCategory(e.target.value)}
+            className="max-w-[200px] truncate rounded border border-[#1c2430] bg-[#11161d] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
+          >
+            {SELECTABLE_CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <select
           aria-label="Select challenge"
           value={challengeIndex}
           onChange={(e) => loadChallenge(Number(e.target.value))}
-          className="max-w-[200px] truncate rounded border border-[#1c2430] bg-[#11161d] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
+          className="w-full truncate rounded border border-[#1c2430] bg-[#11161d] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
         >
-          {CHALLENGES.map((c, i) => (
+          {category.challenges.map((c, i) => (
             <option key={c.id} value={i}>
-              {i + 1}/{CHALLENGES.length} · {c.title}
+              {i + 1}/{category.challenges.length} · {c.title}
             </option>
           ))}
         </select>
@@ -89,7 +106,7 @@ export default function ChallengePanel() {
         </div>
       ) : completed || !challenge ? (
         <div className="rounded border border-[#2e7d32] bg-[#11231a] p-4 text-sm text-[#7ee787]">
-          🎉 All challenges complete. Nicely done.
+          🎉 All {activeCategory === "all" ? "" : `${category.label} `}challenges complete. Nicely done.
         </div>
       ) : challengeStartTime === 0 ? (
         // Pre-mount / pre-seed: challengeStartTime is 0 at SSR and on the first
