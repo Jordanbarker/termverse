@@ -22,12 +22,13 @@ An npm-workspace monorepo (`workspaces: ["packages/*", "apps/*"]`) holding a reu
 
 ## Commands
 
-The repo-root `package.json` is the workspace root only — its `dev`/`build`/`analyze`/`generate-data` scripts delegate to `@tt/termoil`; `typecheck` runs `npm --workspaces --if-present run typecheck` (covers `@tt/core` + both apps).
+The repo-root `package.json` is the workspace root only — its `build`/`start`/`analyze`/`generate-data` scripts delegate to `@tt/termoil`; `typecheck` runs `npm --workspaces --if-present run typecheck` (covers `@tt/core` + both apps). The root `dev` is the exception: it runs `scripts/dev-termverse.mjs`, a zero-dependency orchestrator that boots **both** game dev servers (termoil on 3000, term-crunch on 3001) plus the landing page (8080, serving `site/index.html` with its game links rewritten to the dev ports). It is a live-dev convenience, not the production-faithful nested `/termverse/` layout (basePath is `""` in dev). Use `dev:termoil` / `dev:crunch` for a single game.
 
 ```bash
-npm run dev          # termoil dev server
+npm run dev          # full termverse: both games (3000/3001) + landing page (8080)
+npm run dev:termoil  # termoil dev server only
+npm run dev:crunch   # term-crunch dev server only
 npm run build        # termoil production build (static export to apps/termoil/out/)
-npm run dev:crunch   # term-crunch dev server
 npm run build:crunch # term-crunch production build
 npm run lint         # ESLint
 npm run typecheck    # TypeScript checking across all workspaces

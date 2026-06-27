@@ -7,7 +7,8 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm -w @tt/termoil run dev",
+    "dev": "node scripts/dev-termverse.mjs",
+    "dev:termoil": "npm -w @tt/termoil run dev",
     "build": "npm -w @tt/termoil run build",
     "start": "npm -w @tt/termoil run start",
     "lint": "eslint",
