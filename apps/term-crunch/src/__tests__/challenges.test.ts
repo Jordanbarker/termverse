@@ -18,13 +18,14 @@ import {
   resetPaneIdCounters,
   type WindowState,
 } from "@tt/core/terminal/paneTypes";
-import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue } from "@tt/core/git/repo";
+import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue, gitCheckout, gitStashSave, gitStashPop } from "@tt/core/git/repo";
 import { buildBaseFs } from "../lib/seed";
 import { structKey, paneTreeMatches } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { panesSplit } from "../challenges/panes-split";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
+import { gitStashChallenge } from "../challenges/git-stash";
 import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
@@ -203,6 +204,53 @@ describe("git-rebase challenge", () => {
     // stage the still-conflicted file (markers intact)
     fs = gitAdd(fs, repo, ["config.txt"], false).fs;
     expect(step2.isComplete(snap(win, fs, repo))).toBe(false);
+  });
+});
+
+describe("git-stash challenge", () => {
+  const repo = gitStashChallenge.gitRepoPath!;
+  const APP = `${repo}/app.js`;
+  const WIP_APP = "const VERSION = 1;\nstart(); // WIP: refactor in progress\n";
+  const [step1, step2, step3, step4] = gitStashChallenge.steps;
+  const win = makeWindow(CRUNCH_MACHINE, repo);
+  const at = (f: ReturnType<typeof gitStashChallenge.setup>) => snap(win, f, repo);
+
+  it("seeds a staged WIP on main with the hotfix branch present", () => {
+    const fs = gitStashChallenge.setup(buildBaseFs());
+    expect(findRepoRoot(fs, repo)).toBe(repo);
+    // freshly seeded: WIP staged, nothing stashed yet
+    expect(step1.isComplete(at(fs))).toBe(false);
+    expect(fs.readFile(APP).content).toBe(WIP_APP);
+  });
+
+  it("refuses to switch branches while WIP is staged (the reason to stash)", () => {
+    const fs = gitStashChallenge.setup(buildBaseFs());
+    const r = gitCheckout(fs, repo, "hotfix", false);
+    expect(r.error).toContain("stash");
+  });
+
+  it("walks the full stash → switch → switch back → pop flow", () => {
+    let fs = gitStashChallenge.setup(buildBaseFs());
+
+    // git stash → work shelved, tree clean
+    fs = gitStashSave(fs, repo).fs;
+    expect(step1.isComplete(at(fs))).toBe(true);
+    expect(step2.isComplete(at(fs))).toBe(false); // still on main
+
+    // git checkout hotfix → now allowed
+    fs = gitCheckout(fs, repo, "hotfix", false).fs;
+    expect(step2.isComplete(at(fs))).toBe(true);
+    expect(step3.isComplete(at(fs))).toBe(false); // not back yet
+
+    // git checkout main → back on your branch, still stashed
+    fs = gitCheckout(fs, repo, "main", false).fs;
+    expect(step3.isComplete(at(fs))).toBe(true);
+    expect(step4.isComplete(at(fs))).toBe(false); // not popped yet
+
+    // git stash pop → WIP restored, stash empty
+    fs = gitStashPop(fs, repo).fs;
+    expect(step4.isComplete(at(fs))).toBe(true);
+    expect(fs.readFile(APP).content).toBe(WIP_APP);
   });
 });
 
