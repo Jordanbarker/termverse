@@ -8,6 +8,7 @@ import { readGitState } from "../lib/gitState";
 import SchematicView from "./SchematicView";
 import WindowStripView from "./WindowStripView";
 import FsTreeView from "./FsTreeView";
+import SettingsModal from "./SettingsModal";
 
 export default function ChallengePanel() {
   const challengeIndex = useGameStore((s) => s.challengeIndex);
@@ -27,6 +28,8 @@ export default function ChallengePanel() {
   const bestTimes = useGameStore((s) => s.bestTimes);
   const lastElapsedMs = useGameStore((s) => s.lastElapsedMs);
   const lastWasBest = useGameStore((s) => s.lastWasBest);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Auto-clear the transient "✓ complete" banner.
   useEffect(() => {
@@ -56,18 +59,29 @@ export default function ChallengePanel() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-sm font-semibold tracking-wide text-[#e6b450]">TERM CRUNCH</h1>
-          <select
-            aria-label="Select category"
-            value={activeCategory}
-            onChange={(e) => selectCategory(e.target.value)}
-            className="max-w-[200px] truncate rounded border border-[#1c2430] bg-[#11161d] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
-          >
-            {SELECTABLE_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Select category"
+              value={activeCategory}
+              onChange={(e) => selectCategory(e.target.value)}
+              className="max-w-[180px] truncate rounded border border-[#1c2430] bg-[#11161d] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
+            >
+              {SELECTABLE_CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              aria-label="Settings"
+              title="Edit ~/.zshrc and ~/.tmux.conf"
+              onClick={() => setSettingsOpen(true)}
+              className="rounded border border-[#1c2430] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
+            >
+              ⚙
+            </button>
+          </div>
         </div>
         <select
           aria-label="Select challenge"
@@ -183,8 +197,11 @@ export default function ChallengePanel() {
         focus: prefix then arrows. Windows: prefix then{" "}
         <span className="text-[#b3b1ad]">c</span> (new) /{" "}
         <span className="text-[#b3b1ad]">n</span>,<span className="text-[#b3b1ad]">p</span> (switch) /{" "}
-        <span className="text-[#b3b1ad]">r</span> (rename).
+        <span className="text-[#b3b1ad]">r</span> (rename). <span className="text-[#b3b1ad]">⚙</span>{" "}
+        edits <span className="text-[#b3b1ad]">~/.zshrc</span> + <span className="text-[#b3b1ad]">~/.tmux.conf</span>.
       </div>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </aside>
   );
 }

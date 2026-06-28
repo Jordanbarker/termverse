@@ -4,18 +4,9 @@ import { useGameStore } from "../state/gameStore";
 import { windowLabel } from "../lib/windowLabel";
 import TmuxStatusBar, { StatusBarTheme } from "@tt/core/components/TmuxStatusBar";
 
-// Static status-line palette (term-crunch has no ~/.tmux.conf to parse).
-// windowBg "transparent" matches the live game's inactive-tab look.
-const THEME: StatusBarTheme = {
-  statusBg: "#11161d",
-  statusFg: "#6b7680",
-  windowBg: "transparent",
-  windowFg: "#b3b1ad",
-  currentBg: "#253340",
-  currentFg: "#e6b450",
-};
-
 interface TabBarProps {
+  /** Status-line palette, parsed from the player's ~/.tmux.conf by TabManager. */
+  theme: StatusBarTheme;
   /** True while the tmux prefix key is pending (lights up the PREFIX block). */
   prefixActive: boolean;
   /** tmux rename-window inline prompt text; takes over the bar when non-null. */
@@ -26,6 +17,7 @@ interface TabBarProps {
 }
 
 export default function TabBar({
+  theme,
   prefixActive,
   renamePrompt,
   onNewWindow,
@@ -44,13 +36,13 @@ export default function TabBar({
       onCloseWindow={onCloseWindow}
       prefixActive={prefixActive}
       modalText={renamePrompt}
-      theme={THEME}
+      theme={theme}
       trailing={
         <button
           onClick={onNewWindow}
           disabled={windows.length >= 5}
           className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
-          style={{ color: THEME.statusFg }}
+          style={{ color: theme.statusFg }}
         >
           +
         </button>

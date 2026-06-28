@@ -20,3 +20,18 @@ export function buildBaseFs(): VirtualFS {
   });
   return new VirtualFS(root, HOME_DIR, HOME_DIR);
 }
+
+/**
+ * Write the player's `~/.zshrc` and `~/.tmux.conf` (from Settings) into `fs` and
+ * return the updated VirtualFS. `/home/player` already exists from buildBaseFs,
+ * so no makeDirectory is needed. Called on every challenge load so the configs
+ * survive the per-challenge fs reseed.
+ */
+export function applyConfigs(fs: VirtualFS, zshrc: string, tmuxConf: string): VirtualFS {
+  let out = fs;
+  const z = out.writeFile(`${HOME_DIR}/.zshrc`, zshrc);
+  if (z.fs) out = z.fs;
+  const t = out.writeFile(`${HOME_DIR}/.tmux.conf`, tmuxConf);
+  if (t.fs) out = t.fs;
+  return out;
+}

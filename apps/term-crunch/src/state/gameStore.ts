@@ -14,11 +14,14 @@ import {
   focusDirectionTarget,
   nextLeafId,
   setSplitRatio,
+  nudgeSplitRatio,
   mapLeaf,
   resetPaneIdCounters,
 } from "@tt/core/terminal/paneTypes";
+import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";
 import { CRUNCH_MACHINE, HOME_DIR, MAX_PANES_PER_WINDOW, MAX_WINDOWS } from "../lib/machine";
-import { buildBaseFs } from "../lib/seed";
+import { buildBaseFs, applyConfigs } from "../lib/seed";
+import { DEFAULT_ZSHRC, DEFAULT_TMUX_CONF } from "../lib/defaultConfigs";
 import { getCategory, DEFAULT_CATEGORY } from "../challenges/categories";
 import type { ChallengeSnapshot } from "../challenges/types";
 
@@ -38,6 +41,12 @@ export interface GameState {
   fs: VirtualFS;
   envVars: Record<string, string>;
   aliases: Record<string, string>;
+
+  // user-editable shell config (Settings modal). Persisted; seeded into the fs
+  // on every loadChallenge and parsed into envVars/aliases (zshrc) + read live by
+  // TabManager (tmux.conf: prefix/theme/keybindings).
+  zshrc: string;
+  tmuxConf: string;
 
   // terminal layout
   windows: WindowState[];
@@ -65,6 +74,10 @@ export interface GameState {
   continueToNext: () => void;
   clearFlash: () => void;
 
+  // shell config mutations (Settings modal)
+  setConfigs: (zshrc: string, tmuxConf: string) => void;
+  resetConfigs: () => void;
+
   // shell mutations (called by the command pipeline)
   setFs: (fs: VirtualFS) => void;
   setEnvVars: (env: Record<string, string>) => void;
@@ -78,6 +91,7 @@ export interface GameState {
   focusDirection: (dir: "L" | "R" | "U" | "D") => void;
   cyclePane: () => void;
   resizePane: (splitId: string, ratio: number) => void;
+  nudgePaneRatio: (splitId: string, delta: number) => void;
 
   // window mutations (driven by tmux-style prefix keys + status-line tabs)
   newWindow: () => void;
@@ -93,6 +107,8 @@ export const useGameStore = create<GameState>()(
   fs: buildBaseFs(),
   envVars: {},
   aliases: {},
+  zshrc: DEFAULT_ZSHRC,
+  tmuxConf: DEFAULT_TMUX_CONF,
   windows: [],
   activeWindowId: "",
   activeCategory: DEFAULT_CATEGORY,
@@ -115,12 +131,16 @@ export const useGameStore = create<GameState>()(
     const challenge = getCategory(get().activeCategory).challenges[index];
     if (!challenge) return;
     resetPaneIdCounters();
-    const fs = challenge.setup(buildBaseFs());
+    const { zshrc, tmuxConf } = get();
+    // Seed the player's dotfiles on top of the fresh challenge fs, then activate
+    // the zshrc's aliases/exports for the session (mirrors a login shell sourcing
+    // ~/.zshrc; explicit `source` still works for re-applying edits mid-session).
+    const fs = applyConfigs(challenge.setup(buildBaseFs()), zshrc, tmuxConf);
     const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
     set({
       fs,
-      envVars: {},
-      aliases: {},
+      envVars: parseEnvAssignments(zshrc),
+      aliases: parseAliases(zshrc),
       windows: [win],
       activeWindowId: win.id,
       challengeIndex: index,
@@ -194,6 +214,21 @@ export const useGameStore = create<GameState>()(
   },
 
   clearFlash: () => set({ flash: null }),
+
+  // Save edited configs: persist the strings, re-seed them into the current fs,
+  // and re-derive envVars/aliases from the new zshrc so the change takes effect
+  // immediately (no challenge reset). tmux.conf is read reactively by TabManager.
+  setConfigs: (zshrc, tmuxConf) => {
+    set((state) => ({
+      zshrc,
+      tmuxConf,
+      fs: applyConfigs(state.fs, zshrc, tmuxConf),
+      envVars: parseEnvAssignments(zshrc),
+      aliases: parseAliases(zshrc),
+    }));
+  },
+
+  resetConfigs: () => get().setConfigs(DEFAULT_ZSHRC, DEFAULT_TMUX_CONF),
 
   setFs: (fs) => set({ fs }),
   setEnvVars: (envVars) => set({ envVars }),
@@ -276,6 +311,14 @@ export const useGameStore = create<GameState>()(
     get().checkCompletion();
   },
 
+  // Relative divider nudge (drives the tmux `resize-pane` keybindings).
+  nudgePaneRatio: (splitId, delta) => {
+    set((state) => ({
+      windows: state.windows.map((w) => ({ ...w, root: nudgeSplitRatio(w.root, splitId, delta) })),
+    }));
+    get().checkCompletion();
+  },
+
   newWindow: () => {
     const state = get();
     if (state.windows.length >= MAX_WINDOWS) return;
@@ -329,7 +372,12 @@ export const useGameStore = create<GameState>()(
       name: "term-crunch-progress",
       // Only personal bests survive a refresh; fs/windows/challenge index reseed
       // on mount (GameShell calls loadChallenge(0) when windows.length === 0).
-      partialize: (s) => ({ bestTimes: s.bestTimes, activeCategory: s.activeCategory }),
+      partialize: (s) => ({
+        bestTimes: s.bestTimes,
+        activeCategory: s.activeCategory,
+        zshrc: s.zshrc,
+        tmuxConf: s.tmuxConf,
+      }),
       // Vitest runs in a node env where localStorage is absent (or a partial
       // stub lacking setItem); fall back to an in-memory no-op so the store works
       // under tests without throwing.

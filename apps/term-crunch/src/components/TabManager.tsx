@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
-import { allLeaves, paneRects, nodeBox } from "@tt/core/terminal/paneTypes";
+import { allLeaves, paneRects, nodeBox, nearestResizableSplit } from "@tt/core/terminal/paneTypes";
+import {
+  parseTmuxPrefix,
+  parseTmuxTheme,
+  parseTmuxBindings,
+  type PaneBinding,
+} from "@tt/core/terminal/tmuxConfig";
 import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { EditorSession } from "@tt/core/editor/EditorSession";
@@ -22,8 +28,6 @@ import { useGameStore } from "../state/gameStore";
 import { runLine, getPrompt, buildSuggestionContext } from "../hooks/useTerminal";
 import { HOME_DIR } from "../lib/machine";
 import TabBar from "./TabBar";
-
-const PREFIX = "\x00"; // Ctrl+Space
 
 const XTERM_THEME = {
   background: "#0a0e14",
@@ -70,7 +74,64 @@ export default function TabManager() {
   const windows = useGameStore((s) => s.windows);
   const activeWindowId = useGameStore((s) => s.activeWindowId);
 
+  // tmux config is read from the player's ~/.tmux.conf (Settings modal): the
+  // prefix key, status-bar theme, and vim pane focus/resize keybindings.
+  const tmuxConf = useGameStore((s) => s.tmuxConf);
+  const tabPrefix = useMemo(() => parseTmuxPrefix(tmuxConf), [tmuxConf]);
+  const tabTheme = useMemo(() => parseTmuxTheme(tmuxConf), [tmuxConf]);
+  const tabBindings = useMemo(() => parseTmuxBindings(tmuxConf), [tmuxConf]);
+
+  // The onData closure is captured once per pane (in ensurePane), so it must read
+  // live config through refs rather than the memoized values above.
+  const prefixCharRef = useRef(tabPrefix.char);
+  prefixCharRef.current = tabPrefix.char;
+  const bindingsRef = useRef(tabBindings);
+  bindingsRef.current = tabBindings;
+
+  // tmux `-r` repeat: after a repeatable resize bind, keep accepting the same
+  // keys without re-pressing the prefix until this window lapses.
+  const repeatModeRef = useRef(false);
+  const repeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const REPEAT_MS = 500;
+
   // --- input handling (stable: only reads refs + fresh store via getState) ---
+
+  function clearRepeat() {
+    repeatModeRef.current = false;
+    if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
+    repeatTimerRef.current = null;
+  }
+
+  function armRepeat() {
+    repeatModeRef.current = true;
+    if (repeatTimerRef.current) clearTimeout(repeatTimerRef.current);
+    repeatTimerRef.current = setTimeout(() => { repeatModeRef.current = false; }, REPEAT_MS);
+  }
+
+  // Resize the divider nearest the focused pane by a cell-sized step (tmux moves
+  // borders in grid cells; our model is ratio-based, so convert cells -> ratio
+  // delta using the pane's live cell size and the split's box).
+  function applyResize(b: Extract<PaneBinding, { kind: "resize" }>) {
+    const store = useGameStore.getState();
+    const win = store.windows.find((w) => w.id === store.activeWindowId);
+    if (!win) return;
+    const orientation = b.dir === "L" || b.dir === "R" ? "h" : "v";
+    const splitId = nearestResizableSplit(win.root, win.activePaneId, orientation);
+    if (!splitId) return; // no divider in this direction (e.g. -L in a stacked layout)
+    const rt = runtimes.current.get(win.activePaneId);
+    const wrapper = wrapperRef.current;
+    const box = nodeBox(win.root, splitId);
+    if (!rt || !wrapper || !box) return;
+    const horizontal = orientation === "h";
+    const cellPx = horizontal
+      ? rt.container.clientWidth / rt.term.cols
+      : rt.container.clientHeight / rt.term.rows;
+    const splitBoxPx = horizontal ? box.w * wrapper.clientWidth : box.h * wrapper.clientHeight;
+    if (!(cellPx > 0) || !(splitBoxPx > 0)) return;
+    const deltaRatio = (b.cells * cellPx) / splitBoxPx;
+    // Move the divider toward the arrow: R/D grow child `a` (ratio up), L/U shrink it.
+    store.nudgePaneRatio(splitId, b.dir === "R" || b.dir === "D" ? deltaRatio : -deltaRatio);
+  }
 
   function historyEntries(): string[] {
     const content = useGameStore.getState().fs.readFile(`${HOME_DIR}/.zsh_history`).content ?? "";
@@ -123,6 +184,19 @@ export default function TabManager() {
 
   function handlePrefix(paneId: string, data: string) {
     const store = useGameStore.getState();
+
+    // Vim-style binds from ~/.tmux.conf (case-sensitive: `h` focus vs `H` resize).
+    const binding = bindingsRef.current[data];
+    if (binding) {
+      if (binding.kind === "focus") {
+        store.focusDirection(binding.dir);
+      } else {
+        applyResize(binding);
+        if (binding.repeat) armRepeat();
+      }
+      return;
+    }
+
     switch (data) {
       // pane chords
       case "|": store.splitPane(paneId, "h"); break;
@@ -181,13 +255,25 @@ export default function TabManager() {
       return;
     }
 
+    // tmux `-r` repeat: while the window is open, a repeatable resize key re-fires
+    // (and re-arms) without the prefix. Any other key ends repeat and falls through.
+    if (repeatModeRef.current) {
+      const b = bindingsRef.current[data];
+      if (b && b.kind === "resize" && b.repeat) {
+        applyResize(b);
+        armRepeat();
+        return;
+      }
+      clearRepeat();
+    }
+
     if (rt.prefix) {
       rt.prefix = false;
       setPrefixActive(false);
       handlePrefix(paneId, data);
       return;
     }
-    if (data === PREFIX) {
+    if (data === prefixCharRef.current) {
       rt.prefix = true;
       setPrefixActive(true);
       return;
@@ -313,6 +399,7 @@ export default function TabManager() {
   return (
     <div className="flex h-full w-full flex-col bg-[#0a0e14]">
       <TabBar
+        theme={tabTheme}
         prefixActive={prefixActive}
         renamePrompt={rename.prompt}
         onNewWindow={() => useGameStore.getState().newWindow()}
