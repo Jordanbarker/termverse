@@ -893,6 +893,30 @@ describe("--help", () => {
     });
   });
 
+  describe("git add --all", () => {
+    const devCtx = (f: VirtualFS) => ({ ...ctx(f), activeComputer: "devcontainer" as const });
+
+    it("accepts --all and stages everything", () => {
+      let fs = createTestFS();
+      fs = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["init"] }).newFs ?? fs;
+      const result = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["add", "--all"] });
+      // not rejected as an unknown switch (exit 129)
+      expect(result.exitCode).not.toBe(129);
+      fs = result.newFs ?? fs;
+      // staged files commit cleanly
+      const commit = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["commit", "-m", "initial"] });
+      expect(stripAnsi(commit.output)).toContain("initial");
+    });
+
+    it("still rejects the malformed -all like real git", () => {
+      let fs = createTestFS();
+      fs = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["init"] }).newFs ?? fs;
+      const result = execute("git", [], {}, { ...devCtx(fs), rawArgs: ["add", "-all"] });
+      expect(result.exitCode).toBe(129);
+      expect(stripAnsi(result.output)).toBe("error: unknown switch `a'");
+    });
+  });
+
   describe("git branch / git switch", () => {
     const devCtx = (f: VirtualFS) => ({ ...ctx(f), activeComputer: "devcontainer" as const });
 

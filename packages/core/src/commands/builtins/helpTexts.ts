@@ -386,7 +386,7 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "  git init                    Create an empty repository",
     "  git clone <url>             Clone a remote repository",
-    "  git add <file|.>            Stage changes for commit",
+    "  git add <file|.|-A>         Stage changes for commit",
     "  git commit -m 'msg'         Record changes to the repository",
     "  git status [-s]             Show the working tree status",
     "  git log [--oneline]         Show commit history",

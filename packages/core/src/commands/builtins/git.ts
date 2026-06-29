@@ -66,7 +66,7 @@ const GIT_SUBCOMMAND_FLAGS: Record<string, KnownFlags> = {
   "": { long: ["version"] },
   init: {},
   clone: { short: ["b"], long: ["depth"] },
-  add: { short: ["A"] },
+  add: { short: ["A"], long: ["all"] },
   rm: { short: ["r"] },
   commit: { short: ["m", "a"], long: ["amend"] },
   status: { short: ["s"] },
@@ -131,7 +131,7 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
 
   switch (subcommand) {
     case "add": {
-      const allFlag = !!flags["A"];
+      const allFlag = !!flags["A"] || !!flags["all"];
       const paths = subArgs.length > 0 ? subArgs : (allFlag ? ["."] : []);
       if (paths.length === 0) return { output: "Nothing specified, nothing added.\nhint: Maybe you wanted to say 'git add .'?" };
       const result = gitAdd(ctx.fs, root, paths, allFlag);
