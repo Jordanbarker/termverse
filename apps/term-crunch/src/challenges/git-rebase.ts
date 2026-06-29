@@ -26,7 +26,7 @@ function write(fs: VirtualFS, path: string, content: string): VirtualFS {
 }
 
 function commit(fs: VirtualFS, message: string, ts: number): VirtualFS {
-  fs = gitAdd(fs, PROJECT_DIR, ["config.txt"], false).fs;
+  fs = gitAdd(fs, PROJECT_DIR, PROJECT_DIR, ["config.txt"], false).fs;
   return gitCommit(fs, PROJECT_DIR, message, GIT_AUTHOR, false, false, ts).fs;
 }
 

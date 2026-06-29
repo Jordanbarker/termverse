@@ -134,7 +134,7 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
       const allFlag = !!flags["A"] || !!flags["all"];
       const paths = subArgs.length > 0 ? subArgs : (allFlag ? ["."] : []);
       if (paths.length === 0) return { output: "Nothing specified, nothing added.\nhint: Maybe you wanted to say 'git add .'?" };
-      const result = gitAdd(ctx.fs, root, paths, allFlag);
+      const result = gitAdd(ctx.fs, root, ctx.cwd, paths, allFlag);
       if (result.error) return { output: result.error, exitCode: 128 };
       return { output: result.output, newFs: result.fs };
     }

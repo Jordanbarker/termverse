@@ -109,7 +109,7 @@ Supported subcommands today (all in the switch in `git.ts`):
 |---|---|---|
 | `init` | `gitInit` | Creates `.git/` skeleton |
 | `clone <url>` | `gitClone` | Looks up `REMOTE_REPOS[name]`, materializes files, writes commits + refs + config |
-| `add <paths>` / `add -A` / `add --all` | `gitAdd` | Stages relative to repo root (`-A` and `--all` are equivalent stage-all) |
+| `add <paths>` / `add .` / `add -A` / `add --all` | `gitAdd` | Pathspecs and `.` resolve against **cwd** (`add .` = current dir + below); `-A`/`--all` stage the whole repo regardless of cwd. Index keys stay root-relative. Deletions are detected within each staged subtree. |
 | `rm <paths>` / `rm -r` | `gitRm` | Stages deletion |
 | `commit -m <msg>` | `gitCommit` | Hashes tree+parent+msg, writes object, updates ref. Takes a `timestamp` arg — dispatcher in `commands/builtins/git.ts` passes `gameNowFor(...).getTime()` so `git log` Date headers agree with `date` (UTC, `+0000`). |
 | `status` / `status -s` | `gitStatus` + `formatStatus` | Branch + staged/unstaged/untracked |

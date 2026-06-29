@@ -24,7 +24,7 @@ function write(fs: VirtualFS, path: string, content: string): VirtualFS {
 }
 
 function commit(fs: VirtualFS, message: string, ts: number): VirtualFS {
-  fs = gitAdd(fs, PROJECT_DIR, ["app.js"], false).fs;
+  fs = gitAdd(fs, PROJECT_DIR, PROJECT_DIR, ["app.js"], false).fs;
   return gitCommit(fs, PROJECT_DIR, message, GIT_AUTHOR, false, false, ts).fs;
 }
 
@@ -57,7 +57,7 @@ function setup(base: VirtualFS): VirtualFS {
   // back to main, leave a staged WIP edit (the work the player will stash)
   fs = checkout(fs, "main");
   fs = write(fs, APP, WIP_APP);
-  fs = gitAdd(fs, PROJECT_DIR, ["app.js"], false).fs;
+  fs = gitAdd(fs, PROJECT_DIR, PROJECT_DIR, ["app.js"], false).fs;
   return fs;
 }
 

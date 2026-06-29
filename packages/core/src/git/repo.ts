@@ -216,30 +216,35 @@ export function gitInit(fs: VirtualFS, cwd: string, _author: string): { fs: Virt
 
 // ── git add ──────────────────────────────────────────────────────────
 
-export function gitAdd(fs: VirtualFS, root: string, paths: string[], allFlag: boolean): { fs: VirtualFS; output: string; error?: string } {
+export function gitAdd(fs: VirtualFS, root: string, cwd: string, paths: string[], allFlag: boolean): { fs: VirtualFS; output: string; error?: string } {
   const index = readIndex(fs, root);
   const headHash = resolveHead(fs, root);
   const headTree: Record<string, string> = headHash ? (readCommit(fs, root, headHash)?.tree ?? {}) : {};
 
+  // Pathspecs and `.` resolve relative to the working directory, not the repo
+  // root: `cd subdir && git add file` stages subdir/file. Index keys stay
+  // root-relative throughout.
+  const toRel = (abs: string): string => (abs.startsWith(root + "/") ? abs.slice(root.length + 1) : abs);
+  // Root-relative prefix (trailing "/") of a staged directory subtree; "" = whole repo.
+  const relPrefix = (dir: string): string => (dir === root ? "" : toRel(dir) + "/");
+
   let filesToStage: Record<string, string>;
+  // Subtree prefixes whose HEAD entries should be checked for on-disk deletion.
+  const deletionScopes: string[] = [];
 
   if (allFlag || (paths.length === 1 && paths[0] === ".")) {
-    // Stage everything
-    filesToStage = collectFiles(fs, root, root);
-    // Detect deletions: files in HEAD tree no longer on disk
-    for (const trackedPath of Object.keys(headTree)) {
-      if (!(trackedPath in filesToStage) && !index.deleted.includes(trackedPath)) {
-        index.deleted.push(trackedPath);
-      }
-    }
+    // `-A` stages the whole repo; `.` stages the current directory and below.
+    const scopeDir = allFlag ? root : normalizePath(cwd);
+    filesToStage = collectFiles(fs, scopeDir, root);
+    deletionScopes.push(relPrefix(scopeDir));
   } else {
     filesToStage = {};
     for (const p of paths) {
-      const absPath = p.startsWith("/") ? p : normalizePath(`${root}/${p}`);
+      const absPath = p.startsWith("/") ? p : normalizePath(`${cwd}/${p}`);
       const node = fs.getNode(absPath);
       if (!node) {
         // Check if it's a tracked file that was deleted
-        const relPath = absPath.startsWith(root + "/") ? absPath.slice(root.length + 1) : p;
+        const relPath = toRel(absPath);
         if (relPath in headTree) {
           if (!index.deleted.includes(relPath)) {
             index.deleted.push(relPath);
@@ -249,11 +254,20 @@ export function gitAdd(fs: VirtualFS, root: string, paths: string[], allFlag: bo
         return { fs, output: "", error: `fatal: pathspec '${p}' did not match any files` };
       }
       if (isDirectory(node)) {
-        const dirFiles = collectFiles(fs, absPath, root);
-        Object.assign(filesToStage, dirFiles);
+        Object.assign(filesToStage, collectFiles(fs, absPath, root));
+        deletionScopes.push(relPrefix(absPath));
       } else if (isFile(node)) {
-        const relPath = absPath.startsWith(root + "/") ? absPath.slice(root.length + 1) : p;
-        filesToStage[relPath] = node.content;
+        filesToStage[toRel(absPath)] = node.content;
+      }
+    }
+  }
+
+  // Detect deletions: HEAD files under a staged subtree that are no longer on disk.
+  for (const scope of deletionScopes) {
+    for (const trackedPath of Object.keys(headTree)) {
+      if (scope && !trackedPath.startsWith(scope)) continue;
+      if (!(trackedPath in filesToStage) && !index.deleted.includes(trackedPath)) {
+        index.deleted.push(trackedPath);
       }
     }
   }

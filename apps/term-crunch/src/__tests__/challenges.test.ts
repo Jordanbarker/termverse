@@ -128,7 +128,7 @@ describe("git-first-commit challenge", () => {
     expect(gitFirstCommit.steps[1].isComplete(at(fs))).toBe(false);
 
     // git add README.md
-    fs = gitAdd(fs, repo, ["README.md"], false).fs;
+    fs = gitAdd(fs, repo, repo, ["README.md"], false).fs;
     expect(gitFirstCommit.steps[0].isComplete(at(fs))).toBe(true);
     expect(gitFirstCommit.steps[1].isComplete(at(fs))).toBe(false);
 
@@ -173,7 +173,7 @@ describe("git-rebase challenge", () => {
     expect(step2.isComplete(at(fs))).toBe(false);
 
     // git add config.txt → resolved + staged
-    fs = gitAdd(fs, repo, ["config.txt"], false).fs;
+    fs = gitAdd(fs, repo, repo, ["config.txt"], false).fs;
     expect(step2.isComplete(at(fs))).toBe(true);
     expect(step3.isComplete(at(fs))).toBe(false); // still mid-rebase
 
@@ -190,7 +190,7 @@ describe("git-rebase challenge", () => {
     fs = gitRebase(fs, repo, "main").fs;
     // resolve to exactly main's version — equal to HEAD-side content, no markers
     fs = write(fs, "host = localhost\nport = 8080\ntimeout = 45\n");
-    fs = gitAdd(fs, repo, ["config.txt"], false).fs;
+    fs = gitAdd(fs, repo, repo, ["config.txt"], false).fs;
     expect(step2.isComplete(at(fs))).toBe(true);
 
     fs = gitRebaseContinue(fs, repo).fs;
@@ -202,7 +202,7 @@ describe("git-rebase challenge", () => {
     const win = makeWindow(CRUNCH_MACHINE, repo);
     fs = gitRebase(fs, repo, "main").fs;
     // stage the still-conflicted file (markers intact)
-    fs = gitAdd(fs, repo, ["config.txt"], false).fs;
+    fs = gitAdd(fs, repo, repo, ["config.txt"], false).fs;
     expect(step2.isComplete(snap(win, fs, repo))).toBe(false);
   });
 });
@@ -378,7 +378,7 @@ describe("group-relative completion gate", () => {
 
     // step 2: resolve markers + stage → advance to the final step
     useGameStore.setState({ fs: state().fs.writeFile(config, "host = localhost\nport = 8080\ntimeout = 90\n").fs! });
-    useGameStore.setState({ fs: gitAdd(state().fs, repo, ["config.txt"], false).fs });
+    useGameStore.setState({ fs: gitAdd(state().fs, repo, repo, ["config.txt"], false).fs });
     state().checkCompletion();
     expect(state().stepIndex).toBe(2);
 

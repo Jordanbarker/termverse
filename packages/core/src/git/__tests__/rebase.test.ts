@@ -36,7 +36,7 @@ function write(fs: VirtualFS, relPath: string, content: string): VirtualFS {
 
 function commitFile(fs: VirtualFS, relPath: string, content: string, message: string): VirtualFS {
   fs = write(fs, relPath, content);
-  fs = gitAdd(fs, ROOT, [relPath], false).fs;
+  fs = gitAdd(fs, ROOT, ROOT, [relPath], false).fs;
   fs = gitCommit(fs, ROOT, message, AUTHOR, false, false, TS).fs;
   return fs;
 }
@@ -149,11 +149,11 @@ describe("git rebase — conflict workflow", () => {
 
     // staged with markers still in the staged content
     let fsMarkers = write(gitRebase(setupConflict(), ROOT, "main").fs, "config.txt", "<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> z\n");
-    fsMarkers = gitAdd(fsMarkers, ROOT, ["config.txt"], false).fs;
+    fsMarkers = gitAdd(fsMarkers, ROOT, ROOT, ["config.txt"], false).fs;
     expect(gitRebaseContinue(fsMarkers, ROOT).error).toContain("you must edit all merge conflicts");
 
     // staged + clean → succeeds
-    fs = gitAdd(fs, ROOT, ["config.txt"], false).fs;
+    fs = gitAdd(fs, ROOT, ROOT, ["config.txt"], false).fs;
     const cont = gitRebaseContinue(fs, ROOT);
     fs = cont.fs;
     expect(cont.error).toBeUndefined();
@@ -174,7 +174,7 @@ describe("git rebase — conflict workflow", () => {
     // check — the rebase-aware path must still stage it, or --continue would dead-end.
     let fs = gitRebase(setupConflict(), ROOT, "main").fs;
     fs = write(fs, "config.txt", "line one\nfeature\nline three\n");
-    fs = gitAdd(fs, ROOT, ["config.txt"], false).fs;
+    fs = gitAdd(fs, ROOT, ROOT, ["config.txt"], false).fs;
     expect(readIndex(fs, ROOT).staged["config.txt"]).toBe("line one\nfeature\nline three\n");
 
     const cont = gitRebaseContinue(fs, ROOT);
