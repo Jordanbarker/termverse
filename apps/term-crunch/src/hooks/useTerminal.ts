@@ -159,6 +159,7 @@ export async function runLine(
 
       if (effects.newFs) runningFs = effects.newFs;
       if (effects.newCwd) runningCwd = effects.newCwd;
+      if (effects.clearScreen) term.clear();
       writeOut(term, effects.output);
 
       if (effects.startSession?.type === "editor" || effects.startSession?.type === "less") {
