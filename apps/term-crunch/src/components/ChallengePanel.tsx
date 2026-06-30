@@ -42,17 +42,7 @@ export default function ChallengePanel() {
   const challenge = category.challenges[challengeIndex];
   const activeWindow = windows.find((w) => w.id === activeWindowId) ?? windows[0];
 
-  // Tick once a second to re-render the live timer while a challenge is in progress.
-  const ticking = !completed && !awaitingContinue && !!challenge;
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    if (!ticking) return;
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, [ticking]);
-
   const best = challenge ? bestTimes[challenge.id] : undefined;
-  const liveElapsed = challengeStartTime ? Math.max(0, Date.now() - challengeStartTime) : 0;
 
   return (
     <aside className="flex h-full w-[420px] shrink-0 flex-col gap-4 border-l border-[#1c2430] bg-[#0d1117] p-5 text-[#b3b1ad]">
@@ -134,7 +124,7 @@ export default function ChallengePanel() {
           <div>
             <div className="text-base font-semibold">{challenge.title}</div>
             <div className="mt-0.5 text-xs text-[#6b7680]">
-              Step {stepIndex + 1}/{challenge.steps.length} · ⏱ {formatElapsed(liveElapsed)}
+              Step {stepIndex + 1}/{challenge.steps.length} · ⏱ <LiveTimer challengeStartTime={challengeStartTime} />
               {best != null && <> · best {formatElapsed(best)}</>}
             </div>
           </div>
@@ -204,6 +194,21 @@ export default function ChallengePanel() {
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </aside>
   );
+}
+
+/**
+ * Live elapsed-time display. Owns its own 1s interval so the tick only re-renders
+ * this leaf, not the whole ChallengePanel (which would re-run the git/fs readouts).
+ * Mounted only while a challenge is active, so the interval starts/stops with it.
+ */
+function LiveTimer({ challengeStartTime }: { challengeStartTime: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const elapsed = challengeStartTime ? Math.max(0, now - challengeStartTime) : 0;
+  return <>{formatElapsed(elapsed)}</>;
 }
 
 function GitReadout({ fs, repoPath }: { fs: ReturnType<typeof useGameStore.getState>["fs"]; repoPath: string }) {
