@@ -77,7 +77,7 @@ export default function ChallengePanel() {
               aria-label="Settings"
               title="Edit ~/.zshrc and ~/.tmux.conf"
               onClick={() => setSettingsOpen(true)}
-              className="rounded border border-[#1c2430] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
+              className="rounded border border-[#1c2430] px-2 py-1 text-lg leading-none text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad] focus:outline-none"
             >
               ⚙
             </button>
