@@ -333,6 +333,26 @@ export default function TabManager() {
     return () => ro.disconnect();
   }, []);
 
+  // --- challenge (re)load: tear down every pane so the layout effect below
+  // rebuilds them fresh (empty scrollback + a clean prompt). loadChallenge resets
+  // the pane-id counters, so the next challenge's pane reuses the previous one's
+  // id — without this the old terminal (and its scrollback) would be reused and
+  // ensurePane would early-return without printing a fresh prompt. Keyed on
+  // challengeStartTime, which is re-stamped on advance, restart, and track switch,
+  // but not on in-challenge pane/window mutations.
+  const challengeStartTime = useGameStore((s) => s.challengeStartTime);
+  const loadedChallengeRef = useRef(challengeStartTime);
+  useEffect(() => {
+    if (loadedChallengeRef.current === challengeStartTime) return;
+    loadedChallengeRef.current = challengeStartTime;
+    for (const [, rt] of runtimes.current) {
+      rt.term.dispose();
+      rt.container.remove();
+    }
+    runtimes.current.clear();
+    sessions.current.clear();
+  }, [challengeStartTime]);
+
   // --- layout: create/position/dispose panes; keep non-active windows alive ---
   useEffect(() => {
     const activeWindow = windows.find((w) => w.id === activeWindowId) ?? windows[0];
