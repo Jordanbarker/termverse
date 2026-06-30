@@ -21,6 +21,10 @@ export interface GitReadout {
   rebaseInProgress: boolean;
   /** Files still carrying unresolved conflict markers during a rebase. */
   conflictFiles: string[];
+  /** Commits the local branch is ahead of `origin/<branch>` (0 when no upstream). */
+  ahead: number;
+  /** Commits the local branch is behind `origin/<branch>` (0 when no upstream). */
+  behind: number;
 }
 
 const EMPTY: GitReadout = {
@@ -35,6 +39,8 @@ const EMPTY: GitReadout = {
   clean: true,
   rebaseInProgress: false,
   conflictFiles: [],
+  ahead: 0,
+  behind: 0,
 };
 
 /**
@@ -67,5 +73,7 @@ export function readGitState(fs: VirtualFS, atPath: string): GitReadout {
     clean: !rebase && staged.length === 0 && unstaged.length === 0 && untracked.length === 0,
     rebaseInProgress: !!rebase,
     conflictFiles,
+    ahead: status.tracking?.ahead ?? 0,
+    behind: status.tracking?.behind ?? 0,
   };
 }

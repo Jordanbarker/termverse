@@ -6,7 +6,8 @@ import {
   isCommandAvailable,
   unavailableCommandMessage,
 } from "@tt/core/commands/availability";
-import { getAvailableCommands } from "@tt/core/commands/registry";
+import { getAvailableCommands, execute } from "@tt/core/commands/registry";
+import type { CommandContext } from "@tt/core/commands/types";
 import { CRUNCH_AVAILABILITY_POLICY } from "../lib/availabilityPolicy";
 import { CHALLENGES } from "../challenges/registry";
 import { getCategory } from "../challenges/categories";
@@ -18,14 +19,16 @@ import {
   resetPaneIdCounters,
   type WindowState,
 } from "@tt/core/terminal/paneTypes";
-import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue, gitCheckout, gitStashSave, gitStashPop } from "@tt/core/git/repo";
+import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue, gitCheckout, gitStashSave, gitStashPop, gitPull } from "@tt/core/git/repo";
 import { buildBaseFs } from "../lib/seed";
+import { readGitState } from "../lib/gitState";
 import { structKey, paneTreeMatches } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { panesSplit } from "../challenges/panes-split";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import { gitStashChallenge } from "../challenges/git-stash";
+import { gitPullFf } from "../challenges/git-pull-ff";
 import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
@@ -251,6 +254,99 @@ describe("git-stash challenge", () => {
     fs = gitStashPop(fs, repo).fs;
     expect(step4.isComplete(at(fs))).toBe(true);
     expect(fs.readFile(APP).content).toBe(WIP_APP);
+  });
+});
+
+describe("git-pull-ff challenge", () => {
+  const repo = gitPullFf.gitRepoPath!;
+  const LOAD = `${repo}/pipeline/load.py`;
+  const SCRATCH = `${repo}/sql/existing_credit_card.sql`;
+  const LOAD_WIP =
+    "def load():\n    rows = read_source()\n    rows = dedupe(rows)  # WIP: drop duplicate cards\n    write_warehouse(rows)\n";
+  const [step1, step2, step3] = gitPullFf.steps;
+  const win = makeWindow(CRUNCH_MACHINE, repo);
+  const at = (f: ReturnType<typeof gitPullFf.setup>) => snap(win, f, repo);
+
+  it("seeds a branch 2 commits behind origin with a dirty tree", () => {
+    const fs = gitPullFf.setup(buildBaseFs());
+    expect(findRepoRoot(fs, repo)).toBe(repo);
+    const g = readGitState(fs, repo);
+    expect(g.branch).toBe("feat/add-sql");
+    expect(g.behind).toBe(2);
+    expect(g.commitCount).toBe(1);
+    expect(g.unstaged.map((u) => u)).toContain("pipeline/load.py");
+    expect(g.untracked).toContain("sql/existing_credit_card.sql");
+    expect(step1.isComplete(at(fs))).toBe(false);
+  });
+
+  it("plain `git stash` (no -u) strands the untracked file → step 1 stays incomplete", () => {
+    let fs = gitPullFf.setup(buildBaseFs());
+    fs = gitStashSave(fs, repo, false).fs;
+    expect(readGitState(fs, repo).untracked).toContain("sql/existing_credit_card.sql");
+    expect(step1.isComplete(at(fs))).toBe(false);
+  });
+
+  it("an un-stashed `git pull` refuses to clobber local changes", () => {
+    const fs = gitPullFf.setup(buildBaseFs());
+    const r = gitPull(fs, repo, undefined, undefined, {});
+    expect(r.error).toContain("would be overwritten");
+    expect(step2.isComplete(at(fs))).toBe(false);
+  });
+
+  it("walks the full stash -u → pull --ff-only → pop flow", () => {
+    let fs = gitPullFf.setup(buildBaseFs());
+
+    // git stash --include-untracked → edits + new file shelved, tree clean
+    fs = gitStashSave(fs, repo, true).fs;
+    expect(step1.isComplete(at(fs))).toBe(true);
+    expect(fs.getNode(SCRATCH)).toBeNull(); // untracked file tucked away
+    expect(step2.isComplete(at(fs))).toBe(false); // not pulled yet
+
+    // git pull --ff-only → fast-forward to the 2 upstream commits
+    const pull = gitPull(fs, repo, undefined, undefined, {});
+    expect(pull.error).toBeUndefined();
+    expect(pull.output).toContain("Fast-forward");
+    fs = pull.fs;
+    const g = readGitState(fs, repo);
+    expect(g.behind).toBe(0);
+    expect(g.commitCount).toBe(3);
+    expect(step2.isComplete(at(fs))).toBe(true);
+    expect(step3.isComplete(at(fs))).toBe(false); // not popped yet
+
+    // git stash pop → WIP edit + untracked file restored on top
+    fs = gitStashPop(fs, repo).fs;
+    expect(step3.isComplete(at(fs))).toBe(true);
+    expect(fs.readFile(LOAD).content).toBe(LOAD_WIP);
+    expect(fs.getNode(SCRATCH)).not.toBeNull();
+  });
+});
+
+describe("git-pull-ff dispatch (flags accepted through the git command)", () => {
+  const repo = gitPullFf.gitRepoPath!;
+  // The git handler reads ctx.rawArgs; allow-all policy makes `git` runnable here.
+  function ctx(fs: ReturnType<typeof gitPullFf.setup>, rawArgs: string[]): CommandContext {
+    return {
+      fs, cwd: repo, homeDir: HOME_DIR, username: "player",
+      activeComputer: CRUNCH_MACHINE, rawArgs,
+    };
+  }
+
+  it("accepts `git stash --include-untracked` (not a flag error) and shelves the untracked file", () => {
+    resetAvailabilityPolicy();
+    const fs = gitPullFf.setup(buildBaseFs());
+    const r = execute("git", ["stash"], {}, ctx(fs, ["stash", "--include-untracked"]));
+    expect(r.exitCode ?? 0).not.toBe(129); // 129 = git's "unknown switch"
+    expect(readGitState(r.newFs ?? fs, repo).clean).toBe(true);
+  });
+
+  it("accepts `git pull --ff-only` (not a flag error) and fast-forwards", () => {
+    resetAvailabilityPolicy();
+    let fs = gitPullFf.setup(buildBaseFs());
+    fs = gitStashSave(fs, repo, true).fs; // clean tree so the FF can proceed
+    const r = execute("git", ["pull"], {}, ctx(fs, ["pull", "--ff-only"]));
+    expect(r.exitCode ?? 0).not.toBe(129);
+    expect(r.output).toContain("Fast-forward");
+    expect(readGitState(r.newFs ?? fs, repo).behind).toBe(0);
   });
 });
 
