@@ -136,7 +136,9 @@ export const useGameStore = create<GameState>()(
     // the zshrc's aliases/exports for the session (mirrors a login shell sourcing
     // ~/.zshrc; explicit `source` still works for re-applying edits mid-session).
     const fs = applyConfigs(challenge.setup(buildBaseFs()), zshrc, tmuxConf);
-    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+    // Git challenges drop the player inside the seeded repo (gitRepoPath) so they
+    // don't have to `cd` in before any git command works; everything else starts at ~.
+    const win = makeWindow(CRUNCH_MACHINE, challenge.gitRepoPath ?? HOME_DIR);
     set({
       fs,
       envVars: parseEnvAssignments(zshrc),

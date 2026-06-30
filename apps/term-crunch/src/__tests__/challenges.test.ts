@@ -486,6 +486,33 @@ describe("group-relative completion gate", () => {
   });
 });
 
+describe("starting cwd", () => {
+  // loadChallenge resolves the challenge from the active category; pin it to "all"
+  // so the global registry indices below line up, and restore afterward.
+  beforeAll(() => useGameStore.setState({ activeCategory: "all" }));
+  afterAll(() => {
+    useGameStore.setState({ activeCategory: "all" });
+    useGameStore.getState().loadChallenge(0);
+  });
+
+  const leafCwd = (): string => {
+    const win = useGameStore.getState().windows[0];
+    expect(win.root.kind).toBe("leaf");
+    if (win.root.kind !== "leaf") throw new Error("expected a single-leaf window");
+    return win.root.cwd;
+  };
+
+  it("drops the player inside the repo for git challenges", () => {
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "git-first-commit"));
+    expect(leafCwd()).toBe(gitFirstCommit.gitRepoPath);
+  });
+
+  it("starts non-git challenges at HOME_DIR", () => {
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "panes-split"));
+    expect(leafCwd()).toBe(HOME_DIR);
+  });
+});
+
 describe("per-challenge command allowlist", () => {
   // The policy reads the current challenge from the store, so drive it via loadChallenge.
   const select = (id: string) =>

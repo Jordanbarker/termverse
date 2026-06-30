@@ -17,7 +17,7 @@ This app is built only on `@tt/core` and does **not** import termoil story code.
 - **`Challenge`** — `{ id, title, type: "pane" | "git" | "fs", steps: Step[], setup(base) => VirtualFS, targetWindow?, targetWindows?, gitRepoPath?, fsWatchPath?, commands? }`.
   - `setup` seeds the challenge FS on top of `buildBaseFs()` (`src/lib/seed.ts`).
   - Pane challenges set `targetWindow`/`targetWindows` (the RIGHT-hand schematic the player reproduces).
-  - Git challenges set `gitRepoPath` (where the validators + panel readout point).
+  - Git challenges set `gitRepoPath` (where the validators + panel readout point — and the player's **starting cwd**: `loadChallenge` opens the window at `gitRepoPath ?? HOME_DIR`, so git challenges spawn *inside* the seeded repo, no `cd` needed).
   - FS challenges set `fsWatchPath` (the directory the panel renders as a tree via `FsTreeView`).
   - `commands?: string[]` — per-challenge **command allowlist** (primary names; aliases resolve via `getPrimaryName`). When set, only these commands appear in `help` + TAB/ghost-text suggestions and run; everything else prints a friendly hint (exit 127). Omit it for allow-all. `help` and `clear` are **always** available. Enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts` (registered as a side-effect import in `hooks/useTerminal.ts`), which resolves the current challenge from the store via `getCategory(activeCategory).challenges[challengeIndex]` (the index is **category-relative** — see Categories below). Existing lists: `panes-split`/`windows-create` → `[]` (keyboard-only); `git-first-commit`/`git-stash`/`git-pull-ff` → git+nav; `git-rebase` → git/nano+nav; `rm-bomb` → find/rm+nav; `chmod-perms` → chmod/cat+nav.
 
