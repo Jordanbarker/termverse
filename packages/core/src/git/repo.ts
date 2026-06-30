@@ -406,6 +406,11 @@ export interface StatusResult {
   untracked: string[];
   /** Present while a rebase is in progress; `unmerged` excludes paths already `git add`ed. */
   rebase?: { onto: string; branch: string; unmerged: string[] };
+  /**
+   * Branch tracking info vs `refs/remotes/origin/<branch>`. Present ONLY when that
+   * remote-tracking ref exists (so repos with no remote are byte-for-byte unchanged).
+   */
+  tracking?: { remoteRef: string; ahead: number; behind: number };
 }
 
 export function gitStatus(fs: VirtualFS, root: string): StatusResult {
@@ -455,6 +460,8 @@ export function gitStatus(fs: VirtualFS, root: string): StatusResult {
     }
   }
 
+  const tracking = computeTracking(fs, root, repo.currentBranch, headHash);
+
   // During a rebase, unresolved conflict files show as "both modified" under Unmerged
   // paths until `git add`ed; pull them out of the plain unstaged list.
   const rebaseState = readRebaseState(fs, root);
@@ -467,10 +474,32 @@ export function gitStatus(fs: VirtualFS, root: string): StatusResult {
       unstaged: unstaged.filter((u) => !unmergedSet.has(u.path)),
       untracked,
       rebase: { onto: rebaseState.onto, branch: rebaseState.originalBranch, unmerged },
+      tracking,
     };
   }
 
-  return { branch: repo.currentBranch, staged, unstaged, untracked };
+  return { branch: repo.currentBranch, staged, unstaged, untracked, tracking };
+}
+
+/**
+ * Ahead/behind of the local branch vs `refs/remotes/origin/<branch>`. Returns
+ * undefined unless that remote-tracking ref exists — callers must treat the
+ * absence as "no upstream configured" and render nothing.
+ */
+function computeTracking(
+  fs: VirtualFS, root: string, branch: string | null, localTip: string | null
+): StatusResult["tracking"] {
+  if (!branch) return undefined;
+  const upTip = fs.readFile(`${root}/.git/refs/remotes/origin/${branch}`).content?.trim();
+  if (!upTip) return undefined;
+
+  const localAnc = localTip ? ancestorSet(fs, root, localTip) : new Set<string>();
+  const upAnc = ancestorSet(fs, root, upTip);
+  let ahead = 0;
+  for (const h of localAnc) if (!upAnc.has(h)) ahead++;
+  let behind = 0;
+  for (const h of upAnc) if (!localAnc.has(h)) behind++;
+  return { remoteRef: `origin/${branch}`, ahead, behind };
 }
 
 // ── git log ──────────────────────────────────────────────────────────
@@ -714,7 +743,9 @@ export function gitDiffFiles(fs: VirtualFS, root: string, staged: boolean): Diff
 
 // ── git stash ────────────────────────────────────────────────────────
 
-export function gitStashSave(fs: VirtualFS, root: string): { fs: VirtualFS; output: string; error?: string } {
+export function gitStashSave(
+  fs: VirtualFS, root: string, includeUntracked = false
+): { fs: VirtualFS; output: string; error?: string } {
   const headHash = resolveHead(fs, root);
   const headTree = headHash ? (readCommit(fs, root, headHash)?.tree ?? {}) : {};
   const workingTree = collectFiles(fs, root, root);
@@ -730,6 +761,14 @@ export function gitStashSave(fs: VirtualFS, root: string): { fs: VirtualFS; outp
   const index = readIndex(fs, root);
   for (const [path, content] of Object.entries(index.staged)) {
     modified[path] = content;
+  }
+  // With -u/--include-untracked, also shelve untracked files (same set gitStatus reports).
+  // They aren't in headTree, so the revert loop below removes them from the working tree
+  // and gitStashPop's generic restore recreates them on pop.
+  if (includeUntracked) {
+    for (const path of gitStatus(fs, root).untracked) {
+      modified[path] = workingTree[path];
+    }
   }
 
   if (Object.keys(modified).length === 0 && index.deleted.length === 0) {
@@ -1012,6 +1051,52 @@ export function gitPull(
   if (!remoteUrl) {
     const host = (remote ?? "origin").split("/")[0];
     return { fs, output: "", error: `fatal: unable to access '${remote ?? "origin"}': Could not resolve host: ${host}` };
+  }
+
+  // Fast-forward to a pre-seeded remote-tracking ref (refs/remotes/origin/<branch>),
+  // independent of REMOTE_REPOS. Fires ONLY when local is a STRICT ancestor of the
+  // tracking tip, so it never triggers for a diverged/ahead branch, nor for termoil's
+  // getUpdates flow (where the tracking ref equals local at pull time → handled below).
+  const localTip = resolveHead(fs, root);
+  const trackingTip = fs.readFile(`${root}/.git/refs/remotes/origin/${targetBranch}`).content?.trim();
+  if (localTip && trackingTip && trackingTip !== localTip && ancestorSet(fs, root, trackingTip).has(localTip)) {
+    const newTree = readCommit(fs, root, trackingTip)?.tree ?? {};
+
+    // Refuse to clobber uncommitted local changes whose content differs in the
+    // incoming tree — matches `git pull` / `git pull --ff-only`.
+    const status = gitStatus(fs, root);
+    const dirty = new Set([
+      ...status.staged.map((s) => s.path),
+      ...status.unstaged.map((u) => u.path),
+      ...status.untracked,
+    ]);
+    const collisions = [...dirty].filter(
+      (p) => p in newTree && newTree[p] !== fs.readFile(`${root}/${p}`).content,
+    );
+    if (collisions.length > 0) {
+      return {
+        fs,
+        output: "",
+        error:
+          `error: Your local changes to the following files would be overwritten by merge:\n` +
+          `${collisions.map((p) => `\t${p}`).join("\n")}\n` +
+          `Please commit your changes or stash them before you merge.`,
+      };
+    }
+
+    fs = writeRefOrFail(fs, `${root}/.git/refs/heads/${targetBranch}`, trackingTip);
+    for (const [relPath, content] of Object.entries(newTree)) {
+      const parts = relPath.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        fs = mkdirOrFail(fs, `${root}/${parts.slice(0, i).join("/")}`);
+      }
+      fs = writeOrFail(fs, `${root}/${relPath}`, content);
+    }
+    return {
+      fs,
+      output: `Updating ${localTip.slice(0, 7)}..${trackingTip.slice(0, 7)}\nFast-forward`,
+      triggerEvents: [{ type: "command_executed", detail: `git_pull_origin_${targetBranch}` }],
+    };
   }
 
   const remoteDef = REMOTE_REPOS[remoteUrl];

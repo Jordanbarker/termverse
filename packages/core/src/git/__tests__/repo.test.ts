@@ -699,6 +699,119 @@ describe("git stash", () => {
   });
 });
 
+// ── branch tracking (ahead/behind) ───────────────────────────────────
+
+/** Build a detached commit object (parent + tree), returning it for object/ref writes. */
+function mkCommit(parent: string | null, message: string, ts: number, tree: Record<string, string>) {
+  const hash = shortHash(message + ts + (parent ?? "") + JSON.stringify(tree));
+  return { hash, parent, message, author: AUTHOR, timestamp: ts, tree };
+}
+
+/** Seed two upstream-ahead commits + refs/remotes/origin/main, leaving refs/heads/main behind. */
+function seedBehindByTwo(fs: VirtualFS, root = "/home/player"): VirtualFS {
+  fs = initRepo(fs, root);
+  fs = fs.writeFile(`${root}/a.txt`, "v1").fs!;
+  fs = addAndCommit(fs, root, "first");
+  const c0 = resolveHead(fs, root)!;
+  const c1 = mkCommit(c0, "u1", 2, { "a.txt": "v1", "b.txt": "b" });
+  const c2 = mkCommit(c1.hash, "u2", 3, { ...c1.tree, "c.txt": "c" });
+  fs = fs.writeFile(`${root}/.git/objects/${c1.hash}.json`, JSON.stringify(c1)).fs!;
+  fs = fs.writeFile(`${root}/.git/objects/${c2.hash}.json`, JSON.stringify(c2)).fs!;
+  fs = fs.writeFile(`${root}/.git/refs/remotes/origin/main`, c2.hash).fs!;
+  return fs;
+}
+
+describe("git status branch tracking", () => {
+  it("reports behind + fast-forwardable when origin is ahead", () => {
+    const fs = seedBehindByTwo(makeFs());
+    const status = gitStatus(fs, "/home/player");
+    expect(status.tracking).toEqual({ remoteRef: "origin/main", ahead: 0, behind: 2 });
+    const out = formatStatus(status, false, true);
+    expect(out).toContain("Your branch is behind 'origin/main' by 2 commits, and can be fast-forwarded.");
+    expect(out).toContain('(use "git pull" to update your local branch)');
+  });
+
+  it("omits tracking (and the line) entirely when there is no remote-tracking ref", () => {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile("/home/player/a.txt", "v1").fs!;
+    fs = addAndCommit(fs, "/home/player", "first");
+    const status = gitStatus(fs, "/home/player");
+    expect(status.tracking).toBeUndefined();
+    // byte-for-byte identical to the pre-change output (no tracking line injected)
+    expect(formatStatus(status, false, true)).toBe("On branch main\nnothing to commit, working tree clean");
+  });
+});
+
+// ── git stash --include-untracked ────────────────────────────────────
+
+describe("git stash --include-untracked", () => {
+  function dirtyRepo(): VirtualFS {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile("/home/player/a.txt", "v1").fs!;
+    fs = addAndCommit(fs, "/home/player", "first");
+    fs = fs.writeFile("/home/player/a.txt", "v2").fs!;       // modified tracked
+    fs = fs.writeFile("/home/player/new.txt", "fresh").fs!;  // untracked
+    return fs;
+  }
+
+  it("without -u, untracked files are left in the working tree", () => {
+    const fs = gitStashSave(dirtyRepo(), "/home/player", false).fs;
+    expect(fs.getNode("/home/player/new.txt")).not.toBeNull();
+    expect(gitStatus(fs, "/home/player").untracked).toContain("new.txt");
+  });
+
+  it("with -u, untracked files are stashed and restored on pop", () => {
+    let fs = gitStashSave(dirtyRepo(), "/home/player", true).fs;
+    expect(fs.getNode("/home/player/new.txt")).toBeNull();      // tucked away
+    expect(fs.readFile("/home/player/a.txt").content).toBe("v1"); // reverted to HEAD
+    fs = gitStashPop(fs, "/home/player").fs;
+    expect(fs.readFile("/home/player/new.txt").content).toBe("fresh"); // back
+    expect(fs.readFile("/home/player/a.txt").content).toBe("v2");
+  });
+});
+
+// ── git pull fast-forward to a pre-seeded tracking ref ────────────────
+
+describe("git pull (fast-forward to remote-tracking ref)", () => {
+  const CONFIG = '[remote "origin"]\n  url = test-remote';
+
+  it("fast-forwards local + working tree when strictly behind", () => {
+    let fs = seedBehindByTwo(makeFs());
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    const upTip = fs.readFile("/home/player/.git/refs/remotes/origin/main").content!.trim();
+
+    const pull = gitPull(fs, "/home/player", undefined, undefined, {});
+    expect(pull.error).toBeUndefined();
+    expect(pull.output).toContain("Fast-forward");
+    fs = pull.fs;
+    expect(fs.readFile("/home/player/.git/refs/heads/main").content!.trim()).toBe(upTip);
+    expect(fs.readFile("/home/player/b.txt").content).toBe("b"); // working tree advanced
+    expect(fs.readFile("/home/player/c.txt").content).toBe("c");
+    expect(gitStatus(fs, "/home/player").tracking).toEqual({ remoteRef: "origin/main", ahead: 0, behind: 0 });
+  });
+
+  it("refuses to overwrite a conflicting local change", () => {
+    let fs = seedBehindByTwo(makeFs());
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    fs = fs.writeFile("/home/player/a.txt", "local edit").fs!; // collides with incoming a.txt
+    const pull = gitPull(fs, "/home/player", undefined, undefined, {});
+    expect(pull.error).toContain("would be overwritten");
+  });
+
+  it("does NOT fast-forward when the tracking ref equals local (falls through)", () => {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile("/home/player/a.txt", "v1").fs!;
+    fs = addAndCommit(fs, "/home/player", "first");
+    const c0 = resolveHead(fs, "/home/player")!;
+    fs = fs.writeFile("/home/player/.git/refs/remotes/origin/main", c0).fs!; // equal → not behind
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    // No REMOTE_REPOS entry for "test-remote" → it falls through to the getUpdates path,
+    // proving the new branch did not fire.
+    const pull = gitPull(fs, "/home/player", undefined, undefined, {});
+    expect(pull.error).toContain("repository 'test-remote' not found");
+  });
+});
+
 // ── git push ─────────────────────────────────────────────────────────
 
 describe("git push", () => {

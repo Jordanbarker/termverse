@@ -16,6 +16,23 @@ export function formatStatus(status: StatusResult, short: boolean, plain: boolea
     lines.push('  (use "git rebase --abort" to check out the original branch)');
   } else {
     lines.push(`On branch ${status.branch ?? "(detached HEAD)"}`);
+    const t = status.tracking;
+    if (t) {
+      const n = (count: number) => `${count} commit${count !== 1 ? "s" : ""}`;
+      if (t.behind > 0 && t.ahead === 0) {
+        lines.push(`Your branch is behind '${t.remoteRef}' by ${n(t.behind)}, and can be fast-forwarded.`);
+        lines.push('  (use "git pull" to update your local branch)');
+      } else if (t.ahead > 0 && t.behind === 0) {
+        lines.push(`Your branch is ahead of '${t.remoteRef}' by ${n(t.ahead)}.`);
+        lines.push('  (use "git push" to publish your local commits)');
+      } else if (t.ahead > 0 && t.behind > 0) {
+        lines.push(`Your branch and '${t.remoteRef}' have diverged,`);
+        lines.push(`and have ${t.ahead} and ${t.behind} different commits each, respectively.`);
+        lines.push('  (use "git pull" if you want to integrate the remote branch with yours)');
+      } else {
+        lines.push(`Your branch is up to date with '${t.remoteRef}'.`);
+      }
+    }
   }
 
   if (status.rebase && status.rebase.unmerged.length > 0) {

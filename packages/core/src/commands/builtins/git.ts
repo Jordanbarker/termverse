@@ -76,9 +76,9 @@ const GIT_SUBCOMMAND_FLAGS: Record<string, KnownFlags> = {
   switch: { short: ["c"] },
   rebase: { long: ["continue", "abort"] },
   diff: { long: ["staged", "cached"] },
-  stash: {},
+  stash: { short: ["u"], long: ["include-untracked"] },
   push: { short: ["u", "f"] },
-  pull: {},
+  pull: { long: ["ff-only"] },
   help: {},
 };
 
@@ -242,7 +242,8 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
     case "stash": {
       const stashSub = subArgs[0];
       if (!stashSub || stashSub === "push") {
-        const result = gitStashSave(ctx.fs, root);
+        const includeUntracked = !!flags["u"] || !!flags["include-untracked"];
+        const result = gitStashSave(ctx.fs, root, includeUntracked);
         if (result.error) return { output: result.error, exitCode: 1 };
         return { output: result.output, newFs: result.fs };
       }
