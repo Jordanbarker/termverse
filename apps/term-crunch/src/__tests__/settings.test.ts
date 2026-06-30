@@ -20,7 +20,8 @@ describe("settings: dotfiles seeded into each challenge fs", () => {
     expect(s.fs.readFile(TMUX_PATH).content).toBe(DEFAULT_TMUX_CONF);
     // zshrc aliases + exports are parsed into the live session.
     expect(s.aliases.gs).toBe("git status");
-    expect(s.aliases.ll).toBe("ls -la");
+    expect(s.aliases.ll).toBe("ls -lh");
+    expect(s.aliases[".."]).toBe("cd ..");
     expect(s.envVars.EDITOR).toBe("nano");
   });
 

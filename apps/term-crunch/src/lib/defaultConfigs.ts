@@ -31,12 +31,25 @@ bind -r K resize-pane -U 5
 bind -r L resize-pane -R 5
 `;
 
-/** A few illustrative aliases + an export so editing the zshrc is visible. */
+/** Generic, oh-my-zsh-style aliases + an export so editing the zshrc is visible. */
 export const DEFAULT_ZSHRC = `# ~/.zshrc — edit me, then Save to apply live.
 # Aliases and exports here are active in every challenge.
 
+# Navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
+# Listing
+alias l='ls -lah'
+alias la='ls -lAh'
+alias ll='ls -lh'
+
+# Directories
+alias md='mkdir -p'
+
+# Git
 alias gs='git status'
-alias ll='ls -la'
 
 export EDITOR=nano
 `;
