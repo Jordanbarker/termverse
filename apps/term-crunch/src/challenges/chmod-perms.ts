@@ -34,22 +34,20 @@ export const chmodPerms: Challenge = {
   type: "fs",
   fsWatchPath: VAULT_DIR,
   commands: ["chmod", "cat", "ls", "cd", "pwd"],
+  brief:
+    'secrets.env is locked: `cat secrets.env` fails with "Permission denied". Its permission ' +
+    "string in the panel (rw-------) shows only the owner can read it. Grant read access so it can be opened.",
   setup,
   steps: [
     {
-      instruction:
-        "Unlock the secret so you can read it.\n" +
-        "\n" +
-        '`cat secrets.env` fails with "Permission denied" right now. Look at its\n' +
-        "permission string in the panel: rw------- means the owner can read/write,\n" +
-        "but no one else can read it (the read bit is off). Use chmod to turn it on.\n" +
-        "\n" +
-        "New to chmod? It controls who can read (r), write (w), execute (x) a file.\n" +
+      instruction: "Turn on the read bit so secrets.env can be read, then watch the panel's permission string change.",
+      hint:
+        "chmod sets who can read (r), write (w), execute (x) a file.\n" +
         "• Symbolic (letters): a target (u=owner, g=group, o=other, a=all), then +/- a bit.\n" +
         "• Octal (numbers): three digits = owner/group/other, each summing r=4 w=2 x=1.\n" +
         "  So rw-r--r-- is 644 and rw------- (locked) is 600.\n" +
-        "Grant read access, then watch the permission string change in the panel and\n" +
-        "open the file to confirm.",
+        "It's not enough for the owner alone to read it: grant read broadly.",
+      command: "chmod +r secrets.env",
       // Readable exactly when the "other" read bit is set — the same bit the engine's
       // readFile() checks, so the step passes precisely when `cat` starts working.
       // Lenient: accepts +r, o+r, 644, 444, 604, ... (but not u+r alone).

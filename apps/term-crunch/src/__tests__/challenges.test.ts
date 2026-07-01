@@ -424,13 +424,14 @@ describe("chmod-perms challenge", () => {
   });
 });
 
-describe("git challenges are objective-first with progressive hints", () => {
+describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
-  // text — that's the whole point of the rework, so guard it.
-  const gitChallenges = [gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge];
+  // text — that's the whole point of the rework, so guard it. The pane challenges
+  // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
+  const objectiveFirst = [gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms];
 
-  it("each git challenge has a brief and every step has a hint + command", () => {
-    for (const c of gitChallenges) {
+  it("each has a brief and every step has a hint + command", () => {
+    for (const c of objectiveFirst) {
       expect(c.brief, `${c.id} missing brief`).toBeTruthy();
       for (const step of c.steps) {
         expect(step.hint, `${c.id} step missing hint`).toBeTruthy();
