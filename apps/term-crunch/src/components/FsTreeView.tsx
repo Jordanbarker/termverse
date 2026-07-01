@@ -44,9 +44,9 @@ function rows(node: FSNode, depth: number): React.ReactElement[] {
 }
 
 /**
- * Prop-driven tree diagram of a filesystem subtree — the fs analog of
- * `GitReadout`. Re-renders on every fs change, so removing the target file makes
- * its row disappear and the survivors stay put.
+ * Prop-driven tree diagram of a filesystem subtree, shown for fs challenges.
+ * Re-renders on every fs change, so removing the target file makes its row
+ * disappear and the survivors stay put.
  */
 export default function FsTreeView({ fs, watchPath }: Props) {
   const root = fs.getNode(watchPath);

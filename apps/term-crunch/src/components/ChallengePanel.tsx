@@ -5,7 +5,6 @@ import { formatElapsed } from "@tt/core/lib/format";
 import { useGameStore } from "../state/gameStore";
 import { getCategory, SELECTABLE_CATEGORIES } from "../challenges/categories";
 import type { Step } from "../challenges/types";
-import { readGitState } from "../lib/gitState";
 import SchematicView from "./SchematicView";
 import WindowStripView from "./WindowStripView";
 import FsTreeView from "./FsTreeView";
@@ -175,10 +174,6 @@ export default function ChallengePanel() {
             </div>
           )}
 
-          {challenge.type === "git" && challenge.gitRepoPath && (
-            <GitReadout fs={fs} repoPath={challenge.gitRepoPath} />
-          )}
-
           {challenge.type === "fs" && challenge.fsWatchPath && (
             <FsTreeView fs={fs} watchPath={challenge.fsWatchPath} />
           )}
@@ -283,26 +278,4 @@ function LiveTimer({ challengeStartTime }: { challengeStartTime: number }) {
   }, []);
   const elapsed = challengeStartTime ? Math.max(0, now - challengeStartTime) : 0;
   return <>{formatElapsed(elapsed)}</>;
-}
-
-function GitReadout({ fs, repoPath }: { fs: ReturnType<typeof useGameStore.getState>["fs"]; repoPath: string }) {
-  const g = readGitState(fs, repoPath);
-  const row = (label: string, value: string) => (
-    <div className="flex justify-between gap-3 border-b border-[#1c2430] py-1 last:border-0">
-      <span className="text-[#6b7680]">{label}</span>
-      <span className="truncate text-right">{value}</span>
-    </div>
-  );
-  return (
-    <div className="rounded border border-[#1c2430] bg-[#11161d] p-3 text-xs">
-      {row("repo", g.hasRepo ? "initialized" : "none")}
-      {row("branch", g.branch ?? "-")}
-      {row("commits", String(g.commitCount))}
-      {row("latest", g.latestMessage ?? "-")}
-      {row("staged", g.staged.length ? g.staged.join(", ") : "-")}
-      {g.rebaseInProgress &&
-        row("rebase", g.conflictFiles.length ? `conflict: ${g.conflictFiles.join(", ")}` : "in progress")}
-      {row("working tree", g.clean ? "clean" : g.rebaseInProgress ? "rebasing" : "dirty")}
-    </div>
-  );
 }
