@@ -67,24 +67,34 @@ export const gitStashChallenge: Challenge = {
   type: "git",
   gitRepoPath: PROJECT_DIR,
   commands: ["git", "ls", "cat", "cd", "pwd"],
+  brief:
+    "A hotfix is waiting, but your uncommitted WIP in app.js blocks the branch switch. " +
+    "Shelve it, visit hotfix, return to main, and restore your work.",
   setup,
   steps: [
     {
-      instruction:
-        "You have staged WIP in app.js but an urgent fix waits on hotfix.\nShelve your work so the tree is clean:  git stash",
+      instruction: "Get your uncommitted work out of the way so the working tree is clean.",
+      hint: "You need to set the WIP aside without committing it, so the tree is clean enough to switch branches.",
+      command: "git stash",
       isComplete: (s) => readGitState(s.fs, PROJECT_DIR).clean && readStash(s.fs, PROJECT_DIR).length > 0,
     },
     {
-      instruction: "Tree's clean now — switch to the hotfix branch:  git checkout hotfix",
+      instruction: "Switch to the hotfix branch.",
+      hint: "With a clean tree the switch Git refused earlier is now allowed.",
+      command: "git checkout hotfix",
       isComplete: (s) => readGitState(s.fs, PROJECT_DIR).branch === "hotfix",
     },
     {
-      instruction: "Done with hotfix. Head back to your branch:  git checkout main",
+      instruction: "Head back to your original branch, main.",
+      hint: "Switch back the same way you came over.",
+      command: "git checkout main",
       isComplete: (s) =>
         readGitState(s.fs, PROJECT_DIR).branch === "main" && readStash(s.fs, PROJECT_DIR).length > 0,
     },
     {
-      instruction: "Bring your shelved work back:  git stash pop",
+      instruction: "Restore the work you shelved.",
+      hint: "Reapply the most recent stash and drop it from the stash list in one move.",
+      command: "git stash pop",
       isComplete: (s) =>
         readStash(s.fs, PROJECT_DIR).length === 0 && (s.fs.readFile(APP).content ?? "") === WIP_APP,
     },

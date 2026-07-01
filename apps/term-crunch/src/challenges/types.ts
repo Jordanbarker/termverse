@@ -13,8 +13,19 @@ export interface ChallengeSnapshot {
 }
 
 export interface Step {
-  /** Shown to the player as the current objective. */
+  /**
+   * The current sub-goal, stated as an objective the player must accomplish —
+   * NOT the command that does it. Keep it command-free; the answer lives in
+   * `command`, revealed only on request via the hint control.
+   */
   instruction: string;
+  /**
+   * Progressive hint level 1: a conceptual nudge (which concept/flag matters and
+   * why) that stops short of the literal command. Hidden by default.
+   */
+  hint?: string;
+  /** Progressive hint level 2: the exact command. Hidden until asked for. */
+  command?: string;
   /** Pure predicate: has this step been satisfied by the current state? */
   isComplete: (s: ChallengeSnapshot) => boolean;
 }
@@ -23,6 +34,12 @@ export interface Challenge {
   id: string;
   title: string;
   type: "pane" | "git" | "fs";
+  /**
+   * The persistent scenario + overall objective, shown above the current step so
+   * the player always sees the whole task. Command-free. Omitted = the panel just
+   * shows the current step's instruction (pane/fs challenges).
+   */
+  brief?: string;
   steps: Step[];
   /** Seed FS for this challenge, applied on top of buildBaseFs(). */
   setup: (base: VirtualFS) => VirtualFS;

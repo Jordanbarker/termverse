@@ -73,10 +73,15 @@ export const gitRebaseChallenge: Challenge = {
   type: "git",
   gitRepoPath: PROJECT_DIR,
   commands: ["git", "nano", "ls", "cat", "cd", "pwd"],
+  brief:
+    "main has moved on and edited the same config.txt line as your feature commit. " +
+    "Rebase feature onto main, resolve the conflict, and finish.",
   setup,
   steps: [
     {
-      instruction: "You're on feature. Replay your work onto main:  git rebase main",
+      instruction: "Replay your feature commit on top of the latest main.",
+      hint: "Rebase the current branch onto main. It will stop partway through with a conflict for you to fix.",
+      command: "git rebase main",
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);
         return g.rebaseInProgress && g.conflictFiles.length > 0;
@@ -84,14 +89,18 @@ export const gitRebaseChallenge: Challenge = {
     },
     {
       instruction:
-        "Open config.txt in nano, delete the <<<<<<< / ======= / >>>>>>> markers, save, then stage it:  git add config.txt",
+        "Resolve the conflict in config.txt (pick the version you want, remove the conflict markers), then mark it resolved.",
+      hint: "Edit config.txt in nano to delete the <<<<<<< / ======= / >>>>>>> lines and leave the content you want, save, then stage the file to mark the conflict resolved.",
+      command: "git add config.txt",
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);
         return g.rebaseInProgress && g.conflictFiles.length === 0 && !hasConflictMarkers(configContent(s.fs));
       },
     },
     {
-      instruction: "Finish the rebase:  git rebase --continue",
+      instruction: "Finish the rebase now that the conflict is resolved.",
+      hint: "Tell the in-progress rebase to carry on from where it stopped.",
+      command: "git rebase --continue",
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);
         if (g.rebaseInProgress || !g.clean) return false;

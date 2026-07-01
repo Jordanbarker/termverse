@@ -103,23 +103,31 @@ export const gitPullFf: Challenge = {
   type: "git",
   gitRepoPath: PROJECT_DIR,
   commands: ["git", "ls", "cat", "cd", "pwd"],
+  brief:
+    "Your feat/add-sql branch is 2 commits behind origin with a dirty tree (a modified file " +
+    "and an untracked one). Catch up without a merge, then reapply your work. `git status` shows the state.",
   setup,
   steps: [
     {
-      instruction:
-        "Run `git status`: you're 2 commits behind origin/feat/add-sql AND have local changes (a modified file + an untracked one).\nShelve everything so the tree is clean:  git stash --include-untracked",
+      instruction: "Shelve all your local changes, including the untracked file, so the tree is completely clean.",
+      hint: "A plain stash leaves untracked files sitting in the tree, so it won't be clean. You need the option that sweeps those in too.",
+      command: "git stash --include-untracked",
       isComplete: (s) =>
         readGitState(s.fs, PROJECT_DIR).clean && readStash(s.fs, PROJECT_DIR).length > 0,
     },
     {
-      instruction: "Tree's clean now — fast-forward to the 2 upstream commits:  git pull --ff-only",
+      instruction: "Catch up to the 2 upstream commits without creating a merge commit.",
+      hint: "Pull from origin, but only allow it if the branch can fast-forward straight onto the upstream commits.",
+      command: "git pull --ff-only",
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);
         return g.behind === 0 && g.commitCount === 3 && readStash(s.fs, PROJECT_DIR).length > 0;
       },
     },
     {
-      instruction: "Bring your shelved work back on top of the new commits:  git stash pop",
+      instruction: "Restore your shelved work on top of the new commits.",
+      hint: "Reapply the most recent stash and drop it from the stash list.",
+      command: "git stash pop",
       isComplete: (s) =>
         readStash(s.fs, PROJECT_DIR).length === 0 &&
         (s.fs.readFile(LOAD).content ?? "") === LOAD_WIP &&

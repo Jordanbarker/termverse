@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatElapsed } from "@tt/core/lib/format";
 import { useGameStore } from "../state/gameStore";
 import { getCategory, SELECTABLE_CATEGORIES } from "../challenges/categories";
+import type { Step } from "../challenges/types";
 import { readGitState } from "../lib/gitState";
 import SchematicView from "./SchematicView";
 import WindowStripView from "./WindowStripView";
@@ -129,9 +130,21 @@ export default function ChallengePanel() {
             </div>
           </div>
 
-          <p className="whitespace-pre-line rounded bg-[#11161d] p-3 text-sm leading-relaxed text-[#b3b1ad]">
-            {challenge.steps[stepIndex]?.instruction}
-          </p>
+          {challenge.brief && (
+            <p className="whitespace-pre-line rounded bg-[#11161d] p-3 text-sm leading-relaxed text-[#b3b1ad]">
+              {challenge.brief}
+            </p>
+          )}
+
+          {challenge.steps[stepIndex] && (
+            <StepGoal
+              step={challenge.steps[stepIndex]}
+              hasBrief={!!challenge.brief}
+              // Reset the reveal level whenever the player moves to a new step or
+              // challenge, so a fresh step never leaks the previous command.
+              resetKey={`${activeCategory}:${challengeIndex}:${stepIndex}`}
+            />
+          )}
 
           {challenge.type === "pane" && challenge.targetWindow && activeWindow && (
             <div className="flex flex-col gap-3">
@@ -193,6 +206,67 @@ export default function ChallengePanel() {
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </aside>
+  );
+}
+
+/**
+ * The current step's goal plus a progressive, hidden-by-default hint control.
+ * Level 0 shows nothing extra; level 1 reveals the conceptual nudge (`step.hint`);
+ * level 2 reveals the exact command (`step.command`). `resetKey` changes whenever
+ * the player advances a step or loads another challenge, collapsing the reveal so
+ * the next step never starts with the previous command on screen.
+ */
+function StepGoal({ step, hasBrief, resetKey }: { step: Step; hasBrief: boolean; resetKey: string }) {
+  const [hintLevel, setHintLevel] = useState(0);
+
+  // Collapse hints back to hidden on every step/challenge change.
+  useEffect(() => setHintLevel(0), [resetKey]);
+
+  const linkBtn =
+    "self-start text-xs text-[#6b7680] underline decoration-dotted underline-offset-2 hover:text-[#e6b450]";
+
+  return (
+    <div className="flex flex-col gap-2">
+      {hasBrief ? (
+        <div>
+          <div className="text-xs uppercase tracking-wide text-[#6b7680]">Now</div>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-[#e6e6d9]">{step.instruction}</p>
+        </div>
+      ) : (
+        <p className="whitespace-pre-line rounded bg-[#11161d] p-3 text-sm leading-relaxed text-[#b3b1ad]">
+          {step.instruction}
+        </p>
+      )}
+
+      {step.hint && (
+        <div className="flex flex-col gap-1.5">
+          {hintLevel === 0 ? (
+            <button type="button" onClick={() => setHintLevel(1)} className={linkBtn}>
+              Show hint
+            </button>
+          ) : (
+            <>
+              <p className="whitespace-pre-line rounded border border-[#1c2430] bg-[#11161d] p-2.5 text-sm leading-relaxed text-[#b3b1ad]">
+                {step.hint}
+              </p>
+              {step.command &&
+                (hintLevel >= 2 ? (
+                  <code className="block rounded border border-[#3a3320] bg-[#1a1710] px-2.5 py-2 font-mono text-sm text-[#e6b450]">
+                    {step.command}
+                  </code>
+                ) : (
+                  <button type="button" onClick={() => setHintLevel(2)} className={linkBtn}>
+                    Show command
+                  </button>
+                ))}
+              <button type="button" onClick={() => setHintLevel(0)} className={linkBtn}>
+                Hide hints
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

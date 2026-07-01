@@ -424,6 +424,23 @@ describe("chmod-perms challenge", () => {
   });
 });
 
+describe("git challenges are objective-first with progressive hints", () => {
+  // The command belongs in `command` (revealed on request), never in the objective
+  // text — that's the whole point of the rework, so guard it.
+  const gitChallenges = [gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge];
+
+  it("each git challenge has a brief and every step has a hint + command", () => {
+    for (const c of gitChallenges) {
+      expect(c.brief, `${c.id} missing brief`).toBeTruthy();
+      for (const step of c.steps) {
+        expect(step.hint, `${c.id} step missing hint`).toBeTruthy();
+        expect(step.command, `${c.id} step missing command`).toBeTruthy();
+        expect(step.instruction, `${c.id} step missing instruction`).toBeTruthy();
+      }
+    }
+  });
+});
+
 describe("categories", () => {
   it("'all' contains every challenge in registry order", () => {
     expect(getCategory("all").challenges).toEqual(CHALLENGES);

@@ -27,14 +27,19 @@ export const gitFirstCommit: Challenge = {
   type: "git",
   gitRepoPath: PROJECT_DIR,
   commands: ["git", "ls", "cat", "cd", "pwd"],
+  brief: 'README.md is untracked in a fresh repo. Stage it and commit it with the message "init".',
   setup,
   steps: [
     {
-      instruction: "cd into project, then stage the file:  git add README.md",
+      instruction: "Stage README.md so it's ready to be committed.",
+      hint: "Nothing is tracked yet. A file has to be added to the staging area before it can go into a commit.",
+      command: "git add README.md",
       isComplete: (s) => readGitState(s.fs, PROJECT_DIR).staged.includes("README.md"),
     },
     {
-      instruction: 'Commit it:  git commit -m "init"',
+      instruction: 'Commit the staged file with the message "init".',
+      hint: "Commit what's staged, and pass the message inline so no editor opens.",
+      command: 'git commit -m "init"',
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);
         return g.commitCount === 1 && g.latestMessage === "init" && g.clean;
