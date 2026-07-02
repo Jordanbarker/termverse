@@ -24,6 +24,7 @@ import { buildBaseFs } from "../lib/seed";
 import { readGitState } from "../lib/gitState";
 import { structKey, paneTreeMatches } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
+import { runLine } from "../hooks/useTerminal";
 import { panesSplit } from "../challenges/panes-split";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";

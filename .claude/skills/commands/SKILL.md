@@ -124,8 +124,11 @@ Two internal `Map`s: `commands` (sync) and `asyncCommands` (async). Both auto-ha
 | `parseChainedPipeline(raw)` | Split on `&&`/`\|\|`/`;` first, then parse each segment's pipeline |
 | `splitOnChainOperators(input)` | Split on unquoted `&&`, `\|\|`, `;` respecting quotes |
 | `splitOnPipe(input)` | Split on `\|` outside single/double quotes |
+| `analyzeIncompleteInput(input)` | Detects zsh-style secondary-prompt continuation (unterminated quote, trailing `\`/`\|`/`&&`/`\|\|`); `null` = submittable |
 
 Flag parsing: `-x` → `{ x: true }`, `-xyz` → `{ x: true, y: true, z: true }`, `--flag` → `{ flag: true }`.
+
+`analyzeIncompleteInput`'s quote scan duplicates `tokenize`'s exact rules (no backslash escaping) — keep the two in sync. It has no opinion on trailing `&` or `;`, which are not continuation in zsh. Consumed by `@tt/core/terminal/lineEditor`'s `LineEditor`: on Enter, an incomplete result accumulates the physical line into `pendingLines`, switches the active prompt to the returned secondary prompt, and defers submission until the joined input parses clean; Ctrl+C aborts the whole multi-line entry, and history/ghost-text are disabled while a continuation is active.
 
 ## Flag validation (`flagValidation.ts`)
 

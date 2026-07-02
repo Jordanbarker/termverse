@@ -1,6 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import { getSuggestion, SuggestionContext } from "../suggestions/suggest";
 import { getCompletions, CompletionResult } from "../suggestions/complete";
+import { analyzeIncompleteInput } from "../commands/parser";
 import {
   isBackspace,
   isPrintable,
@@ -67,8 +68,17 @@ export class LineEditor {
   private ghostLen = 0;
   private completion: CompletionState | null = null;
   private historyIndex = -1;
+  /** Prior physical lines of a multi-line continuation, already joined. */
+  private pendingLines = "";
+  /** Active zsh-style secondary prompt (e.g. "dquote> "); "" = not continuing. */
+  private contPrompt = "";
 
   constructor(private readonly deps: LineEditorDeps) {}
+
+  /** The prompt to show for the current physical line: secondary if continuing, else primary. */
+  private activePrompt(): string {
+    return this.contPrompt || this.deps.getPrompt();
+  }
 
   // ── Public entry point ───────────────────────────────────────────────────
 
@@ -180,6 +190,7 @@ export class LineEditor {
   }
 
   private renderGhostText(term: Terminal): void {
+    if (this.contPrompt) return;
     const input = this.buffer;
     if (!input) return;
     if (this.cursorPos !== input.length) return;
@@ -422,16 +433,36 @@ export class LineEditor {
 
     if (char === "\r" || char === "\n") {
       this.clearGhost(term);
-      const input = this.buffer;
+      const fullInput = this.pendingLines + this.buffer;
+      const cont = analyzeIncompleteInput(fullInput);
+
+      if (cont) {
+        if (cont.kind === "backslash") {
+          this.pendingLines = fullInput.slice(0, -1);
+        } else if (cont.kind === "quote" || cont.kind === "dquote") {
+          this.pendingLines = fullInput + "\n";
+        } else {
+          this.pendingLines = fullInput + " ";
+        }
+        this.contPrompt = cont.prompt;
+        this.buffer = "";
+        this.cursorPos = 0;
+        this.historyIndex = -1;
+        term.write("\r\n" + cont.prompt);
+        return null;
+      }
+
+      this.pendingLines = "";
+      this.contPrompt = "";
       this.buffer = "";
       this.cursorPos = 0;
 
-      if (input.trim()) {
+      if (fullInput.trim()) {
         term.write("\r\n");
         // History is recorded by the command runner appending to the
         // `.zsh_history` file (the single source of truth); no push needed here.
         this.historyIndex = -1;
-        return { type: "submit", input };
+        return { type: "submit", input: fullInput };
       }
 
       // Empty line — reprint the prompt, no submit
@@ -455,6 +486,8 @@ export class LineEditor {
 
     if (code === CTRL_C) {
       this.clearGhost(term);
+      this.pendingLines = "";
+      this.contPrompt = "";
       this.buffer = "";
       this.cursorPos = 0;
       term.write("^C\r\n" + this.deps.getPrompt());
@@ -567,7 +600,7 @@ export class LineEditor {
     this.clearCompletionState(term, false);
     this.clearGhost(term);
     term.write("\x1b[H\x1b[2J");
-    term.write(this.deps.getPrompt() + this.buffer);
+    term.write(this.activePrompt() + this.buffer);
     const moveBack = this.buffer.length - this.cursorPos;
     if (moveBack > 0) term.write(`\x1b[${moveBack}D`);
     this.renderGhostText(term);
@@ -579,6 +612,7 @@ export class LineEditor {
       this.deleteCharForward(term);
       return null;
     }
+    if (this.contPrompt) return null;
     this.clearCompletionState(term, false);
     this.clearGhost(term);
     term.write("\r\n");
@@ -592,7 +626,8 @@ export class LineEditor {
     this.clearCompletionState(term, false);
     const isWordSkip = modifier === 3 || modifier === 5;
     if (arrow === "A") {
-      // Up arrow — navigate history
+      // Up arrow — navigate history (disabled mid-continuation)
+      if (this.contPrompt) return;
       this.clearGhost(term);
       const history = this.deps.getHistory();
       const idx = this.historyIndex;
@@ -607,7 +642,8 @@ export class LineEditor {
       }
       this.renderGhostText(term);
     } else if (arrow === "B") {
-      // Down arrow — navigate history forward
+      // Down arrow — navigate history forward (disabled mid-continuation)
+      if (this.contPrompt) return;
       this.clearGhost(term);
       const history = this.deps.getHistory();
       const idx = this.historyIndex;

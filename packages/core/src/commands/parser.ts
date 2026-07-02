@@ -276,8 +276,49 @@ export function expandAliases(input: string, aliases: Record<string, string>): s
   return result.join('');
 }
 
+export type ContinuationKind = "quote" | "dquote" | "backslash" | "pipe" | "cmdand" | "cmdor";
+
+/**
+ * Detect whether raw input is syntactically incomplete and should open a zsh-style
+ * secondary prompt (`dquote>`, `pipe>`, ...) instead of erroring, mirroring real
+ * interactive zsh behavior. Returns `null` when the input is complete/submittable.
+ *
+ * The quote scan below duplicates `tokenize`'s exact quote rules (no backslash
+ * escaping, `'`/`"` toggle unless the other is active) — keep the two in sync.
+ */
+export function analyzeIncompleteInput(input: string): { kind: ContinuationKind; prompt: string } | null {
+  if (!input) return null;
+
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    if (char === "'" && !inDouble) {
+      inSingle = !inSingle;
+    } else if (char === '"' && !inSingle) {
+      inDouble = !inDouble;
+    }
+  }
+
+  if (inSingle) return { kind: "quote", prompt: "quote> " };
+  if (inDouble) return { kind: "dquote", prompt: "dquote> " };
+
+  let backslashRun = 0;
+  for (let i = input.length - 1; i >= 0 && input[i] === "\\"; i--) backslashRun++;
+  if (backslashRun % 2 === 1) return { kind: "backslash", prompt: "> " };
+
+  const trimmed = input.trimEnd();
+  if (trimmed.endsWith("||")) return { kind: "cmdor", prompt: "cmdor> " };
+  if (trimmed.endsWith("&&")) return { kind: "cmdand", prompt: "cmdand> " };
+  if (trimmed.endsWith("|")) return { kind: "pipe", prompt: "pipe> " };
+
+  return null;
+}
+
 /**
  * Split input into tokens, respecting single and double quotes.
+ *
+ * Quote rules here must stay in sync with `analyzeIncompleteInput`'s scan above.
  */
 function tokenize(input: string): string[] | null {
   const tokens: string[] = [];

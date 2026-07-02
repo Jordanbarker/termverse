@@ -89,7 +89,7 @@ apps/termoil/src/
 
 - **Immutable filesystem**: VirtualFS mutations return new instances (enables React re-renders, future undo/redo)
 - **Minimal engine→state coupling**: Engine files may import type definitions from `state/types.ts` (e.g. `ComputerId`, `StoryFlags`), but never import Zustand stores or actions. Runtime dependencies flow via `CommandContext`
-- **Decomposed terminal hooks**: `useTerminal` (orchestrator) → `useSessionRouter` (session lifecycle) + `useCommandLine` (a thin wrapper around the shared `@tt/core/terminal/lineEditor` `LineEditor`; builds the app thunks `getContext`/`getHistory`/`getPrompt` and exposes `handleData`). The cursor-aware editing/rendering logic (arrows, mid-line cursor, word-skip, ghost/TAB completion) lives in `@tt/core` and is shared with `apps/term-crunch`
+- **Decomposed terminal hooks**: `useTerminal` (orchestrator) → `useSessionRouter` (session lifecycle) + `useCommandLine` (a thin wrapper around the shared `@tt/core/terminal/lineEditor` `LineEditor`; builds the app thunks `getContext`/`getHistory`/`getPrompt` and exposes `handleData`). The cursor-aware editing/rendering logic (arrows, mid-line cursor, word-skip, ghost/TAB completion) lives in `@tt/core` and is shared with `apps/term-crunch`. Syntactically incomplete input (unterminated quote, trailing `\`/`\|`/`&&`/`\|\|`) opens a zsh-style secondary prompt (`dquote>`, `pipe>`, ...) inside `LineEditor` instead of an immediate parse error; `useTerminal` only ever receives one complete, submitted line.
 - **Single-page app**: Chapter transitions are state changes, not route changes
 - **Dynamic xterm import**: `ssr: false` required because xterm.js needs `window`
 - **Static export**: `output: 'export'` in next.config.ts, deployed to GitHub Pages

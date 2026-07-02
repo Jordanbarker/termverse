@@ -105,6 +105,7 @@ const CTRL_D = "\x04";
 const CTRL_E = "\x05";
 const CTRL_U = "\x15";
 const CTRL_W = "\x17";
+const CTRL_L = "\x0c";
 
 describe("LineEditor", () => {
   let term: Terminal;
@@ -277,6 +278,86 @@ describe("LineEditor", () => {
       const ed = makeEditor();
       const res = feed(ed, term, "a", "b", "c", HOME, CTRL_D, ENTER);
       expect(res?.input).toBe("bc");
+    });
+  });
+
+  describe("shell input continuation", () => {
+    it("opens dquote> on an unterminated double quote, then submits the joined line", () => {
+      const ed = makeEditor();
+      const first = feed(ed, term, ..."ls \"".split(""), ENTER);
+      expect(first).toBeNull();
+      expect(fake.output).toContain("dquote> ");
+
+      const second = feed(ed, term, "\"", ENTER);
+      expect(second).toEqual({ type: "submit", input: 'ls "\n"' });
+    });
+
+    it("opens quote> on an unterminated single quote", () => {
+      const ed = makeEditor();
+      const first = feed(ed, term, ..."echo 'foo".split(""), ENTER);
+      expect(first).toBeNull();
+      expect(fake.output).toContain("quote> ");
+
+      const second = feed(ed, term, "'", ENTER);
+      expect(second).toEqual({ type: "submit", input: "echo 'foo\n'" });
+    });
+
+    it("joins a trailing backslash continuation without a separator", () => {
+      const ed = makeEditor();
+      const first = feed(ed, term, ..."echo a\\".split(""), ENTER);
+      expect(first).toBeNull();
+      expect(fake.output).toContain("> ");
+
+      const second = feed(ed, term, "b", ENTER);
+      expect(second).toEqual({ type: "submit", input: "echo ab" });
+    });
+
+    it("joins a trailing pipe continuation with a space", () => {
+      const ed = makeEditor();
+      const first = feed(ed, term, ..."echo hi |".split(""), ENTER);
+      expect(first).toBeNull();
+      expect(fake.output).toContain("pipe> ");
+
+      const second = feed(ed, term, ..."cat".split(""), ENTER);
+      expect(second).toEqual({ type: "submit", input: "echo hi | cat" });
+    });
+
+    it("Ctrl+C aborts a multi-line continuation back to the primary prompt", () => {
+      const ed = makeEditor();
+      feed(ed, term, ..."ls \"".split(""), ENTER);
+      fake.clear();
+      feed(ed, term, CTRL_C);
+      expect(fake.output).toContain(PROMPT);
+
+      const res = feed(ed, term, "x", ENTER);
+      expect(res?.input).toBe("x");
+    });
+
+    it("Ctrl+D on an empty line mid-continuation does not submit exit", () => {
+      const ed = makeEditor();
+      feed(ed, term, ..."ls \"".split(""), ENTER);
+      const res = feed(ed, term, CTRL_D);
+      expect(res).toBeNull();
+    });
+
+    it("Ctrl+L during continuation redraws the secondary prompt, not the primary one", () => {
+      const ed = makeEditor();
+      feed(ed, term, ..."ls \"".split(""), ENTER);
+      fake.clear();
+      feed(ed, term, CTRL_L);
+      expect(fake.output).toContain("dquote> ");
+      expect(fake.output).not.toContain(PROMPT);
+    });
+
+    it("Up-arrow during continuation leaves the buffer unchanged", () => {
+      const ed = makeEditor({ history: ["ls -la"] });
+      feed(ed, term, ..."ls \"".split(""), ENTER);
+      fake.clear();
+      feed(ed, term, UP);
+      expect(fake.output).toBe("");
+
+      const res = feed(ed, term, "\"", ENTER);
+      expect(res).toEqual({ type: "submit", input: 'ls "\n"' });
     });
   });
 });
