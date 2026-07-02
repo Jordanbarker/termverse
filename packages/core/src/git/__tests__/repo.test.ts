@@ -810,6 +810,38 @@ describe("git pull (fast-forward to remote-tracking ref)", () => {
     const pull = gitPull(fs, "/home/player", undefined, undefined, {});
     expect(pull.error).toContain("repository 'test-remote' not found");
   });
+
+  it("--ff-only still fast-forwards when strictly behind", () => {
+    let fs = seedBehindByTwo(makeFs());
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    const pull = gitPull(fs, "/home/player", undefined, undefined, {}, true);
+    expect(pull.error).toBeUndefined();
+    expect(pull.output).toContain("Fast-forward");
+  });
+
+  it("--ff-only refuses when branches have diverged", () => {
+    let fs = seedBehindByTwo(makeFs());
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    // Diverge: add a local commit on top of c0 while origin/main sits at c2.
+    fs = fs.writeFile("/home/player/local.txt", "mine").fs!;
+    fs = addAndCommit(fs, "/home/player", "local work");
+    const localTip = resolveHead(fs, "/home/player")!;
+
+    const pull = gitPull(fs, "/home/player", undefined, undefined, {}, true);
+    expect(pull.error).toBe("fatal: Not possible to fast-forward, aborting.");
+    // Refs and working tree untouched.
+    expect(pull.fs.readFile("/home/player/.git/refs/heads/main").content!.trim()).toBe(localTip);
+    expect(pull.fs.getNode("/home/player/b.txt")).toBeNull();
+  });
+
+  it("without --ff-only a diverged branch falls through unchanged", () => {
+    let fs = seedBehindByTwo(makeFs());
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    fs = fs.writeFile("/home/player/local.txt", "mine").fs!;
+    fs = addAndCommit(fs, "/home/player", "local work");
+    const pull = gitPull(fs, "/home/player", undefined, undefined, {});
+    expect(pull.error).toContain("repository 'test-remote' not found");
+  });
 });
 
 // ── git push ─────────────────────────────────────────────────────────

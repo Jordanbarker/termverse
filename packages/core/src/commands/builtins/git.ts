@@ -271,7 +271,7 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
     case "pull": {
       const remote = subArgs[0];
       const branch = subArgs[1];
-      const result = gitPull(ctx.fs, root, remote, branch, ctx.storyFlags ?? {});
+      const result = gitPull(ctx.fs, root, remote, branch, ctx.storyFlags ?? {}, !!flags["ff-only"]);
       if (result.error) return { output: result.error, exitCode: 1 };
       return { output: result.output, newFs: result.fs, triggerEvents: result.triggerEvents };
     }

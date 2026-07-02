@@ -1039,7 +1039,7 @@ function diffTrees(
 // ── git pull ─────────────────────────────────────────────────────────
 
 export function gitPull(
-  fs: VirtualFS, root: string, remote: string | undefined, branch: string | undefined, storyFlags: Record<string, string | boolean>
+  fs: VirtualFS, root: string, remote: string | undefined, branch: string | undefined, storyFlags: Record<string, string | boolean>, ffOnly = false
 ): { fs: VirtualFS; output: string; error?: string; triggerEvents?: { type: "command_executed"; detail: string }[] } {
   const repo = readRepo(fs, root);
   const targetBranch = branch ?? repo.upstream?.branch ?? repo.currentBranch;
@@ -1059,7 +1059,14 @@ export function gitPull(
   // getUpdates flow (where the tracking ref equals local at pull time → handled below).
   const localTip = resolveHead(fs, root);
   const trackingTip = fs.readFile(`${root}/.git/refs/remotes/origin/${targetBranch}`).content?.trim();
-  if (localTip && trackingTip && trackingTip !== localTip && ancestorSet(fs, root, trackingTip).has(localTip)) {
+  const localBehindTracking =
+    !!localTip && !!trackingTip && trackingTip !== localTip && ancestorSet(fs, root, trackingTip).has(localTip);
+  if (ffOnly && localTip && trackingTip && trackingTip !== localTip && !localBehindTracking
+      && !ancestorSet(fs, root, localTip).has(trackingTip)) {
+    // Diverged: neither tip is an ancestor of the other.
+    return { fs, output: "", error: "fatal: Not possible to fast-forward, aborting." };
+  }
+  if (localBehindTracking) {
     const newTree = readCommit(fs, root, trackingTip)?.tree ?? {};
 
     // Refuse to clobber uncommitted local changes whose content differs in the
@@ -1111,6 +1118,9 @@ export function gitPull(
     const newCommits = remoteDef.getUpdates(storyFlags, headHash);
     if (newCommits.length === 0) {
       return { fs, output: "Already up to date." };
+    }
+    if (ffOnly && newCommits[0].parent !== headHash) {
+      return { fs, output: "", error: "fatal: Not possible to fast-forward, aborting." };
     }
 
     // Write new commit objects
