@@ -1,4 +1,4 @@
-CRITICAL: keep `.claude/*` docs (this file, per-app `CLAUDE.md`s, and all `SKILL.md`s) up-to-date as the code changes.
+CRITICAL: keep `.claude/*` docs (this file, per-app `CLAUDE.md`s, and all `SKILL.md`s) up-to-date with important information. Docs point, code explains.
 Run `npm run typecheck` and `npx vitest run` after making code changes.
 
 # Termverse monorepo

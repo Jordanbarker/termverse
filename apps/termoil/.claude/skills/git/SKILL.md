@@ -5,174 +5,46 @@ description: "How the virtual git CLI works — repo state stored in .git/, comm
 
 # Git System
 
-A virtual git CLI that stores all state in the player's VirtualFS under `.git/` — same way real git does. Used heavily in the Day 2 "Fix the Broken Pipeline" questline (clone → pull → checkout -b → commit → push). Lives entirely in the dev container in current gameplay (`DEVCONTAINER_ONLY`).
+A virtual git CLI storing all state in the player's VirtualFS under `.git/` — same as real git, so `cat .git/HEAD` / `ls .git/refs/heads` match what a real repo shows (part of the narrative-realism rule). Used heavily in the Day 2 "Fix the Broken Pipeline" questline (clone → pull → checkout -b → commit → push). `DEVCONTAINER_ONLY`.
 
-## Architecture
+Code map (`src/engine/git/`): `types.ts` (all types — read them there), `repo.ts` (pure functions for every subcommand, `(fs, root, ...args) => {fs, output, error?, triggerEvents?}`; reads via `readHead`/`readIndex`/`readCommit`/`readRepo`, writes via `writeOrFail`/`mkdirOrFail`/`removeOrFail`/`writeRefOrFail`), `remotes.ts` (`REMOTE_REPOS` registry), `output.ts` (formatters). Dispatcher `commands/builtins/git.ts`. On-disk layout mirrors real git (`HEAD`, `config`, `index.json`, `stash.json`, `rebase-state.json`, `objects/<hash>.json`, `refs/heads/<branch>`).
 
-```
-src/engine/git/
-├── types.ts        # GitCommit, GitIndex, GitRepo, GitStashEntry, RemoteRepoDef
-├── repo.ts         # Pure functions for every subcommand (init, add, commit, log, branch, checkout, push, pull, ...)
-├── remotes.ts      # REMOTE_REPOS registry — cloneable repos with pre-built commit history (nexacorp-analytics)
-├── output.ts       # CLI-style formatters (status, log, diff)
-└── __tests__/repo.test.ts
+**Tree-snapshot model:** every commit stores the *complete* file tree, not a diff; diffs are computed on demand by walking parent→child. Trades storage for simplicity — fine at this scale.
 
-src/engine/commands/builtins/git.ts   # Subcommand dispatcher; calls repo.ts functions, emits triggerEvents
-```
+## Dispatcher (`commands/builtins/git.ts`)
 
-Imports flow one direction: `git.ts` (handler) → `repo.ts` + `remotes.ts` + `output.ts` → `types.ts`.
+Reads positional args (skipping global flags), treats the first as subcommand, special-cases `init`/`clone` (no existing repo needed), else `findRepoRoot(fs, cwd)` walks up for `.git/`; a `switch` dispatches to the matching `gitX(...)`. Every result becomes `{ fs, output, triggerEvents? }` → `CommandResult`. Unknown subcommand → `error: unknown subcommand: ...` (exit 1). **The supported subcommand set is the `switch` in `git.ts` — read it there.** Behavior traps worth knowing:
 
-## Data Model (`types.ts`)
+- **`add`** — pathspecs and `.` resolve against **cwd**; `-A`/`--all` stage the whole repo regardless of cwd. Index keys stay root-relative.
+- **`commit`** — takes a `timestamp` arg; the dispatcher passes `gameNowFor(...).getTime()` so `git log` Date headers agree with `date` (UTC `+0000`).
+- **`status`** — fills `tracking = {remoteRef, ahead, behind}` and renders the "behind/ahead/up to date/diverged" line **only when the remote-tracking ref exists**; short format `-s` gets no line.
+- **`rebase`** — replays the branch's commits onto `<upstream>` (file-level 3-way merge); on overlap writes whole-file conflict markers, persists `GitRebaseState`, stops. HEAD stays on the branch (no detach) — `rebase-state.json` is the source of truth. `--continue` needs conflict files staged AND marker-free. No `merge`/`--onto`/interactive todo.
+- **`stash`** — one-deep stack; `-u`/`--include-untracked` folds untracked files in and `pop` restores them generically.
+- **`pull`** — two FF paths: (1) if `refs/remotes/origin/<branch>` exists and local is a strict ancestor, FF to the tracking tip (guarding uncommitted changes); (2) else `getUpdates(storyFlags, localHead)` fetches story-driven commits. **Termoil's story pulls use path (2)** — `gitClone` seeds local and tracking refs equal and `getUpdates` advances both together, so path (1) never fires. `--ff-only` is tolerated.
+- **`branch <name>`** / `checkout -b` / `switch -c` all emit `git_checkout_b`.
 
-```ts
-interface GitCommit {
-  hash: string;
-  parent: string | null;
-  message: string;
-  author: string;
-  timestamp: number;
-  tree: Record<string, string>;     // Full snapshot: relative path → file content
-}
-
-interface GitIndex {
-  staged: Record<string, string>;
-  deleted: string[];
-}
-
-interface GitStashEntry {
-  tree: Record<string, string>;
-  message: string;
-}
-
-interface GitRebaseState {                       // .git/rebase-state.json; present only mid-rebase
-  onto: string;                                  // commit being built on; advances as commits replay
-  originalBranch: string;                        // branch being rebased (moved to final tip at the end)
-  originalHead: string;                          // that branch's tip before rebase (for --abort)
-  todo: string[];                                // ORIGINAL hashes still to replay, oldest first
-  current: string | null;                        // original hash stopped on a conflict
-  conflictFiles: string[];                       // working-tree files carrying conflict markers
-}
-
-interface GitRepo {
-  root: string;                                  // Absolute path of the repo root (where .git/ lives)
-  head: string;                                  // "ref: refs/heads/main" or a raw hash
-  currentBranch: string | null;                  // null if detached HEAD
-  index: GitIndex;
-  stash: GitStashEntry[];
-  remoteUrl: string | null;                      // from .git/config
-  upstream: { remote: string; branch: string } | null;
-}
-
-interface RemoteRepoDef {
-  files: Record<string, string>;                 // Working-tree files at clone time
-  commits: GitCommit[];                          // Pre-built commit history (oldest first)
-  defaultBranch: string;
-  /** Optional: returns new commits for git pull, based on story state */
-  getUpdates?: (storyFlags, localHead) => GitCommit[];
-}
-```
-
-**Tree-snapshot model**: every commit stores the *complete* file tree, not a diff. Diffs are computed on demand by walking parent → child. This trades storage for simplicity — fine for a sim with at most a few hundred commits per repo.
-
-## On-Disk Layout
-
-Mirrors real git enough to be discoverable by `ls .git/` / `cat .git/HEAD`:
-
-```
-.git/
-├── HEAD                      # "ref: refs/heads/main" or a hash
-├── config                    # "[remote \"origin\"]\n\turl = ..." sections
-├── index.json                # GitIndex serialized
-├── stash.json                # GitStashEntry[] serialized
-├── rebase-state.json         # GitRebaseState serialized (present only mid-rebase)
-├── objects/<hash>.json       # GitCommit serialized
-└── refs/
-    └── heads/<branch>        # Plain text: commit hash
-```
-
-Reads happen via the helpers at the top of `repo.ts` (`readHead`, `readIndex`, `readCommit`, `readRepo`, etc.). Mutations go through `writeOrFail` / `mkdirOrFail` / `removeOrFail` / `writeRefOrFail`, which return `Result<VirtualFS>`-style values and propagate VFS errors.
-
-## Subcommand Dispatcher (`commands/builtins/git.ts`)
-
-`git` is registered like any other builtin. The handler:
-
-1. Reads positional args, skipping global flags
-2. Treats first positional as subcommand
-3. Special-cases `init` and `clone` (they don't need an existing repo)
-4. For all others: `findRepoRoot(fs, cwd)` walks up from cwd looking for `.git/`; errors out if not found
-5. `switch (subcommand)` dispatches to the matching `gitX(...)` function in `repo.ts`
-6. Every result has `{ fs, output, triggerEvents? }`; the handler returns these as `CommandResult`
-
-Supported subcommands today (all in the switch in `git.ts`):
-
-| Subcommand | Calls | Notes |
-|---|---|---|
-| `init` | `gitInit` | Creates `.git/` skeleton |
-| `clone <url>` | `gitClone` | Looks up `REMOTE_REPOS[name]`, materializes files, writes commits + refs + config |
-| `add <paths>` / `add .` / `add -A` / `add --all` | `gitAdd` | Pathspecs and `.` resolve against **cwd** (`add .` = current dir + below); `-A`/`--all` stage the whole repo regardless of cwd. Index keys stay root-relative. Deletions are detected within each staged subtree. |
-| `rm <paths>` / `rm -r` | `gitRm` | Stages deletion |
-| `commit -m <msg>` | `gitCommit` | Hashes tree+parent+msg, writes object, updates ref. Takes a `timestamp` arg — dispatcher in `commands/builtins/git.ts` passes `gameNowFor(...).getTime()` so `git log` Date headers agree with `date` (UTC, `+0000`). |
-| `status` / `status -s` | `gitStatus` + `formatStatus` | Branch + staged/unstaged/untracked. Also reports **branch tracking** vs `refs/remotes/origin/<branch>`: `gitStatus` fills `StatusResult.tracking = { remoteRef, ahead, behind }` (ancestor-set diff) **only when that remote-tracking ref exists**, and `formatStatus` renders the matching "Your branch is behind/ahead of/up to date with/has diverged from '<remoteRef>'…" line (behind→`can be fast-forwarded` + `(use "git pull"…)`). When no remotes ref exists `tracking` is `undefined` and no line is emitted (output is unchanged). `-s`/short format is not given the line. |
-| `log` | `getCommitLog` + formatter | Walks parent chain from HEAD |
-| `branch` / `branch <name>` / `branch -d <name>` / `branch -a` / `branch -r` | `listBranches` / `createBranch` / `deleteBranch` | `branch <name>` emits `git_checkout_b` (counts as branch creation for cascade). `-a` lists locals + `remotes/<remote>/<branch>`, `-r` lists only remotes; both reject a positional branch name with `fatal: branch name required` (exit 128). `listBranches(fs, root, mode)` returns `{ branches, remotes, current }` — callers that don't need remotes can ignore the `remotes` field. |
-| `checkout <ref>` / `checkout -b <name>` | `gitCheckout` / `createBranch` | `-b` emits `git_checkout_b` |
-| `switch <branch>` / `switch -c <name>` | `gitCheckout` / `createBranch` | `-c` emits `git_checkout_b` |
-| `rebase <upstream>` / `rebase --continue` / `rebase --abort` | `gitRebase` / `gitRebaseContinue` / `gitRebaseAbort` | Replays the current branch's commits onto `<upstream>` (file-level 3-way merge). On overlap, writes whole-file `<<<<<<< / ======= / >>>>>>>` markers, persists `GitRebaseState`, and stops; player resolves + `git add` + `--continue`. HEAD stays on the branch (no detach) — `rebase-state.json` is the source of truth. `--continue` requires conflict files staged AND marker-free (`gitAdd` re-stages unmerged paths unconditionally). `git status` reports "interactive rebase in progress" + "both modified" Unmerged paths. Fast-forwards when behind; "up to date" when upstream is already an ancestor. No `git merge` / `--onto` / interactive todo. |
-| `diff` / `diff --staged` | `gitDiffFiles` + diff lib | Unified-diff output |
-| `stash` / `stash -u`/`--include-untracked` / `stash pop` / `stash list` | `gitStashSave(fs, root, includeUntracked?)` / `gitStashPop` / `gitStashList` | One-deep stack (no `--keep-index`). `-u`/`--include-untracked` folds untracked files into the stash tree and removes them from the worktree; `gitStashPop` restores every stashed path generically, so untracked files come back on pop with no pop-side change. Default (`includeUntracked` false) is unchanged. |
-| `push` / `push origin <branch>` | `gitPush` | Updates the remote's branch ref + appends commits to `REMOTE_REPOS` in-memory entry |
-| `pull` / `pull origin <branch>` / `pull --ff-only` | `gitPull` | Two fast-forward paths: (1) **before** the `REMOTE_REPOS` lookup, if `refs/remotes/origin/<branch>` exists and local is a **strict ancestor** of it, fast-forward local + worktree to the tracking tip (`Updating x..y / Fast-forward`), guarding against clobbering conflicting uncommitted changes ("would be overwritten by merge"); (2) otherwise calls `getUpdates(storyFlags, localHead)` on the remote def to fetch story-driven commits. **Termoil's story pulls use path (2)** — `gitClone` seeds local and tracking refs equal and `getUpdates` advances both together, so local is never a strict ancestor of the tracking ref at pull time and path (1) never fires. `--ff-only` is tolerated (pull only ever fast-forwards) and needs no special handling. |
-| `help` | `helpText` | |
-
-Unknown subcommands return `error: unknown subcommand: ...` with `exitCode: 1`.
-
-### Per-subcommand flag validation
-
-`git` opts out of the dispatcher's generic flag check (`skipFlagValidation("git")`) and validates inside the handler. `GIT_SUBCOMMAND_FLAGS` at the top of `git.ts` maps each subcommand to its `KnownFlags`; after `parseGitArgs`, the handler calls `rejectUnknownFlags("git", flags, known, { style: "git" })` which produces git-style errors (`error: unknown switch \`z'` for short, `error: unknown option \`bogus'` for long; exit 129). `--help` is intercepted before validation and returns `HELP_TEXTS.git`.
-
-When you add a new subcommand, also add its flag set to `GIT_SUBCOMMAND_FLAGS`. Without an entry, validation is bypassed for that subcommand.
+**Per-subcommand flag validation:** `git` calls `skipFlagValidation("git")` and validates in-handler. `GIT_SUBCOMMAND_FLAGS` (top of `git.ts`) maps each subcommand to its `KnownFlags`; the handler calls `rejectUnknownFlags("git", flags, known, {style: "git"})` (git-style errors, exit 129). **Without a `GIT_SUBCOMMAND_FLAGS` entry, validation is silently bypassed for that subcommand.**
 
 ## Remotes (`remotes.ts`)
 
-`REMOTE_REPOS: Record<string, RemoteRepoDef>` is the registry of cloneable repos. Currently one entry: `nexacorp-analytics` (the dbt project). Its history is hand-built by `buildAnalyticsCommits()` to look authentic — Jin Chen's initial scaffold, Sarah's CI tweaks, Oscar's profile fixes, Auri's recent broken commit. The `_marts__models.yml` file goes through several versions across commits (`MARTS_YAML_V1` … `V5`) so `git log -p` and `git diff <hash>` produce realistic output.
+`REMOTE_REPOS` is the cloneable-repo registry (currently one: `nexacorp-analytics`, hand-built by `buildAnalyticsCommits()` to look authentic; its `_marts__models.yml` goes through several versions so `git log -p`/`diff` produce realistic output). `getUpdates(storyFlags, localHead)` is the hook for **story-driven pulls** — the Day 2 `git pull origin main` after `ssh_day2` returns Auri's broken commit. Add story-gated remote commits here, not in `repo.ts`. `buildSimpleRemote(...)` is exported for tests.
 
-`getUpdates(storyFlags, localHead)` is the hook for **story-driven pulls**. The Day 2 questline relies on this: `git pull origin main` after `ssh_day2` returns Auri's "broken" commit that introduces the failing test. Without it, `pull` would always be a no-op. Add new story-gated remote commits here, not in `repo.ts`.
+## Story integration (stable contract)
 
-`buildSimpleRemote(files, defaultBranch?)` is exported for tests that need a generic remote without writing a full history.
-
-## Story Integration
-
-These `command_executed` event details are emitted from `repo.ts` and feed `getDevcontainerStoryFlagTriggers()` in `src/story/storyFlags.ts`:
+These `command_executed` details are emitted from `repo.ts` and consumed by `getDevcontainerStoryFlagTriggers()` in `story/storyFlags.ts`. They are the stable contract between this module and the story — change them carefully.
 
 | Event detail | Emitted by | Wires into |
 |---|---|---|
-| `git_clone_<repoName>` | `gitClone` | `dbt_project_cloned` (when `<repoName>` is `nexacorp-analytics`) |
+| `git_clone_<repoName>` | `gitClone` | `dbt_project_cloned` (when `nexacorp-analytics`) |
 | `git_pull_origin_<branch>` | `gitPull` | `pulled_day2_updates` (gated on `ssh_day2`) |
-| `git_checkout_b` | `gitCheckout -b` / `git switch -c` / `git branch <name>` | `created_fix_branch` (gated on `dbt_test_failed_day2`) |
-| `git_push_origin_<branch>` | `gitPush` | (currently unused — available if needed for branch-specific hooks) |
+| `git_checkout_b` | `checkout -b` / `switch -c` / `branch <name>` | `created_fix_branch` (gated on `dbt_test_failed_day2`) |
+| `git_push_origin_<branch>` | `gitPush` | (unused; available for branch-specific hooks) |
 | `git_push` | `gitPush` | `pushed_fix_branch` (gated on `fixed_campaign_model`) |
 
-When adding a new git-driven story flag, prefer firing on a generic detail (`git_push`) and gating with `requiredFlags` over inventing per-branch details. See the `created_fix_branch` cascade in the **narrative skill** for why the trigger accepts three different ways of creating a branch.
+Prefer firing on a generic detail (`git_push`) + `requiredFlags` gating over per-branch details. See the `created_fix_branch` cascade in the narrative skill for why a trigger accepts three ways of making a branch.
 
-## Adding a New Subcommand
+## Adding
 
-1. **Implement the operation** as a pure function in `repo.ts` returning `{ fs, output, error?, triggerEvents? }`. Use the existing helpers (`readRepo`, `writeOrFail`, `writeRefOrFail`) — don't reach into the VFS directly.
-2. **Add a `case`** in the switch in `commands/builtins/git.ts`. Parse subcommand-specific flags from the positional args **after** stripping the subcommand itself (the dispatcher only handles global flags). **Also add the subcommand's flag set to `GIT_SUBCOMMAND_FLAGS`** at the top of the file — without an entry, the per-subcommand validator silently accepts anything.
-3. **Emit `triggerEvents`** if the operation should drive a story flag. Use a stable `detail` string (e.g. `git_<verb>` or `git_<verb>_<scope>`).
-4. **Add a test** in `src/engine/git/__tests__/repo.test.ts` exercising the pure function — the dispatcher is thin enough that unit-testing `repo.ts` is sufficient.
-5. **Update `HELP_TEXTS.git`** in `src/engine/commands/helpTexts.ts` if the subcommand should appear in `git --help`.
+**A subcommand:** implement a pure function in `repo.ts` (use the existing helpers, don't touch VFS directly) → add a `case` in `git.ts`, parsing flags **after** stripping the subcommand → **add its flag set to `GIT_SUBCOMMAND_FLAGS`** → emit `triggerEvents` with a stable `git_<verb>` detail if it drives a story flag → test the pure function in `__tests__/repo.test.ts` → update `HELP_TEXTS.git` if it should appear in `--help`.
 
-## Adding a New Cloneable Remote
-
-1. Add an entry to `REMOTE_REPOS` in `remotes.ts` with `files`, `commits`, and `defaultBranch`. Use `flattenTree(...)` to convert a `DirectoryNode` builder into the flat path→content map clone needs.
-2. Build commit history with realistic timestamps, authors, and message style (look at `buildAnalyticsCommits` for the pattern).
-3. If pull behavior should depend on story state, implement `getUpdates`. Return the *new* commits to append, in order — `gitPull` walks from `localHead` to the latest of those.
-4. Wire the clone event into `getDevcontainerStoryFlagTriggers()` (or wherever the player will run `git clone`) using the `git_clone_<repoName>` detail.
-
-## Design Patterns
-
-- **Pure repo functions**: `repo.ts` exports take `(fs, root, ...args)` and return `{ fs, output, error?, triggerEvents? }`. No store access, no I/O outside the VFS.
-- **Real-git on-disk layout**: state lives in `.git/` files so the player can `cat .git/HEAD`, `ls .git/refs/heads`, etc., and have it match what they'd see in a real repo. This is part of the project's narrative-realism rule.
-- **Tree snapshots, not deltas**: every commit stores the full tree. Simpler than a packfile sim and fine at this scale.
-- **Story-driven remotes**: `getUpdates` lets remote history advance based on flags, so `git pull` becomes a meaningful narrative beat instead of always a no-op.
-- **Stable event details**: trigger details are the stable contract between this module and `story/storyFlags.ts` — change them carefully.
+**A cloneable remote:** add a `REMOTE_REPOS` entry (`files` via `flattenTree(...)`, `commits`, `defaultBranch`) → build realistic history (see `buildAnalyticsCommits`) → implement `getUpdates` if pull should depend on story state (return the *new* commits in order) → wire the clone event into `getDevcontainerStoryFlagTriggers()` with `git_clone_<repoName>`.

@@ -5,204 +5,52 @@ description: "Headless game runner for programmatic play-testing without a brows
 
 # Headless Game Runner
 
-`apps/termoil/scripts/play.ts` replicates the browser game loop from `useTerminal.ts` without xterm.js or React. It exports a `GameRunner` class for programmatic game interaction and includes an interactive REPL for manual play-testing. The play scripts are a sibling of the app's `src/` (so their `../src/*` imports resolve); engine primitives come from `@tt/core`. Run them via the workspace scripts (`npm -w @tt/termoil run play|playtest|playtest:arcs|...`) so `tsx` picks up the app tsconfig's path aliases.
+`apps/termoil/scripts/play.ts` replicates the browser game loop from `useTerminal.ts` without xterm.js or React. It exports a **`GameRunner`** class (read its API + the `CommandOutput` return type in `play.ts` — not mirrored here) and an interactive REPL. The play scripts are a sibling of `src/` (so `../src/*` imports resolve); engine primitives come from `@tt/core`, story+state from `apps/termoil/src/`. Run via the workspace scripts (`npm -w @tt/termoil run play|playtest|playtest:arcs|...`) so `tsx` picks up the path aliases. The script mocks `globalThis.localStorage` before imports so Zustand's persist doesn't crash in Node.
 
-## Architecture
+## GameRunner essentials
 
-```
-apps/termoil/scripts/
-├── play.ts              # GameRunner class + interactive REPL
-└── playtest*.ts         # scenario scripts (each imports GameRunner from ./play)
+Construct with a computer (`new GameRunner("home")`); public state (`fs`, `cwd`, `storyFlags`, `deliveredEmailIds`, etc.) is readable/writable. Core methods: `run(input)` / `runAsync(input)` (mirror `useTerminal` submission — alias expansion, `parseChainedPipeline`, per-segment pipeline+redirection, `computeEffects()` per segment; a session/prompt/transition stops the chain; use `runAsync` for possibly-async commands like `dbt`, else `run` errors with "use runAsync()"), `selectOption(n)` (resolve a pending `mail` reply prompt), `writeFile` (replaces nano), `runPython` (via child_process), `switchComputer(to)` (rebuild target FS, reset cwd; env/aliases init on **first visit only**, matching `gameStore.initComputer` — but FS is rebuilt from seed every switch, so file changes don't survive a round-trip; env/aliases/mounts/flags do), `status()`.
 
-Engine primitives — from @tt/core (no React/Zustand):
-  @tt/core/commands/      # parser, registry, applyResult, types, redirection
-  @tt/core/filesystem/    # VirtualFS, mounts
-  @tt/core/snowflake/     # SnowflakeState, session context
-  @tt/core/lib/           # ansi, pathUtils
-  @tt/core/terminal/      # zshHistory parser
+## Multi-arc regression playtest
 
-Story + state — from the app (apps/termoil/src/):
-  src/engine/commands/builtins   # side-effect import: registers all commands
-  src/engine/mail/               # delivery, mailUtils
-  src/engine/prompt/             # PromptSessionInfo, PromptOption
-  src/state/types.ts             # ComputerId, StoryFlags
-  src/story/player.ts            # PLAYER, COMPUTERS, getComputerUsername
-  src/story/env.ts               # initEnvForComputer, initAliasesForComputer
-  src/story/filesystem/          # create{Home,Nexacorp,Devcontainer,Chipinfra,Erikpc}Filesystem
-  src/story/data/snowflake/      # createInitialSnowflakeState
-```
+`scripts/playtest_arcs.ts` runs each major arc end-to-end with a fresh runner per scenario (home main path, Olive's challenges, backup quest, rejection ×3, Edward onboarding, Oscar logs, Auri dbt, Dana ops, end-of-day shutdown, USB tip, Day 2 pipeline fix, chipinfra plugin build, Loose Thread pivot, Marcus endgame ×4, security tripwires). Run `npm -w @tt/termoil run playtest:arcs`. **Two known limitations to plan around:**
+- **Piper replies aren't interactively driven headlessly.** Where a piper-reply unlock flag would fire from `useSessionRouter.ts`, set it manually via `simulatePiperUnlocks(runner, ...)` and note the simulation. For piper-reply correctness, lean on the per-message vitest suites.
+- **`.git` doesn't live in FS builders** — it's created at runtime by `git clone`/`init`. Testing Day 2 flows from a fresh runner: run `git clone` first; don't pre-set `dbt_project_cloned: true` (bakes the dbt tree but no `.git`, leaving `pull`/`checkout -b` failing). The real game persists `.git` via Zustand across days.
 
-The script mocks `globalThis.localStorage` before any imports so Zustand's persist middleware doesn't crash in Node.
+## Browser play-testing (Playwright)
 
-## GameRunner API
-
-```ts
-export class GameRunner {
-  // Public state (readable/writable)
-  fs: VirtualFS;
-  cwd: string;
-  username: string;
-  activeComputer: ComputerId;
-  storyFlags: StoryFlags;
-  deliveredEmailIds: string[];
-  deliveredPiperIds: string[];
-  commandHistory: Record<ComputerId, string[]>;
-  snowflakeState: SnowflakeState;
-  completedObjectives: string[];
-  pendingPrompt: PromptSessionInfo | null;
-  envVars: Partial<Record<ComputerId, Record<string, string>>>;   // lazily populated on first visit
-  aliases: Partial<Record<ComputerId, Record<string, string>>>;   // lazily populated on first visit
-  mounts: Record<ComputerId, Mounts>;
-
-  constructor(computer: ComputerId = "home")
-  run(input: string): CommandOutput              // Synchronous command execution
-  runAsync(input: string): Promise<CommandOutput> // Async-aware (for dbt, etc.)
-  selectOption(choice: number): CommandOutput     // Resolve pending prompt (1-indexed)
-  writeFile(path: string, content: string): void  // Direct file write (replaces nano)
-  runPython(code: string): string                 // Execute Python via child_process
-  switchComputer(to: ComputerId): void            // Instant computer transition (all 5 computers)
-  status(): string                                // Game state summary
-}
-```
-
-### `run(input)` / `runAsync(input)`
-
-Mirrors `useTerminal.ts` command submission: expands user aliases textually, parses the input with `parseChainedPipeline` (so `&&` / `||` / `;` chains work with bash short-circuit semantics), and executes each chain segment as a pipeline (passing stdout as stdin, `>` / `>>` redirection extracted per segment). `computeEffects()` runs per segment to process story flags, email delivery, and session starts; segment outputs are merged into one `CommandOutput` whose `exitCode` is the last executed segment's. A segment that starts a session, prompt, or computer transition stops the chain (same as the real game). Syntax errors (`echo one &&`) print the bash error, execute nothing, and return exit code 2.
-
-Use `runAsync()` for inputs that may involve async commands (e.g. `dbt run` — also via alias or chain). Use `run()` for everything else; an async command hit by `run()` returns a "use runAsync()" error result with exit code 1.
-
-### `selectOption(choice)`
-
-Resolves a pending inline prompt (from `mail` reply options). Fires `triggerEvents`, delivers follow-up emails, and saves reply to `sent/`. Returns error output if no prompt is pending or choice is out of range.
-
-### `switchComputer(to)`
-
-Rebuilds the filesystem for the target computer (`"home"`, `"nexacorp"`, `"devcontainer"`, `"chipinfra"`, or `"erik-pc"`) and resets `cwd` to that computer's home directory (uses `getComputerUsername` so `erik-pc` lands in `/home/erik`). `envVars` and `aliases` are initialized via `initEnvForComputer`/`initAliasesForComputer` **on first visit only** (matching `gameStore.initComputer`); revisits keep anything set via `export`/`alias`. Note the FS itself is still rebuilt from seed on every switch — file changes do not survive a round-trip, only env/aliases/mounts and story flags do.
-
-### Env / aliases / mounts persistence
-
-The runner mirrors the Zustand store's per-computer state. `export FOO=bar` is preserved across subsequent `run()` calls on the same computer **and across `switchComputer` round-trips**; switching computers loads that computer's separately tracked env. Same for `alias` (aliases are expanded by `run()`/`runAsync()`, so aliased commands are fully testable headlessly) and for the per-computer `mounts` map (USB on home, etc.).
-
-## CommandOutput Type
-
-```ts
-interface CommandOutput {
-  output: string;           // ANSI-stripped text
-  rawOutput: string;        // Original text with ANSI codes
-  exitCode: number;
-  events: GameEvent[];
-  storyFlagUpdates: Array<{ flag: string; value: string | boolean }>;
-  newEmails: string[];      // Newly delivered email IDs
-  promptPending: boolean;   // True if an inline prompt awaits :select
-  sshSessionStarted: boolean;  // True if an SSH session was started
-}
-```
-
-## REPL Commands
-
-Run the REPL: `npm -w @tt/termoil run play` (or `npx tsx apps/termoil/scripts/play.ts`)
-
-| Command | Action |
-|---------|--------|
-| `:status` | Game state summary (computer, cwd, flag count, etc.) |
-| `:flags` | List all story flags and values |
-| `:emails` | List delivered email IDs |
-| `:objectives` | List completed objectives |
-| `:switch home\|nexacorp\|devcontainer` | Switch computer (REPL exposes the 3 common ones; programmatic `switchComputer` supports all 5 including `chipinfra` and `erik-pc`) |
-| `:select N` | Resolve pending prompt (choose option N) |
-| `:write PATH TEXT` | Write file directly (replaces nano) |
-| `:python CODE` | Run Python code via child_process |
-| `:help` | Show REPL command list |
-| `:quit` / `:q` | Exit |
-
-All other input is executed as a game command (with pipe and redirection support).
-
-## Usage Patterns
-
-### Interactive play-testing
-
-```bash
-npm -w @tt/termoil run play
-```
-
-Walk through the game manually: run `mail`, `cat`, `ls`, read emails, reply via `:select`, trigger the NexaCorp transition, then `:switch nexacorp` to continue.
-
-### Programmatic usage
-
-```ts
-import { GameRunner } from "../scripts/play";
-
-const runner = new GameRunner("home");
-const result = runner.run("ls");
-console.log(result.output);
-
-// Read email and reply
-const mail = runner.run("mail 1");
-if (mail.promptPending) {
-  const reply = runner.selectOption(1);
-  // reply.events, reply.newEmails, reply.storyFlagUpdates
-}
-
-// Write files (replaces nano)
-runner.writeFile("notes.txt", "investigation notes");
-
-// Async commands (dbt)
-const dbt = await runner.runAsync("dbt run");
-
-// Switch computers
-runner.switchComputer("nexacorp");
-```
-
-### Common workflows
-
-- **Test email delivery chain**: `mail` → read email → `:select N` → check `result.newEmails`
-- **Test story flag triggers**: Run commands, inspect `runner.storyFlags`
-- **Test full home→NexaCorp flow**: Read emails → accept offer → read followup → check `sshSessionStarted` → `:switch nexacorp`
-- **Test dbt/SQL**: `:switch nexacorp` → `await runner.runAsync("dbt run")` → `runner.run("snow sql")`
-
-### Multi-arc regression playtest
-
-`apps/termoil/scripts/playtest_arcs.ts` exercises each major story arc end-to-end with a fresh runner per scenario: home main path, Olive's challenges, backup quest, rejection branch (×3), Edward onboarding, Oscar logs, Auri dbt, Dana ops, end-of-day shutdown, USB tip, Day 2 pipeline fix, plugin build on chipinfra, Loose Thread pivot (chipinfra → erik-pc), Marcus endgame (all four accusations), and security tripwires. Run with `npm -w @tt/termoil run playtest:arcs` (or `npx tsx apps/termoil/scripts/playtest_arcs.ts`).
-
-Two known limitations to plan around when extending the script:
-
-- **Piper replies aren't interactively driven by the headless runner.** Where a piper-reply unlock flag would normally fire from `useSessionRouter.ts` (e.g., `search_tools_unlocked` from Oscar's DM accept), set the flag manually via a `simulatePiperUnlocks(runner, "search_tools_unlocked", ...)` helper and note the simulation. This is fine for arc coverage; for piper-reply correctness, lean on the per-message vitest suites instead.
-- **`.git` doesn't live in FS builders.** It's created at runtime by `git clone` / `git init`. When testing Day 2 pipeline flows from a fresh runner, run `git clone` first; don't pre-set `dbt_project_cloned: true` (that bakes the dbt tree but no `.git`, leaving `git pull` / `checkout -b` failing). The real game persists `.git` via Zustand across days.
-
-## Browser Play-Testing (Playwright)
-
-The headless runner has **no tab model and no transition animations** — tab survival, the "+" dropdown, computer-transition behavior (`useComputerTransitions.ts`), and anything else React-side can only be verified in the real browser. This recipe was developed verifying the soft-disconnect/ssh-reattach change and is repeatable.
+The headless runner has **no tab model and no transition animations** — tab survival, the "+" dropdown, computer-transition behavior (`useComputerTransitions.ts`), and anything React-side can only be verified in the real browser. This recipe is repeatable.
 
 ### Setup
 
-- **Dev server**: a `next dev` instance is often already running on :3000 (a second `npm run dev` fails on `.next/dev/lock` and falls back to :3001). Check with `curl -s localhost:3000` before starting your own.
-- **Playwright**: not a repo dependency — install in a scratch dir, never in the repo:
+- **Dev server:** a `next dev` is often already on :3000 (a second `npm run dev` fails on `.next/dev/lock` → :3001). Check `curl -s localhost:3000` first.
+- **Playwright:** not a repo dep — install in a scratch dir, never in the repo:
   ```bash
-  cd $(mktemp -d) && npm init -y && npm i playwright@1.57   # pin to the build in ~/Library/Caches/ms-playwright
+  cd $(mktemp -d) && npm init -y && npm i playwright@1.57   # match ~/Library/Caches/ms-playwright build
   ```
-  Match the pinned version to the cached browser build (e.g. `chromium-1200` → playwright 1.57) or it will demand a fresh ~120MB download.
+  Match the pinned version to the cached browser build (e.g. `chromium-1200` → playwright 1.57) or it demands a ~120MB download.
 
 ### Game-side facts the driver must know
 
-- A fresh browser context = fresh localStorage = **new game**, which boots into a nano tutorial file. Send `Control+x` to exit nano before expecting a shell prompt.
-- Use `cheat N` to jump checkpoints (1=day1-start … 5=day2-chapter3-marcus-dm; see `apps/termoil/src/story/checkpoints.ts`). `cheat 3` (day2-start, on nexacorp, mid-shift flags) is the best fixture for transition testing.
-- After `cheat`, the home FS is rebuilt from seed **without** a nexacorp `known_hosts` entry, so the first `ssh nexacorp-ws01.nexacorp.internal` shows the host-key fingerprint prompt — answer `yes`. Subsequent sshes connect directly (the entry persists).
-- The player is `ren`; ssh route is `ssh nexacorp-ws01.nexacorp.internal` (see `SSH_ROUTES` in `apps/termoil/src/engine/commands/builtins/ssh.ts`).
-- Transitions print on `setInterval` at `BOOT_LINE_INTERVAL_MS` (300ms) — use polling waits with generous (15–25s) timeouts, never fixed sleeps alone.
+- Fresh context = fresh localStorage = **new game** → boots into a nano tutorial. Send `Control+x` to exit nano before expecting a prompt.
+- `cheat N` jumps checkpoints (1=day1-start … 5=day2-chapter3-marcus-dm; see `src/story/checkpoints.ts`). `cheat 3` (day2-start, nexacorp, mid-shift) is the best transition-testing fixture.
+- After `cheat`, home FS is rebuilt **without** a nexacorp `known_hosts` entry, so the first `ssh nexacorp-ws01.nexacorp.internal` shows the fingerprint prompt — answer `yes` (persists after).
+- Player is `ren`; ssh route `ssh nexacorp-ws01.nexacorp.internal` (see `SSH_ROUTES` in `builtins/ssh.ts`).
+- Transitions print on `setInterval` at `BOOT_LINE_INTERVAL_MS` (300ms) — use polling waits with generous (15–25s) timeouts, never fixed sleeps.
 
 ### Driving xterm.js
 
-- **Renderer is DOM** (no canvas/webgl addons), so terminal text is readable from `.xterm-rows` innerText.
-- **Windows hold panes now (tmux model).** Each pane is an absolutely-positioned container appended to the `.isolate` wrapper in `TabManager.tsx`; **only the active window's panes are shown — the rest are `display:none`** (changed from the old per-tab `visibility:hidden`). Enumerate visible panes with `[...document.querySelector('.isolate').children].filter(el => getComputedStyle(el).display !== 'none' && el.clientWidth > 0)`; the active pane has a non-`none` `style.outline`. Split with `<prefix> |` (side-by-side) / `<prefix> -` (stacked, prefix default Ctrl+Space → `keyboard.down('Control'); press('Space'); up('Control')`), move focus with `<prefix>`+arrows or `<prefix> o`, kill the focused pane with `<prefix> x` then `y`. Draggable seams are elements with `col-resize`/`row-resize` cursors. Clicking a pane focuses it and routes input there.
-- **Typing**: real-mouse-click the visible `.xterm-rows` bounding box first (focuses xterm's hidden textarea), then `page.keyboard.type(...)` + `Enter`. After tab switches the app refocuses the active terminal itself, but the click is cheap insurance.
-- **React needs real Playwright clicks.** `el.dispatchEvent(new MouseEvent('click', {bubbles:true}))` from `page.evaluate` does NOT trigger React handlers here — use locator clicks (`page.getByRole('button', {name: '+', exact: true}).click()`).
-- **Match output against the tail, not the whole buffer.** The visible buffer includes scrollback; a regex like `/yes\/no/` will re-match an *old* fingerprint prompt forever. Anchor to the last lines (`t.trim().split('\n').pop()` or `$`-anchored multiline regex).
+- **Renderer is DOM** (no canvas/webgl), so text is readable from `.xterm-rows` innerText.
+- **Windows hold panes (tmux model).** Each pane is an absolutely-positioned container in the `.isolate` wrapper; **only the active window's panes are shown, rest are `display:none`.** Enumerate visible panes: `[...document.querySelector('.isolate').children].filter(el => getComputedStyle(el).display !== 'none' && el.clientWidth > 0)`; the active pane has a non-`none` `style.outline`. Split `<prefix> |`/`-` (prefix default Ctrl+Space → `keyboard.down('Control'); press('Space'); up('Control')`), focus `<prefix>`+arrows/`o`, kill `<prefix> x` then `y`.
+- **Typing:** real-mouse-click the visible `.xterm-rows` box first (focuses the hidden textarea), then `page.keyboard.type(...)` + `Enter`.
+- **React needs real Playwright clicks** — `el.dispatchEvent(new MouseEvent('click'))` from `page.evaluate` does NOT trigger React handlers; use locator clicks.
+- **Match output against the tail, not the whole buffer** (scrollback re-matches old prompts forever) — anchor to the last lines (`t.trim().split('\n').pop()` or `$`-anchored multiline regex).
 
 ### DOM map
 
-- Tab bar: `div.border-b.font-mono`. Each button is a **window** labeled `1:nexacorp-ws01:/srv *` (tmux style, `*` = active; a split window shows a `(n)` pane count and the label tracks the focused pane); the new-window button is exact-text `+`.
-- The "+" dropdown items are buttons labeled with `promptHostname` (`maniac-iv`, `nexacorp-ws01`, `coder-ai`, …) — it offers home plus only machines with at least one open pane (TabBar.tsx), so a soft-disconnected machine never appears until you `ssh`/`coder` back in. With a single eligible machine the "+" opens a window directly with no dropdown.
-- The objective tracker ("In Production") is also made of buttons — filter it out when enumerating.
+- Tab bar `div.border-b.font-mono`; each button is a **window** labeled `1:nexacorp-ws01:/srv *` (`*`=active, `(n)`=pane count); new-window button is exact-text `+`.
+- "+" dropdown items are buttons labeled with `promptHostname` (`maniac-iv`, `nexacorp-ws01`, `coder-ai`, …) — home plus only machines with ≥1 open pane; a single eligible machine opens a window directly (no dropdown).
+- The objective tracker ("In Production") is also buttons — filter it out when enumerating.
 
 ### Driver skeleton
 
@@ -233,8 +81,8 @@ const waitText = async (re, timeout = 20000) => {   // poll; throw with term tai
 };
 ```
 
-Capture a screenshot + tab-bar text + terminal tail after every step — screenshots are the evidence a reviewer looks at, and the tab bar text (`bar.innerText`) is the assertion surface for tab-survival claims.
+Capture a screenshot + tab-bar text + terminal tail after every step — screenshots are the reviewer's evidence, and `bar.innerText` is the assertion surface for tab-survival claims.
 
 ### Example flow (soft-disconnect verification)
 
-new game → exit nano → `cheat 3` → leave evidence (`echo x > ~/proof.txt`) → "+" → second nexacorp tab → `coder ssh ai` (devcontainer tab) → switch to tab 1 → `exit` (assert sibling tab survives in tab bar) → "+" dropdown contents at home (assert it lists only `maniac-iv` plus machines with open tabs — no bare soft-disconnected entries) → `ssh` back (answer fingerprint `yes`; assert no `Internal Systems Portal` logo = no boot sequence) → `cat ~/proof.txt` (state survived). For remote-shutdown cascade: with sibling nexacorp + devcontainer tabs open, `shutdown -h now` on nexacorp must close BOTH (connection-closure expansion in useTerminal.ts), with the active tab landing home.
+new game → exit nano → `cheat 3` → leave evidence (`echo x > ~/proof.txt`) → "+" second nexacorp window → `coder ssh ai` → switch to window 1 → `exit` (assert sibling survives) → "+" dropdown at home (assert only `maniac-iv` + machines with open panes) → `ssh` back (fingerprint `yes`; assert no boot logo = reattach) → `cat ~/proof.txt` (state survived). Remote-shutdown cascade: with sibling nexacorp + devcontainer panes open, `shutdown -h now` on nexacorp must close BOTH (connection-closure expansion in `useTerminal.ts`), active pane landing home.

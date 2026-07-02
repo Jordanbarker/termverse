@@ -5,66 +5,33 @@ description: "How term-crunch's declarative challenge framework and state-based 
 
 # Challenge Framework
 
-Term Crunch (`@tt/term-crunch`) is a sequence of self-contained challenges, each a pure declarative definition, grouped into selectable **categories** (tracks). Win-detection is **live and state-based**: after every command and pane mutation the store re-derives a read-only snapshot and asks the current step's predicate whether it is satisfied. No scripted commands, no event log — just "does the current state match?".
-
-This app is built only on `@tt/core` and does **not** import termoil story code. See `apps/term-crunch/CLAUDE.md` for the surrounding structure.
+Term Crunch (`@tt/term-crunch`) is a sequence of self-contained challenges, each a pure declarative definition, grouped into selectable **categories** (tracks). Win-detection is **live and state-based**: after every command and pane mutation the store re-derives a read-only snapshot and asks the current step's predicate whether it's satisfied. No scripted commands, no event log — just "does the current state match?". Built only on `@tt/core`; does **not** import termoil story code (see `apps/term-crunch/CLAUDE.md`).
 
 ## The shape (`src/challenges/types.ts`)
 
-- **`ChallengeSnapshot`** — the slice of state a validator may read, built fresh by `checkCompletion`:
-  `{ activeWindow: WindowState; windows: WindowState[]; fs: VirtualFS; cwd: string }`.
-- **`Step`** — `{ instruction: string; hint?: string; command?: string; isComplete: (s: ChallengeSnapshot) => boolean }`. The predicate must be **pure** (read-only over the snapshot). **Objective-first + progressive-hint convention:** `instruction` states the sub-goal, NOT the command — never bake the answer into it; `hint` (conceptual nudge) and `command` (the literal command) are the two hint levels the panel reveals only on request.
-- **`Challenge`** — `{ id, title, type: "pane" | "git" | "fs", brief?, steps: Step[], setup(base) => VirtualFS, targetWindow?, targetWindows?, gitRepoPath?, fsWatchPath?, commands? }`.
-  - `brief?: string` — the persistent scenario + overall objective, shown by `ChallengePanel` above the current step so the player always sees the whole task (command-free). Omitted = the panel shows only the current step's `instruction` (the pane/fs challenges do this). Rendered via `StepGoal` in `ChallengePanel.tsx`, which owns the hidden-by-default hint reveal (local `hintLevel` state, reset on every step/challenge change).
-  - `setup` seeds the challenge FS on top of `buildBaseFs()` (`src/lib/seed.ts`).
-  - Pane challenges set `targetWindow`/`targetWindows` (the RIGHT-hand schematic the player reproduces).
-  - Git challenges set `gitRepoPath` (where the validators point — and the player's **starting cwd**: `loadChallenge` opens the window at `gitRepoPath ?? HOME_DIR`, so git challenges spawn *inside* the seeded repo, no `cd` needed).
-  - FS challenges set `fsWatchPath` (the directory the panel renders as a tree via `FsTreeView`).
-  - `commands?: string[]` — per-challenge **command allowlist** (primary names; aliases resolve via `getPrimaryName`). When set, only these commands appear in `help` + TAB/ghost-text suggestions and run; everything else prints a friendly hint (exit 127). Omit it for allow-all. `help` and `clear` are **always** available. Enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts` (registered as a side-effect import in `hooks/useTerminal.ts`), which resolves the current challenge from the store via `getCategory(activeCategory).challenges[challengeIndex]` (the index is **category-relative** — see Categories below).
+Read `types.ts` for `Challenge` / `Step` / `ChallengeSnapshot`. Conventions and traps:
+- **`Step.isComplete(snapshot)` must be pure** (read-only over the snapshot, which is `{ activeWindow, windows, fs, cwd }`, built fresh by `checkCompletion`).
+- **Objective-first + progressive-hint convention:** `instruction` states the sub-goal, NOT the command — never bake the answer in; `hint` (conceptual nudge) and `command` (literal command) are the two reveal-on-request hint levels the panel owns.
+- `Challenge.brief?` is the persistent scenario shown above the current step (command-free); omitted = only the step's `instruction` shows. `setup(base)` seeds on top of `buildBaseFs()` (`src/lib/seed.ts`). Pane challenges set `targetWindow`/`targetWindows` (the right-hand schematic). Git challenges set `gitRepoPath` — also the player's **starting cwd** (`loadChallenge` opens the window there, so no `cd` needed). FS challenges set `fsWatchPath` (rendered as a tree). `commands?: string[]` is a per-challenge **allowlist** (primary names; `help`/`clear` always available), enforced by the `AvailabilityPolicy` in `src/lib/availabilityPolicy.ts`; omit for allow-all.
 
 ## Categories (`src/challenges/categories.ts`)
 
-The player picks a **track** from a panel dropdown. Categories are pure filters over the linear `CHALLENGES` registry, derived from each challenge's `type` — no per-challenge data: `all` (the full registry, in order), `panes` (type `pane`), `git` (type `git`), `fs` (type `fs`). `CATEGORIES` is the static list, `SELECTABLE_CATEGORIES` drops any empty group (for the dropdown), and `getCategory(id)` looks one up with a safe fallback to `all` (covers a stale persisted id).
-
-The store's `challengeIndex` is **relative to the active category's `challenges` list**, not the global registry. Anything resolving the current challenge must go through `getCategory(activeCategory).challenges[challengeIndex]` (store `loadChallenge`/`checkCompletion`, `ChallengePanel`, `availabilityPolicy`) — never `CHALLENGES[challengeIndex]`. `selectCategory(id)` sets `activeCategory` then `loadChallenge(0)` to start that track fresh. Default track is `DEFAULT_CATEGORY` (`"all"`), which mirrors registry order — so a global index still resolves correctly under the default (e.g. tests that `loadChallenge(CHALLENGES.findIndex(...))`).
+Categories are pure filters over the linear `CHALLENGES` registry, derived from each challenge's `type`: `all`, `panes`, `git`, `fs`. `SELECTABLE_CATEGORIES` drops empty groups; `getCategory(id)` falls back to `all` (covers a stale persisted id). **Trap: the store's `challengeIndex` is relative to the active category's list, not the global registry.** Anything resolving the current challenge must go through `getCategory(activeCategory).challenges[challengeIndex]` (store, `ChallengePanel`, `availabilityPolicy`) — never `CHALLENGES[challengeIndex]`. Default track `DEFAULT_CATEGORY="all"` mirrors registry order (so a global index still resolves under the default).
 
 ## Win-detection (`src/state/gameStore.ts`)
 
-State: `activeCategory` + `challengeIndex` (category-relative) + `stepIndex` + `awaitingContinue` (completion-gate flag). `checkCompletion()` resolves `group = getCategory(activeCategory)`, builds a `ChallengeSnapshot`, runs `group.challenges[challengeIndex].steps[stepIndex].isComplete(snap)`, and:
-- not satisfied → return;
-- more steps remain → advance `stepIndex` (flash "✓ Step complete");
-- last step, more challenges remain **in the group** → set `awaitingContinue` (panel shows "✓ {title} complete! Press Enter to continue", terminal input frozen); `continueToNext()` (Enter) then calls `loadChallenge(next)`, resetting FS + panes for its sandbox;
-- last step of the last challenge **in the group** → set `completed` (flash "✓ All challenges complete"). The gate length is `group.challenges.length`, so a single-challenge track (e.g. `git`) completes immediately rather than showing a continue gate.
-
-`checkCompletion()` early-returns while `completed || awaitingContinue` so the still-passing last step doesn't re-fire during the gate.
-
-On the last-step branches it also captures timing: `elapsed = Date.now() - challengeStartTime` (stamped by `loadChallenge`), sets `lastElapsedMs`/`lastWasBest`, and updates `bestTimes[challenge.id]` when it beats the prior best. `bestTimes` (keyed by `challenge.id`, so it is category-independent and carries across tracks) and `activeCategory` are the persisted fields (zustand `persist`, `name: "term-crunch-progress"`); the panel shows the live/best time via `formatElapsed` (`@tt/core/lib/format`).
-
-It's invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`/`renameWindow`) — not after pure focus ops (`setActivePane`/`focusDirection`/`cyclePane`/`selectWindow`/`cycleWindow`), which can't change a layout/git predicate. (`renameWindow` re-checks because the `windows-create` challenge gates a step on a window having a `name`.) Keep validators cheap — they run on every keystroke-completed command.
+State: `activeCategory` + `challengeIndex` (category-relative) + `stepIndex` + `awaitingContinue`. `checkCompletion()` builds a `ChallengeSnapshot` and runs the current step's predicate: not satisfied → return; more steps → advance `stepIndex`; last step + more challenges **in the group** → `awaitingContinue` (Enter → `continueToNext()` → `loadChallenge(next)`); last step of the last challenge in the group → `completed`. The gate length is `group.challenges.length` (a single-challenge track completes immediately). It early-returns while `completed || awaitingContinue` so the still-passing last step doesn't re-fire. On last-step branches it captures timing (`lastElapsedMs`/`lastWasBest`, updates `bestTimes[challenge.id]`). Persisted fields (zustand `persist`, `name: "term-crunch-progress"`): `bestTimes` (keyed by `challenge.id`, category-independent) + `activeCategory`. Invoked after every command and after **structural** pane/window mutations (`splitPane`/`closePane`/`resizePane`/`newWindow`/`closeWindow`/`renameWindow`) — not pure focus ops. Keep validators cheap (they run on every completed command).
 
 ## Existing challenges (`src/challenges/registry.ts`)
 
-`CHALLENGES` is an ordered, linear array — the player advances one at a time. One file per challenge; each file's comments explain its own seed data and predicate gotchas. Read the file before changing a challenge.
-
-- **`panes-split`** (pane) — reproduce a target pane layout; compared via `paneTreeMatches()` (`src/lib/paneCompare.ts`).
-- **`windows-create`** (pane) — open/rename tmux windows; uses `targetWindows` + `WindowStripView` instead of the pane-tree schematic.
-- **`git-first-commit`** (git) — stage + commit; validated via `src/lib/gitState.ts`.
-- **`git-stash`** (git) — stash → branch-hop → pop; seed blocks the checkout until stashed.
-- **`git-pull-ff`** (git) — `stash -u` → `pull --ff-only` → pop; seed mechanics (tracking refs, dirty tree) are documented in the file. Engine support: see the `git` skill.
-- **`git-rebase`** (git) — rebase with a guaranteed conflict, resolved in `nano`. Engine support: see the `git` skill.
-- **`rm-bomb`** (fs) — find + delete one file while survivors must remain; destructive, so the Restart button matters.
-- **`chmod-perms`** (fs) — unlock an unreadable file; trap: the predicate checks `permissions[6]` (the "other" read bit) — see the file's setup docstring.
+`CHALLENGES` is an ordered linear array (play order), one file per challenge — each file's comments explain its own seed data and predicate gotchas; **read the file before changing a challenge.** Current set: `panes-split`, `windows-create` (pane); `git-first-commit`, `git-stash`, `git-pull-ff`, `git-rebase` (git; engine support in the `git` skill); `rm-bomb`, `chmod-perms` (fs, destructive — Restart matters).
 
 ## Adding a challenge
 
-1. Create `src/challenges/<id>.ts` exporting a `Challenge`. Write `setup` to seed only what the challenge needs on top of `buildBaseFs()`. For pane challenges build `targetWindow` with `paneTypes` helpers (don't hand-author ids — the compare ignores them). For git challenges set `gitRepoPath` and read state via `gitState.ts`.
-2. Author each `Step` objective-first (see the shape above), set a challenge `brief` for the overall scenario, and add a pure `isComplete` predicate over `ChallengeSnapshot`.
-3. Predicate conventions:
-   - Use `>=`, not `===`, for count-style goals so overshoot doesn't strand the player.
-   - A state predicate can't observe a read-only command (e.g. a `cat`) — gate on the state change that enables it, and let the read be the payoff.
-   - Check what the engine actually enforces, not what looks right (e.g. `VirtualFS.readFile` gates on the "other" permission bit).
-   - If a wrong move can soft-lock the sandbox (destructive challenges), make sure `restartChallenge()` recovers it — the panel's Restart button re-seeds via `loadChallenge(challengeIndex)`.
-4. Put challenge-specific mechanics (seed quirks, predicate gotchas) in **comments in the challenge file**, not in this skill — docs point, code explains.
-5. Set `commands` to the allowlist the player needs (primary names; `help`/`clear` are implicit). Keyboard-only challenges use `[]`; omit the field only if you genuinely want every builtin available.
-6. Append it to `CHALLENGES` in `registry.ts` (order = play order). Its `type` decides which category it lands in automatically (`categories.ts` filters on it) — no edit there unless you're adding a brand-new category.
+1. Create `src/challenges/<id>.ts` exporting a `Challenge`; `setup` seeds only what's needed on `buildBaseFs()`. Pane challenges build `targetWindow` with `paneTypes` helpers (don't hand-author ids — compare ignores them); git challenges set `gitRepoPath` and read state via `gitState.ts`.
+2. Author each `Step` objective-first, set a `brief`, add a pure `isComplete` predicate.
+3. Predicate conventions: use `>=` not `===` for counts (overshoot shouldn't strand); a predicate can't observe a read-only command (gate on the enabling state change, let the read be the payoff); check what the engine actually enforces (e.g. `VirtualFS.readFile` gates on the "other" permission bit); if a wrong move can soft-lock a destructive sandbox, ensure `restartChallenge()` recovers it.
+4. Put challenge-specific mechanics (seed quirks, predicate gotchas) in **comments in the challenge file**, not this skill — docs point, code explains.
+5. Set `commands` to the allowlist (primary names; `help`/`clear` implicit; `[]` for keyboard-only; omit only for genuine allow-all).
+6. Append to `CHALLENGES` in `registry.ts` (order = play order); its `type` decides its category automatically.
 7. Cover it in `src/__tests__/challenges.test.ts`, then `npm run typecheck` + `npx vitest run`.

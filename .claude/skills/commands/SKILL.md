@@ -5,385 +5,59 @@ description: "Command parser, registry, pipeline execution, and how to add new c
 
 # Command System
 
-The command system handles parsing terminal input, dispatching to registered command handlers, chaining pipelines, and computing side effects — all as pure functions.
+Parses terminal input, dispatches to registered handlers, chains pipelines, and computes side effects — all as pure functions. **Shared `@tt/core` engine** (`packages/core/src/commands`), consumed by both apps.
 
-## Architecture
-
-```
-src/engine/commands/
-├── types.ts               # ParsedCommand, CommandContext, CommandResult, CommandHandler, AsyncCommandHandler, ChainOperator, ChainSegment
-├── registry.ts            # register(), registerAsync(), execute(), executeAsync()
-├── parser.ts              # parseInput(), parsePipeline(), parseChainedPipeline(), splitOnPipe(), splitOnChainOperators()
-├── applyResult.ts         # computeEffects(), AppliedEffects, ApplyContext
-├── builtins/
-│   ├── index.ts           # Side-effect imports that register all commands
-│   ├── cat.ts, ls.ts, cd.ts, grep.ts, find.ts, diff.ts, ...  # Individual commands
-│   ├── dbt.ts             # core builtin (see dbt skill)
-│   ├── git.ts             # core builtin — Git subcommand dispatch (init, add, commit, checkout, etc.)
-│   ├── snow.ts            # core builtin (see snowflake skill)
-│   └── (mail.ts)          # NOT in core — app-only, at apps/termoil/src/engine/commands/builtins/mail.ts (see email skill)
-└── helpTexts.ts           # HELP_TEXTS lookup for --help output
-
-src/engine/session/
-└── types.ts               # ISession, SessionResult — shared interface for interactive modes
-
-src/engine/pager/          # less (pager) session — alt-screen scroll/search over file or piped stdin
-├── LessSession.ts         # ISession impl; alt-screen lifecycle, topLine clamp, n/N search, Ctrl+L redraw
-├── render.ts              # ANSI-aware truncation, search highlight, status line, help overlay
-├── keymap.ts              # CSI parser → PagerAction union (mode-agnostic)
-└── types.ts               # LessSessionInfo
-
-src/hooks/
-├── useTerminal.ts         # Pipeline orchestrator: chains commands, handles redirection, applies effects
-├── useCommandLine.ts      # Input buffer, history navigation, autosuggestions
-└── useComputerTransitions.ts  # SSH/Coder/exit transition flows extracted from useTerminal
-```
-
-## Core Types (`commands/types.ts`)
-
-```ts
-interface ParsedCommand {
-  command: string;
-  args: string[];
-  flags: Record<string, boolean>;  // -x, --flag
-  raw: string;
-  rawArgs: string[];
-  error?: string;                  // Set by parser when input is malformed (e.g. unterminated quote)
-}
-
-interface CommandContext {
-  fs: VirtualFS;
-  cwd: string;
-  homeDir: string;
-  username: string;             // Player's unix username (e.g. "ren")
-  activeComputer: ComputerId;
-  storyFlags?: StoryFlags;
-  stdin?: string;               // Piped input from previous command
-  rawArgs?: string[];
-  isPiped?: boolean;
-  commandHistory?: string[];    // For history command
-  snowflakeState?: SnowflakeState;
-  snowflakeContext?: SessionContext;
-  setSnowflakeState?: (state: SnowflakeState) => void;
-  elevated?: boolean;           // True when command is running under sudo
-  envVars?: Record<string, string>;  // Per-computer environment variables
-  setEnvVars?: (envVars: Record<string, string>) => void;  // Persist env changes
-  aliases?: Record<string, string>;  // Per-computer shell aliases
-  setAliases?: (aliases: Record<string, string>) => void;  // Persist alias changes
-  deliveredPiperIds?: string[]; // Piper deliveries already received (for `after_piper_reply` checks)
-  mounts?: Mounts;              // Per-computer { [mountpath]: { device, mountpath, fstype } } — read-only; commands return changes via result.newMounts
-  tabPrefixLabel?: string;      // Human-readable tmux prefix (e.g. "Ctrl+Space") for help output
-}
-
-interface CommandResult {
-  output: string;
-  exitCode?: number;
-  newCwd?: string;              // cd changes directory
-  newFs?: VirtualFS;            // Filesystem mutations
-  clearScreen?: boolean;        // clear command
-  editorSession?: { ...; triggerEvents?: GameEvent[] };  // Enter nano editor; events fire when nano closes
-  interactiveSession?: { ... }; // Enter Python REPL
-  snowSqlSession?: { ... };     // Enter Snowflake CLI SQL session
-  promptSession?: { ... };      // Enter inline prompt
-  sshSession?: { ... };         // Enter SSH session
-  chipSession?: { ... };        // Enter Chip assistant
-  piperSession?: { ... };       // Enter Piper session
-  lessSession?: { filename, content };  // Enter less pager (file or piped stdin)
-  gameAction?: GameAction;      // save/load/newgame/shutdown/reboot/listCheckpoints/loadCheckpoint (reboot = cosmetic home reboot, no state changes)
-  triggerEvents?: GameEvent[];  // Events for email/story processing
-  transitionTo?: ComputerId;    // Transition to another computer (devcontainer, nexacorp)
-  incrementalLines?: IncrementalLine[];  // Lines to print with per-line delays (e.g. boot sequences)
-  closeTabsForComputer?: ComputerId;     // Close all tabs for a downed computer + machines chained through it (getConnectionClosure; coder stop, remote shutdown)
-  newMounts?: Mounts;                    // Per-computer mount registry update (mount/umount); accumulator-based, mirrors newFs
-  securityViolation?: SecurityViolation; // Nexacorp tripwire hit ({kind, path, destPath?, command, descendantCount}) — routes to the forced-termination transition (see narrative skill)
-}
-
-type CommandHandler = (args: string[], flags: Record<string, boolean>, ctx: CommandContext) => CommandResult;
-type AsyncCommandHandler = (args: string[], flags: Record<string, boolean>, ctx: CommandContext) => Promise<CommandResult>;
-```
-
-## Registry (`registry.ts`)
-
-```ts
-register(name: string, handler: CommandHandler, description: string, helpText?: string, readsFiles?: boolean): void
-registerAsync(name: string, handler: AsyncCommandHandler, description: string, helpText?: string, readsFiles?: boolean): void
-execute(commandName: string, args: string[], flags: Record<string, boolean>, ctx: CommandContext): CommandResult
-executeAsync(commandName: string, args: string[], flags: Record<string, boolean>, ctx: CommandContext): Promise<CommandResult>
-isAsyncCommand(name: string): boolean
-getCommandList(): { name: string; description: string }[]
-```
-
-Two internal `Map`s: `commands` (sync) and `asyncCommands` (async). Both auto-handle `--help` if helpText was provided.
+Code map: `commands/{types,registry,parser,applyResult,flagValidation,redirection,helpTexts}.ts` + `builtins/` (one file per command; `git.ts`/`dbt.ts`/`snow.ts` are core builtins, `mail.ts` is app-only). Interactive modes: `session/types.ts` (`ISession`/`SessionResult`), `pager/` (less). Orchestration lives in the app hooks: `useTerminal.ts` (pipeline/redirection/effects), `useCommandLine.ts` (input buffer/history/suggestions), `useComputerTransitions.ts`. Read the type definitions in `commands/types.ts` and `applyResult.ts` directly — they are not mirrored here.
 
 ## Parser (`parser.ts`)
 
-| Function | Purpose |
-|----------|---------|
-| `parseInput(raw)` | Tokenize respecting quotes, split into command/args/flags |
-| `parsePipeline(raw)` | Split on unquoted `\|`, parse each segment |
-| `parseChainedPipeline(raw)` | Split on `&&`/`\|\|`/`;` first, then parse each segment's pipeline |
-| `splitOnChainOperators(input)` | Split on unquoted `&&`, `\|\|`, `;` respecting quotes |
-| `splitOnPipe(input)` | Split on `\|` outside single/double quotes |
-| `analyzeIncompleteInput(input)` | Detects zsh-style secondary-prompt continuation (unterminated quote, trailing `\`/`\|`/`&&`/`\|\|`); `null` = submittable |
+`parseInput` (tokenize respecting quotes), `parsePipeline` (split on unquoted `|`), `parseChainedPipeline` (split on `&&`/`||`/`;` first, then each segment's pipeline), plus `splitOnPipe`/`splitOnChainOperators`. Flag parsing: `-x` → `{x:true}`, `-xyz` → three flags, `--flag` → `{flag:true}`.
 
-Flag parsing: `-x` → `{ x: true }`, `-xyz` → `{ x: true, y: true, z: true }`, `--flag` → `{ flag: true }`.
-
-`analyzeIncompleteInput`'s quote scan duplicates `tokenize`'s exact rules (no backslash escaping) — keep the two in sync. It has no opinion on trailing `&` or `;`, which are not continuation in zsh. Consumed by `@tt/core/terminal/lineEditor`'s `LineEditor`: on Enter, an incomplete result accumulates the physical line into `pendingLines`, switches the active prompt to the returned secondary prompt, and defers submission until the joined input parses clean; Ctrl+C aborts the whole multi-line entry, and history/ghost-text are disabled while a continuation is active.
+`analyzeIncompleteInput(input)` detects zsh secondary-prompt continuation (unterminated quote, trailing `\`/`|`/`&&`/`||`); `null` = submittable. **Trap: its quote scan duplicates `tokenize`'s exact rules (no backslash escaping) — keep the two in sync.** It has no opinion on trailing `&`/`;` (not continuation in zsh). Consumed by `@tt/core/terminal/lineEditor`'s `LineEditor`, which accumulates physical lines into `pendingLines` and defers submission until the joined input parses clean.
 
 ## Flag validation (`flagValidation.ts`)
 
-The dispatcher rejects unknown flags by default with a coreutils-style error (`<cmd>: invalid option -- 'z'`, exit 2). Each command must declare its known flags with `setKnownFlags(name, { short: [...], long: [...] })` after `register(...)`. Pass `{}` for commands that take no flags. `--help` is always allowed (the dispatcher short-circuits to `helpText` before validation).
+The dispatcher rejects unknown flags by default (coreutils-style `<cmd>: invalid option -- 'z'`, exit 2). Each command declares known flags via `setKnownFlags(name, {short, long})` after `register(...)` (`{}` for none). `--help` always short-circuits before validation. Three opt-out cases (call `skipFlagValidation(name)` and validate in-handler):
+- **rawArgs-driven** (`find`, `head`, `tail`, `tree`) — the parser shatters `-name`/`-5`/`-L N`, so the handler re-parses `ctx.rawArgs`.
+- **Per-subcommand** (`git`) — each subcommand has its own set; validated with `rejectUnknownFlags(..., {style: "git"})` (exit 129).
+- **Custom prefix** (`snow`) — `rejectUnknownFlags("snow sql", ...)` so the error reads `snow sql:`.
 
-Three opt-out cases (call `skipFlagValidation(name)` instead):
+## Chaining, pipelines, redirection
 
-- **rawArgs-driven** (`find`, `head`, `tail`, `tree`): the parser splits `-name` into `{n,a,m,e}` and `-5` into `{5}`, so a generic whitelist would reject the canonical syntax. The handler re-parses `ctx.rawArgs` and accepts anything. `tree` uses this for `-L N` (depth limit) — value flags must come from rawArgs because the parser strips the `N` away from the `L` boolean.
-- **Per-subcommand** (`git`): each subcommand has its own flag set; validation happens inside the handler with `rejectUnknownFlags(..., { style: "git" })` and a custom git-style error (`error: unknown switch \`z'`, exit 129).
-- **Custom prefix** (`snow`): handler calls `rejectUnknownFlags("snow sql", flags, ...)` so the error reads `snow sql:` instead of `snow:`.
+`&&`/`||`/`;` supported; pipes bind tighter (`cmd1 && cmd2 | cmd3` = `[cmd1] && [cmd2|cmd3]`). `parseChainedPipeline(raw, shell?)` splits chain operators first (consuming `||` before `splitOnPipe` misreads it). Syntax-error wording follows the `shell` param: interactive shell → zsh (`` zsh: parse error near `&&' ``, default); `bash.ts` passes `"bash"` for script lines (exit 2). Unknown commands → `zsh: command not found: <name>` (exit 127) + dimmed `Type 'help'` hint. Execution (`useTerminal.ts`): outer loop over `ChainSegment[]`, inner loop per segment's pipeline; story flags/deliveries written per segment for gating, FS accumulated locally, `stdin` reset between segments; sessions/incremental/transitions stop the chain. Bash scripts (`bash.ts`) reuse the same path.
 
-## Command Chaining
-
-Supports `&&` (run if previous succeeded), `||` (run if previous failed), and `;` (always run). Pipes bind tighter than chain operators: `cmd1 && cmd2 | cmd3` means `[cmd1] && [cmd2 | cmd3]`.
-
-**Types** (`types.ts`):
-```ts
-type ChainOperator = '&&' | '||' | ';';
-interface ChainSegment {
-  pipeline: ParsedCommand[];
-  operator: ChainOperator | null;  // null for first segment
-}
-```
-
-**Parsing order**: `parseChainedPipeline(raw, shell?)` splits on chain operators first (consuming `||` before `splitOnPipe` can misinterpret it), then calls `parsePipeline` on each segment. Empty segments produce syntax errors whose wording follows the `shell` param: the interactive shell uses zsh wording (`` zsh: parse error near `&&' ``, the default); `bash.ts` passes `"bash"` so script lines keep `` bash: syntax error near unexpected token `&&' `` with exit 2. Unknown commands print `zsh: command not found: <name>` (exit 127) with a dimmed `Type 'help'` hint line; `./script` path execution errors are also zsh-worded (`zsh: no such file or directory:` exit 127, `zsh: permission denied:` exit 126 for directories and non-executable files alike).
-
-**Execution** (`useTerminal.ts`): Outer loop over `ChainSegment[]`, inner loop runs each segment's pipeline. Per-segment: story flags/deliveries written to store (for gating), FS accumulated locally, output written to terminal. Sessions/incremental/transitions stop the chain. `stdin` resets between segments.
-
-**Bash scripts** (`bash.ts`): `executeSingleLine` uses the same chaining via `parseChainedPipeline(text, "bash")`.
-
-## Pipeline Execution (`useTerminal`)
-
-1. `parseChainedPipeline(raw)` → array of `ChainSegment`
-2. Outer loop: check `&&`/`||`/`;` logic against previous exit code
-3. For each segment's pipeline:
-   - Pass previous command's `output` as `stdin` in `CommandContext`
-   - Execute via `execute()` or `executeAsync()`
-   - Accumulate `newFs` and `newCwd` across pipeline
-   - Reset `stdin` between chain segments
-4. Per-segment redirection: `>` / `>>` extracted and applied per segment (see Redirection below)
-5. Per-segment alias expansion
-6. Final `CommandResult` from last segment passed to `computeEffects()`
-
-## Redirection (`redirection.ts`)
-
-zsh-realistic stdout redirection, shared by `useTerminal.ts`, `bash.ts`, and the headless runner (`scripts/play.ts`):
-
-- **`extractStdoutRedirect(raw)`** returns `{ command, redirects, parseError? }`. It collects **every** unquoted `>`/`>>` into `redirects: { file, append }[]` (zsh has `multios` on by default, so output is written to all targets) and strips stderr redirects (`2>`, `2>>`, `2>&1`). A `>` with no target sets `` parseError: "zsh: parse error near `\n'" `` — callers print it (exit 1) and skip the segment.
-- **`precheckRedirects(redirects, cwd, homeDir, fs)`** validates targets *before the pipeline runs* (zsh opens redirect files before exec). A directory target → `zsh: is a directory: <as-typed>`; a missing parent → `zsh: no such file or directory: <as-typed>`. On error the command never executes: no output, no trigger events, no FS change, exit 1.
-- **`applyRedirection(redirects, ...)`** writes the output to every target against the accumulating FS. Per successful target it emits `file_created`/`file_modified` and runs the `isLogTamperPath` tripwire check; a failed write (defensive — precheck normally catches it) returns the zsh error with exit 1 and emits **no** event for that target. `>>` append is newline-aware: it only inserts a separator when the existing content doesn't already end with `\n`.
-- **`VirtualFS.writeFile`** refuses to overwrite a directory (`Cannot write to '...': Is a directory`), so `echo x > some-dir` can never destroy a directory tree.
+**Redirection (`redirection.ts`)** — zsh-realistic stdout redirect, shared by `useTerminal.ts`/`bash.ts`/`scripts/play.ts`:
+- `extractStdoutRedirect` collects **every** unquoted `>`/`>>` (zsh `multios` — all targets get output) and strips stderr redirects. A target-less `>` sets a `parseError` (exit 1, segment skipped).
+- `precheckRedirects` validates targets **before** the pipeline runs (zsh opens redirect files before exec): dir target → `zsh: is a directory:`, missing parent → `zsh: no such file or directory:`. On error nothing executes (no output, no events, no FS change).
+- `applyRedirection` writes to every target, emitting `file_created`/`file_modified` and running the `isLogTamperPath` tripwire per target; `>>` append is newline-aware. `VirtualFS.writeFile` refuses to overwrite a directory, so `echo x > some-dir` can't destroy a tree.
 
 ## Line splitting (`src/lib/textUtils.ts`)
 
-`splitLines(content)` splits text into lines and drops the single trailing empty element a final `\n` produces (`"" → []`). Used by `sort` (which also concatenates multi-file input per-file instead of joining with `\n`), `uniq`, `grep`, `head`, and `tail` — use it in any new line-oriented command instead of bare `content.split("\n")`, which invents a phantom empty line for files with trailing newlines.
+`splitLines(content)` drops the single trailing empty element a final `\n` produces (`"" → []`). Use it in any line-oriented command (`sort`/`uniq`/`grep`/`head`/`tail` do) instead of bare `content.split("\n")`, which invents a phantom empty line for files ending in a newline.
 
-## Effect Computation (`applyResult.ts`)
+## Effect computation (`applyResult.ts`)
 
-`computeEffects(result: CommandResult, applyCtx: ApplyContext): AppliedEffects`
+`computeEffects(result, applyCtx)` is a **pure function** (no terminal/state access) returning `AppliedEffects`. It: builds the event list (always `command_executed`; `readsFiles: true` commands auto-add a `file_read` per file arg — declared via the 5th `register()` param, `grep 'register(' | grep ', true)`); processes story-flag triggers for the active computer; checks email/piper deliveries per event; detects the `nexacorp_followup`-read transition; and the NexaCorp `diff`-on-`.bak` → `discovered_log_tampering` special case. `ApplyContext`/`AppliedEffects` shapes are in `applyResult.ts` — read them there.
 
-**Pure function** — computes all side effects without touching terminal or state.
+**`GameEvent` vocabulary** (union in `engine/mail/delivery.ts`) — emitters worth knowing: `directory_created` fires for `mkdir`/`cp -r`/`mv` (dest + every nested sub-dir); `directory_removed` for `mv`/`rm -r`; `file_created` vs `file_modified` is decided by `fs.getNode(path)` **before** the write; `file_removed` for `rm`/`mv` source-side (every file under an `rm -r` subtree). The matcher supports `path` (exact) for all events; `file_read`/`file_created`/`file_modified` also support `pathPrefix`.
 
-### ApplyContext (input)
+## Sessions (`session/types.ts`)
 
-```ts
-interface ApplyContext {
-  parsedCommand: string;
-  parsedArgs: string[];
-  cwd: string;
-  homeDir: string;
-  activeComputer: ComputerId;
-  username: string;
-  deliveredEmailIds: string[];
-  deliveredPiperIds: string[];
-  storyFlags: StoryFlags;
-  fs: VirtualFS;
-  targetComputerExists?: boolean;  // True on a repeat transition (e.g. second `coder ssh ai`); skips the first-time animation
-}
-```
+`ISession` (`enter`/`handleInput`/optional `canClose`/`resize`) + `SessionResult`. Session kinds: editor (nano), snow-sql, pythonRepl, prompt, ssh, chip, piper, less. **Alt-screen sessions (editor, piper, less)** are recognized in `useSessionRouter.routeInput`'s `usedAltScreen` check so the post-session prompt writes cleanly — add new alt-screen sessions to that list.
 
-### AppliedEffects (output)
+## Command availability (`availability.ts`)
 
-```ts
-interface AppliedEffects {
-  clearScreen: boolean;
-  output: string;
-  newFs?: VirtualFS;
-  newCwd?: string;
-  startSession?: SessionToStart;  // "editor" | "snow-sql" | "pythonRepl" | "prompt" | "ssh" | "chip" | "piper" | "less"
-  gameAction?: GameAction;
-  events: GameEvent[];
-  storyFlagUpdates: StoryFlagUpdate[];
-  newDeliveredEmailIds: string[];
-  emailNotifications: number;
-  newDeliveredPiperIds: string[];
-  piperNotifications: number;
-  suppressPrompt: boolean;
-  transitionTo?: ComputerId;  // Computer transition (coder/exit commands)
-  incrementalLines?: IncrementalLine[];  // For boot/login output animations
-  closeTabsForComputer?: ComputerId;  // Close all other tabs for this computer + its connection closure; handled in BOTH executeEffects branches in useTerminal.ts (incremental and normal)
-  newMounts?: Mounts;                 // Mount registry update copied through from CommandResult
-}
-```
+`isCommandAvailable(name, computer, storyFlags)` gates access; gate data is in `story/commandGates.ts`. See the **narrative skill** for per-computer gating.
 
-### What `computeEffects` Does
+## Adding a new command
 
-1. **Builds event list** — always adds `command_executed`; commands registered with `readsFiles: true` (currently `cat`, `head`, `tail`, `grep`, `diff`, `wc`, `sort`, `uniq`, `file`, `less`, `source`, `pdftotext` — declared via the 5th `register()` param, grep `register(` calls ending in `, true)`) auto-add `file_read` events per argument
-2. **Processes story flag triggers** — delegates to `checkStoryFlagTriggers()` for the active computer's triggers
-3. **Checks email delivery** — calls `checkEmailDeliveries()` for each event
-4. **Detects transitions** — recognizes `nexacorp_followup` email read → `triggerTransition: true`
-5. **Special NexaCorp logic** — `diff` on `.bak` files sets `discovered_log_tampering`
+1. Create `builtins/{name}.ts`: a `CommandHandler` `(args, flags, ctx) => CommandResult` using `ctx.fs/cwd/stdin/...`; `register("name", handler, "desc", HELP_TEXTS.name)` + `setKnownFlags("name", {...})` at the bottom.
+2. Add the help entry to `HELP_TEXTS` in `helpTexts.ts`.
+3. `import "./name";` in `builtins/index.ts`.
+4. Add `__tests__/name.test.ts`.
 
-### `GameEvent` Vocabulary (`engine/mail/delivery.ts`)
-
-The full event union accepted by the dispatcher and the StoryFlagTrigger matcher:
-
-| Event              | Emitter(s) |
-|--------------------|------------|
-| `command_executed` | Always emitted by `computeEffects` |
-| `file_read`        | Auto-emitted for read-shaped commands (cat/head/tail/etc.) |
-| `directory_visit`  | `ls`, `cd` |
-| `directory_created`| `mkdir`, `cp -r`, `mv` (for the destination dir and every nested sub-dir of a moved subtree) |
-| `directory_removed`| `mv`, `rm -r` (for the directory and every nested sub-dir removed) |
-| `file_created`     | `touch`, `cp`, `mv`, `nano` save, `>`/`>>` redirection — when the path **did not previously exist** |
-| `file_modified`    | `nano` save, `cp`, `mv`, `>`/`>>` redirection — when **overwriting an existing file** |
-| `file_removed`     | `rm`, `mv` (source-side; under `rm -r`, fires for every file inside the removed subtree) |
-| `objective_completed` | Set by Piper reply triggerEvents and the engine when objectives close |
-| `piper_delivered`  | Internal — fires on each Piper delivery |
-
-`file_created` vs `file_modified` is decided by checking `fs.getNode(path)` *before* the write. The matcher supports `path` (exact) for all events; `file_read`, `file_created`, and `file_modified` additionally support `pathPrefix`.
-
-## Session Interface (`session/types.ts`)
-
-```ts
-interface ISession {
-  enter(): void | SessionResult | Promise<void>;       // Initialize (show UI, etc.). May exit immediately by returning a SessionResult
-  handleInput(data: string): SessionResult | null;     // null = continue session
-  canClose?(): boolean;                                 // Optional unsaved-state guard for tab close (default true)
-  resize?(): void;                                      // Optional re-render after terminal resize / tab switch
-}
-
-interface SessionResult {
-  type: "continue" | "exit";
-  newFs?: VirtualFS;
-  newState?: SnowflakeState;
-  output?: string;
-  triggerEvents?: GameEvent[];
-}
-```
-
-Session types: editor (nano), snow-sql (Snowflake CLI REPL), pythonRepl (Pyodide), prompt (inline choices), ssh (SSH connection), chip (Chip assistant), piper (team chat), less (pager).
-
-Alt-screen sessions: editor, piper, less — `useSessionRouter.routeInput` recognizes these in its `usedAltScreen` check so the post-session prompt is written cleanly without a leading `\r\n`. Add new alt-screen sessions to that list.
-
-## Command Availability (`availability.ts`)
-
-`isCommandAvailable(commandName, computer, storyFlags)` gates which commands are accessible. Gate data is defined in `story/commandGates.ts`. See the **narrative skill** for full gating details per computer.
-
-## Adding a New Command
-
-### Step 1: Create the command file
-
-Create `src/engine/commands/builtins/{name}.ts`:
-
-```ts
-import { CommandHandler } from "../types";
-import { register } from "../registry";
-import { setKnownFlags } from "../flagValidation";
-import { HELP_TEXTS } from "../helpTexts";
-import { resolvePath } from "../../lib/pathUtils";
-
-const myCommand: CommandHandler = (args, flags, ctx) => {
-  // Use ctx.fs, ctx.cwd, ctx.stdin, etc.
-  // Return { output, newFs?, newCwd?, exitCode?, ... }
-  return { output: "result" };
-};
-
-register("mycommand", myCommand, "Short description", HELP_TEXTS.mycommand);
-setKnownFlags("mycommand", { short: ["x"], long: ["foo"] });
-```
-
-### Step 2: Add help text
-
-Add entry to `HELP_TEXTS` in `helpTexts.ts`.
-
-### Step 3: Register
-
-Add `import "./mycommand";` to `builtins/index.ts`.
-
-### Step 4: Add tests
-
-Create `src/engine/commands/__tests__/mycommand.test.ts`.
-
-## Command Patterns
-
-### Simple (read-only)
-```ts
-const cmd: CommandHandler = (args, _flags, ctx) => {
-  const path = resolvePath(args[0], ctx.cwd, ctx.homeDir);
-  const result = ctx.fs.readFile(path);
-  if (result.error) return { output: `error: ${result.error}` };
-  return { output: result.value };
-};
-```
-
-### Filesystem mutation
-```ts
-const cmd: CommandHandler = (args, _flags, ctx) => {
-  const newFs = ctx.fs.writeFile(path, content);
-  if (newFs.error) return { output: `error: ${newFs.error}` };
-  return { output: "", newFs: newFs.value };
-};
-```
-
-### Piped input
-```ts
-const cmd: CommandHandler = (args, flags, ctx) => {
-  const input = ctx.stdin ?? ctx.fs.readFile(resolvePath(args[0], ctx.cwd, ctx.homeDir)).value;
-  // Process input...
-  return { output: processedResult };
-};
-```
-
-### Interactive session
-```ts
-const cmd: CommandHandler = (args, _flags, ctx) => {
-  return { output: "", snowSqlSession: { state, context } };
-};
-```
-
-### Event-triggering
-```ts
-const cmd: CommandHandler = (args, _flags, ctx) => {
-  return {
-    output: "done",
-    triggerEvents: [{ type: "command_executed", detail: "my_action" }],
-  };
-};
-```
+Look at a neighbouring builtin for the pattern that fits (read-only, FS mutation, piped-input, interactive-session, event-triggering). Design invariants: pure functions (no store access), immutable FS (mutations return `newFs`), engine imports types from `state/types.ts` but never Zustand, always `resolvePath(arg, ctx.cwd, ctx.homeDir)`, colors via `colorize()`/`ansi` from `src/lib/ansi.ts`.
 
 ## Block devices and mounts (`lsblk`, `mount`, `umount`)
 
-Block-device tooling lives in `src/engine/commands/builtins/{lsblk,mount,umount}.ts`. The story-side device registry is `src/story/blockDevices.ts` (`BLOCK_DEVICES: Partial<Record<ComputerId, BlockDevice[]>>`). Each entry can declare `visibleFlag` to hide the device until a story flag flips and `getContents(): Record<string, FSNode>` to populate the mountpoint on `mount`.
-
-Every computer has a baseline **system disk** (a `disk` + root `part` mounted at `/`) built via the `systemDisk(disk, major, size)` helper — `nexacorp` `sda`/`sda1`, the Coder workspaces `vda`/`vda1`, the laptops `nvme0n1`/`nvme0n1p1` — so `lsblk` always reflects a real machine instead of an empty table. The `mountpoint?: string` field marks a static baseline mount: `lsblk` renders it in MOUNTPOINTS without any entry in `ctx.mounts`, and `mount` refuses to re-mount a device that has one (`mount: /dev/sda1 already mounted on /`). `getRootDevice(computer)` returns the partition with `mountpoint === "/"` and is the single source of truth for `df`'s Filesystem column (`df` runs only on `nexacorp`, but derives the name rather than hardcoding it).
-
-`mount` builds the overlay node via `dir(basename(mountpath), device.getContents?.() ?? {})` — wrapping the children map ensures `node.name` matches the mountpath basename, since `VirtualFS.insertNode` writes the node verbatim. `mount` refuses non-empty target directories (stricter than real Linux but avoids silent destruction). `umount` replaces the mountpath with an empty directory of the same name.
-
-The `Mounts` registry is per-computer state alongside `fs`/`commandHistory`/`envVars`/`aliases`. It rides on the same accumulator pattern as `fs`: pipeline reads from `getState().computerState[id].mounts`, threads it through `ctx.mounts`, and commands return `result.newMounts`. `useTerminal` commits via `setComputerMounts` once at the end. Path keying always goes through `normalizeMountKey(input, cwd, homeDir)` (resolves relative paths and trailing slashes via `resolvePath`).
-
-## Design Principles
-
-- **Pure functions**: `(args, flags, ctx) => CommandResult` — no side effects, no store access
-- **Immutable FS**: Mutations return new `VirtualFS` instances via `newFs`
-- **Minimal engine→state coupling**: Engine files import type definitions from `state/types.ts` but never Zustand stores. Runtime dependencies flow via `CommandContext`
-- **stdin for pipes**: Commands check `ctx.stdin` for piped input, falling back to file args
-- **Path resolution**: Always use `resolvePath(arg, ctx.cwd, ctx.homeDir)` for absolute paths
-- **ANSI colors**: Use `colorize()` and `ansi` constants from `src/lib/ansi.ts`
+Tooling in `builtins/{lsblk,mount,umount}.ts`; story-side registry `src/story/blockDevices.ts` (`BLOCK_DEVICES`, each entry optionally `visibleFlag` + `getContents()`). Every computer has a baseline **system disk** via `systemDisk(...)` so `lsblk` always shows a real machine; a `mountpoint?` field marks a static baseline mount (`mount` refuses to re-mount it). `getRootDevice(computer)` is the single source for `df`'s Filesystem column. `mount` wraps children via `dir(basename(mountpath), ...)` so `node.name` matches, refuses non-empty targets, and emits `mounted_usb_drive` only for `/dev/sdb1` at `/mnt/usb`. The `Mounts` registry is per-computer, rides the same accumulator pattern as `fs` (read from `computerState[id].mounts` → `ctx.mounts` → `result.newMounts`, committed once by `useTerminal` via `setComputerMounts`); key via `normalizeMountKey(input, cwd, homeDir)`.

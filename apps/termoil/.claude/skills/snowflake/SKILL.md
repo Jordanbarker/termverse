@@ -5,357 +5,39 @@ description: "How the in-browser Snowflake SQL query engine works — lexer, par
 
 # Snowflake SQL Query Engine
 
-A full client-side Snowflake SQL engine that lets players explore NexaCorp's data warehouse via `snow sql`. Custom recursive descent parser — no external SQL library. ~50-60KB minified.
-
-## Architecture
-
-```
-src/engine/snowflake/
-├── types.ts                       # DataType, Value, Row, Column, Table, Schema, Database, Warehouse
-├── state.ts                       # SnowflakeState class (immutable, all query + mutation methods)
-├── serialization.ts               # JSON serialize/deserialize for persistence
-├── lexer/
-│   ├── tokens.ts                  # TokenType enum + Token interface
-│   ├── keywords.ts                # Keyword → TokenType map
-│   └── lexer.ts                   # SQL string → Token[]
-├── parser/
-│   ├── ast.ts                     # AST node types (Statement, Expression, SelectStatement, etc.)
-│   ├── errors.ts                  # Parse errors with line/column position
-│   └── parser.ts                  # Recursive descent: Token[] → AST
-├── planner/
-│   ├── plan.ts                    # LogicalPlan node types (Scan, Filter, Project, Join, etc.)
-│   └── planner.ts                 # AST → LogicalPlan translation
-├── executor/
-│   ├── executor.ts                # Main dispatcher: LogicalPlan → QueryResult
-│   ├── evaluator.ts               # Expression eval: expr + row → value (NULL propagation, coercion)
-│   ├── resolve.ts                 # resolveThreePart() — 1/2/3-part name resolution via session context
-│   ├── joins.ts                   # Nested loop join
-│   ├── aggregation.ts             # GROUP BY / HAVING
-│   ├── window_exec.ts             # Window function frame execution
-│   ├── sort.ts                    # ORDER BY
-│   ├── dml.ts                     # INSERT, UPDATE, DELETE, MERGE, TRUNCATE
-│   ├── ddl.ts                     # CREATE, ALTER, DROP
-│   ├── show_describe.ts           # SHOW, DESCRIBE, USE commands
-│   ├── copy_staging.ts            # COPY INTO, PUT/GET (simulated via VirtualFS)
-│   └── functions/
-│       ├── registry.ts            # Function name → implementation map
-│       ├── aggregate.ts           # COUNT, SUM, AVG, MIN, MAX
-│       ├── string.ts              # UPPER, LOWER, TRIM, SUBSTR, CONCAT, LENGTH, REPLACE, SPLIT
-│       ├── numeric.ts             # ABS, CEIL, FLOOR, ROUND, MOD, POWER
-│       ├── date.ts                # CURRENT_DATE, DATEADD, DATEDIFF, DATE_TRUNC, EXTRACT, TO_DATE, TO_TIMESTAMP
-│       ├── conversion.ts          # CAST, TRY_CAST, TO_NUMBER, TO_VARCHAR
-│       ├── semi_structured.ts     # PARSE_JSON, FLATTEN, GET_PATH, OBJECT_CONSTRUCT, ARRAY_CONSTRUCT
-│       ├── window.ts              # ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD, FIRST_VALUE, LAST_VALUE
-│       ├── conditional.ts         # CASE, IFF, COALESCE, NULLIF, NVL, DECODE, ZEROIFNULL
-│       └── system.ts              # CURRENT_USER, CURRENT_ROLE, CURRENT_WAREHOUSE, etc.
-├── formatter/
-│   ├── result_types.ts            # ResultSet, StatusMessage, QueryResult
-│   └── table_formatter.ts         # ASCII table with ANSI colors (Snowflake CLI-style)
-├── session/
-│   ├── context.ts                 # SessionContext: current database/schema/warehouse/role + gameNow
-│   ├── gameClock.ts               # gameNowFor() — converts Piper-delivery state to a JS Date for ctx.gameNow
-│   ├── permissions.ts             # Role definitions, permission checks (checkPermission, canReadSchema, isValidRole)
-│   └── SnowSqlSession.ts          # Interactive REPL (inline, not alt buffer)
-├── seed/
-│   └── initial_data.ts            # Seed databases + tables
-└── bridge/
-    └── fs_bridge.ts               # SnowflakeState → VirtualFS sync under /opt/snowflake/
-
-src/engine/commands/builtins/snow.ts     # Register `snow` command (with `sql` subcommand)
-```
-
-## Data Model
-
-### Core Types (`types.ts`)
-
-```ts
-type DataType = "NUMBER" | "FLOAT" | "VARCHAR" | "BOOLEAN" | "DATE" | "TIMESTAMP" | "TIME" | "VARIANT" | "OBJECT" | "ARRAY";
-type Value = string | number | boolean | null | Date | Value[] | Record<string, Value>;
-interface Column { name: string; type: DataType; nullable: boolean; defaultValue?: Value; }
-interface Row { [columnName: string]: Value; }
-interface Table { name: string; columns: Column[]; rows: Row[]; createdAt: Date; cloneSource?: string; }
-interface Schema { name: string; tables: Record<string, Table>; views: Record<string, ViewDef>; sequences: Record<string, Sequence>; stages: Record<string, Stage>; }
-interface Database { name: string; schemas: Record<string, Schema>; }
-interface Warehouse { name: string; size: string; state: "STARTED" | "SUSPENDED"; autoSuspend: number; }
-interface ViewDef { name: string; columns: Column[]; query: string; }
-interface Sequence { name: string; current: number; increment: number; }
-interface Stage { name: string; files: Record<string, string>; }
-```
-
-### SnowflakeState (`state.ts`)
-
-Immutable class (same pattern as `VirtualFS`). All mutations return new instances.
-
-```ts
-class SnowflakeState {
-  constructor(public readonly data: SnowflakeData) {}
-  // Access via: state.data.databases, state.data.warehouses
-
-  getTable(db, schema, table): Table | undefined;
-  resolveTable(name, currentDb, currentSchema): Table | undefined;  // handles 1/2/3-part names
-  resolveView(name, currentDb, currentSchema): ViewDef | undefined;
-  createDatabase(name): SnowflakeState;
-  dropDatabase(name): SnowflakeState;
-  createSchema(db, name): SnowflakeState;
-  createTable(db, schema, name, columns): SnowflakeState;
-  insertRows(db, schema, table, rows): SnowflakeState;
-  updateRows(db, schema, table, predicate, updates): SnowflakeState;
-  deleteRows(db, schema, table, predicate): SnowflakeState;
-  cloneTable(srcDb, srcSchema, srcTable, dstDb, dstSchema, dstTable): SnowflakeState;
-  truncateTable(db, schema, table): SnowflakeState;
-  createView(db, schema, view): SnowflakeState;
-  createSequence(db, schema, seq): SnowflakeState;
-  createStage(db, schema, stage): SnowflakeState;
-  createWarehouse(wh): SnowflakeState;
-}
-```
+A full client-side Snowflake SQL engine (`snow sql`) — custom recursive-descent parser, no external SQL library, ~50-60KB minified. Pure pipeline: `SQL string → lexer → Token[] → parser → AST → planner → LogicalPlan → executor → QueryResult`.
 
-### Query Pipeline
+Code map (`src/engine/snowflake/`): `types.ts` (all data-model types — read them there), `state.ts` (`SnowflakeState`, immutable like VirtualFS, all query+mutation methods return new instances), `lexer/`, `parser/`, `planner/`, `executor/` (`executor.ts` dispatch, `evaluator.ts`, `resolve.ts`, `joins.ts`, `aggregation.ts`, `window_exec.ts`, `dml.ts`, `ddl.ts`, `show_describe.ts`, `copy_staging.ts`, `functions/`), `formatter/`, `session/` (`context.ts`, `gameClock.ts`, `permissions.ts`, `SnowSqlSession.ts`), `bridge/fs_bridge.ts`. Command registration in `commands/builtins/snow.ts`. Seed data is app-side: `apps/termoil/src/story/data/snowflake/initial_data.ts` (`createInitialSnowflakeState`).
 
-```
-SQL string → Lexer → Token[] → Parser → AST → Planner → LogicalPlan → Executor → QueryResult
-```
+## SQL feature scope
 
-### QueryResult (`formatter/result_types.ts`)
+DDL (CREATE/ALTER/DROP for DATABASE/SCHEMA/TABLE/VIEW/WAREHOUSE/STAGE/SEQUENCE), DML (INSERT/UPDATE/DELETE/MERGE/TRUNCATE), full query (joins, CTEs, subqueries, set ops, DISTINCT), Snowflake-specific (QUALIFY, VARIANT dot/bracket, FLATTEN, LATERAL, PIVOT/UNPIVOT, ILIKE, SAMPLE, Time Travel AT/BEFORE, CLONE, COPY INTO, PUT/GET, SHOW/DESCRIBE, USE, INFORMATION_SCHEMA), all standard data types.
 
-```ts
-interface ResultSet { columns: { name: string; type: DataType }[]; rows: Value[][]; rowCount: number; }
-interface StatusMessage { message: string; rowsAffected?: number; }
-type QueryResult =
-  | { type: "resultset"; data: ResultSet }
-  | { type: "status"; data: StatusMessage }
-  | { type: "error"; message: string; position?: { line: number; column: number } };
-```
+**Functions (100+): `executor/functions/registry.ts` is the canonical scalar list — read it, don't mirror it here.** Aggregate functions (`aggregation.ts`) and window functions (`window_exec.ts`) bypass the scalar registry and have their own executors.
 
-### SessionContext (`session/context.ts`)
+## Game clock (`gameNow`)
 
-```ts
-interface SessionContext {
-  currentDatabase: string;
-  currentSchema: string;
-  currentWarehouse: string;
-  currentRole: string;
-  currentUser: string;
-  /** In-game "now" — when omitted, date functions fall back to wall-clock time. */
-  gameNow?: Date;
-}
-```
+`SessionContext.gameNow` is the story clock for all date functions (`CURRENT_DATE`/`NOW`/`CURRENT_TIMESTAMP`/`GETDATE`/`SYSDATE`/`LOCALTIMESTAMP`/`CURRENT_TIME`); when omitted they fall back to wall-clock. It rides through `evalContextFromSession()` into every `EvalContext`, read by `functions/date.ts` via the `ctx` arg. Producers build it via `gameNowFor(deliveredPiperIds, username, computer)` (`session/gameClock.ts`), wrapping `getGameTime()` (`src/engine/piper/timestamp.ts`) — same source as the `date` command, so the clocks agree. Threaded per call site: `snow sql -q` builds it per invocation; `SnowSqlSession` takes a `getGameNow?: () => Date` callback (refreshes per-statement); the dbt runner builds it per `runModels`/`runTests`/`showModel`.
 
-`gameNow` is the story clock for `CURRENT_DATE()`/`NOW()`/`CURRENT_TIMESTAMP()`/`GETDATE()`/`SYSDATE()`/`LOCALTIMESTAMP()`/`CURRENT_TIME()`. It rides through `evalContextFromSession()` (in `executor/evaluator.ts`) into every `EvalContext`, so the date functions in `functions/date.ts` read it via the second `ctx` arg. Producers populate `gameNow` via `gameNowFor(deliveredPiperIds, username, computer)` (`session/gameClock.ts`), which wraps `getGameTime()` from `src/engine/piper/timestamp.ts` — the same source the `date` terminal command uses, so the two clocks agree.
+## Behavior notes worth knowing
 
-Threading per call site:
-- **`snow sql -q`** (`commands/builtins/snow.ts`): builds `gameNow` from `CommandContext` per invocation.
-- **`SnowSqlSession`** (REPL): receives a `getGameNow?: () => Date` callback; refreshes per-statement so Piper deliveries during the session advance the clock.
-- **dbt runner** (`engine/dbt/runner.ts`): builds `gameNow` from `CommandContext` per `runModels`/`runTests`/`showModel` call.
+- **Derived tables / CTEs** plan to a `DerivedNode`, never inlined: the executor runs the inner query as a full `executeSelect` and maps the resultset back to rows keyed `COL` + `alias.COL` (same as view expansion). `withOuterCtes()` attaches in-scope CTEs (excluding the CTE's own name so a self-ref resolves as a table). The top-level `project` node is a no-op in `executePlan`; outer projection happens once in `projectRows` after window functions.
+- **Division by zero** — `x/0`, `x%0`, `MOD(x,0)` throw `Division by zero` (caught per-statement → error result), matching real Snowflake. `DIV0()`/`DIV0NULL()` are the sanctioned escape hatches.
+- **`SHOW TABLES/VIEWS/SCHEMAS`** accept `IN SCHEMA`/`IN DATABASE` (every schema in the db)/`IN ACCOUNT`; all apply per-schema `canReadSchema` filtering + optional `LIKE`. Target set built by `resolveShowTargets()`. A bare `SHOW TABLES;` on an empty schema appends a dim hint.
+- **SnowSqlSession REPL** — inline (not alt-buffer), hand-rolled CSI parser separate from `useCommandLine.ts`. Ctrl+U is readline `unix-line-discard` (kill-to-start, matching real snowsql — deliberately different from the shell's zsh kill-whole-line). Line-edit behavior covered by `__tests__/session.test.ts`. **Caution: prior edits here have regressed history navigation — preserve the existing A/B Up/Down branches verbatim and verify history still works after any change.**
 
-## SQL Feature Scope
+## snow sql command
 
-### DDL
-CREATE/ALTER/DROP — DATABASE, SCHEMA, TABLE, VIEW, WAREHOUSE, STAGE, SEQUENCE
+`snow sql` enters the REPL (default `NEXACORP_PROD.ANALYTICS>`); `snow sql -q "..."` runs inline (exit 1 if **any** statement in the batch errors or on usage error, else 0). In-REPL: SQL ending `;` executes, `quit`/`exit`/Ctrl+D exits, `settings`/`help` are built-ins.
 
-### DML
-INSERT, UPDATE, DELETE, MERGE, TRUNCATE
+## VirtualFS bridge
 
-### Query
-SELECT, FROM, WHERE, GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET, JOINs (INNER/LEFT/RIGHT/FULL/CROSS), CTEs (WITH), subqueries, DISTINCT, aliases, UNION/INTERSECT/EXCEPT
+`bridge/fs_bridge.ts` `syncToVirtualFS(state, fs)` mirrors the warehouse under `/opt/snowflake/{DB}/{SCHEMA}/_tables/{TABLE}.meta` (columns/types/row-counts) so players can `ls`/`cat` to explore.
 
-### Snowflake-specific
-QUALIFY, VARIANT dot/bracket notation, FLATTEN, LATERAL, PIVOT/UNPIVOT, ILIKE, SAMPLE, Time Travel (AT/BEFORE), CLONE, COPY INTO, PUT/GET, SHOW/DESCRIBE, USE, INFORMATION_SCHEMA
+## Role-based access control (`session/permissions.ts`)
 
-### Data Types
-NUMBER, FLOAT, VARCHAR, BOOLEAN, DATE, TIMESTAMP, TIME, VARIANT, OBJECT, ARRAY
+Schema-level model enforced across SELECT/DML/DDL. **Roles and their grants are defined in `permissions.ts` — read them there** (player default is `ANALYST`; admin roles bypass all checks). Key helpers: `checkPermission(role, db, schema, "READ"|"WRITE")` (throws Snowflake-style error), `canReadSchema` (filters SHOW output), `isValidRole` (validates `USE ROLE`). Non-obvious: INFORMATION_SCHEMA always readable; **view expansion skips permission checks** (owner-privilege semantics, `viewDepth > 0`); the dbt executor overrides the session role to `TRANSFORMER` (`src/engine/dbt/executor.ts`).
 
-### Functions
+## State persistence
 
-Scalar functions are registered in `functions/registry.ts`. Aggregate functions (in `aggregation.ts`) and window functions (in `window_exec.ts`) bypass the scalar registry and are handled by their own executors. **The registry is the canonical list** (well over 100 functions); the table below is a representative category overview, not exhaustive.
-
-| Category | Functions |
-|----------|-----------|
-| Aggregate (special) | COUNT, SUM, AVG, MIN, MAX |
-| String | UPPER, LOWER, TRIM, SUBSTR, CONCAT, LENGTH, REPLACE, SPLIT, LPAD, RPAD, REVERSE, INITCAP |
-| Numeric | ABS, CEIL, FLOOR, ROUND, MOD, POWER, SQRT, SIGN, TRUNC |
-| Date | CURRENT_DATE, CURRENT_TIMESTAMP, DATEADD, DATEDIFF, DATE_TRUNC, EXTRACT, TO_DATE, TO_TIMESTAMP, YEAR, MONTH, DAY |
-| Conversion | CAST, TRY_CAST, TO_NUMBER, TO_VARCHAR, TO_BOOLEAN, TO_DATE, TO_TIMESTAMP |
-| Semi-structured | PARSE_JSON, FLATTEN, GET_PATH, OBJECT_CONSTRUCT, ARRAY_CONSTRUCT, ARRAY_SIZE, TYPEOF |
-| Window (special) | ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD, FIRST_VALUE, LAST_VALUE, NTILE |
-| Conditional | CASE, IFF, COALESCE, NULLIF, NVL, NVL2, DECODE, ZEROIFNULL, IFNULL |
-| System | CURRENT_USER, CURRENT_ROLE, CURRENT_WAREHOUSE, CURRENT_DATABASE, CURRENT_SCHEMA |
-
-## Key Functions
-
-### `lexer/lexer.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `tokenize(sql)` | Converts SQL string to Token array, handling strings, numbers, identifiers, operators, keywords |
-
-### `parser/parser.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `parse(tokens)` | Recursive descent parser: Token[] → Statement AST node |
-| `parseSelect()` | SELECT ... FROM ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT |
-| `parseExpression()` | Operator-precedence expression parsing with all SQL operators |
-
-### `planner/planner.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `plan(ast, context)` | Translates AST → LogicalPlan tree (Scan, Derived, Filter, Project, Join, Aggregate, Sort, Limit) |
-
-**Derived tables and CTEs** plan to a `DerivedNode` (`{ kind: "derived", query, alias? }`), never inlined: the executor runs the inner query as a complete `executeSelect` (so its projections, window functions, ORDER BY/LIMIT all apply) and maps the resultset back into rows keyed `COL` plus `alias.COL` — the same pattern view expansion uses. Because the derived query is re-planned at execution time, `withOuterCtes()` attaches the planner's in-scope CTEs to the query (excluding the CTE's own name, so a self-reference resolves as a table instead of recursing). The top-level `project` node remains a no-op in `executePlan` — projection for the *outer* statement still happens once in `projectRows` after window functions.
-
-### `executor/executor.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `execute(plan, state, context)` | Dispatches LogicalPlan nodes to sub-executors, returns QueryResult |
-| `sessionFromEvalCtx(ctx)` | Rebuilds a SessionContext from an EvalContext — used by the `derived` case and view expansion to run a nested `executeSelect` |
-
-### `executor/evaluator.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `evaluate(expr, row, context)` | Evaluates expression AST against a row: handles column refs, literals, operators, function calls, NULL propagation, type coercion |
-
-**Division by zero**: `x / 0`, `x % 0`, and `MOD(x, 0)` throw `Division by zero` (caught per-statement → `{ type: "error" }`), matching real Snowflake. `DIV0()` (→ 0) and `DIV0NULL()` (→ NULL) are the sanctioned escape hatches.
-
-### `formatter/table_formatter.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `formatResultSet(resultSet)` | Renders ASCII table with column headers, separator, aligned values, row count footer. Uses ANSI colors. |
-| `formatStatusMessage(status)` | Renders "Statement executed successfully." or "N Row(s) produced." |
-
-### `session/SnowSqlSession.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `handleInput(data)` | Processes keystrokes: accumulates SQL until `;`, dispatches to pipeline, renders output inline |
-| `getPrompt()` | Returns `NEXACORP_DB.PUBLIC>` style prompt based on current context |
-
-The REPL has its own hand-rolled CSI parser (separate from `useCommandLine.ts`). Supported line-edit keys: arrows (Up/Down = history, Left/Right = cursor), Backspace, plain Delete (`\x1b[3~`), Ctrl+Left/Right and Ctrl+Delete (modifier=5 on the CSI param), Alt/Option+Backspace (`\x1b\x7f`), Ctrl+Backspace (raw 0x08, what xterm.js emits — deletes previous word), Ctrl+W (raw 0x17), Home/End (CSI `H`/`F` finals plus `\x1b[1~`/`\x1b[4~`), Ctrl+A/Ctrl+E (start/end of line), Ctrl+U (kill to start of line — readline `unix-line-discard`, matching real snowsql; deliberately different from the shell's zsh kill-whole-line), Ctrl+K (kill to end of line), Ctrl+C (cancel), Ctrl+D (exit on empty buffer). Line-start/end and kill operations are relative to the current continuation line (`currentLineStart()`/`currentLineEnd()`). Word boundaries use the shared `findPrev/NextWordBoundary` helpers in `src/engine/terminal/wordBoundary.ts`. Line-editing behavior is covered by `__tests__/session.test.ts`. **Caution:** prior changes here have regressed history navigation — if editing the parser, preserve the existing A/B branches verbatim and verify Up/Down still work.
-
-### `bridge/fs_bridge.ts`
-
-| Function | Purpose |
-|----------|---------|
-| `syncToVirtualFS(state, fs)` | Creates `/opt/snowflake/{DB}/{SCHEMA}/_tables/{TABLE}.meta` files in VirtualFS |
-
-## snow sql Command
-
-| Usage | Action |
-|-------|--------|
-| `snow sql` | Enter interactive REPL with `NEXACORP_PROD.ANALYTICS>` prompt (default for ANALYST) |
-| `snow sql -q "SELECT 1"` | Execute single query inline, return result. Exit code 1 if **any** statement in the batch errors (and on usage errors), 0 otherwise |
-| Inside REPL: SQL ending with `;` | Execute query, show result |
-| Inside REPL: `quit` / `exit` / Ctrl+D | Exit REPL (trailing `;` accepted) |
-| Inside REPL: `settings` | Show current session settings |
-| Inside REPL: `help` | Show built-in help with example SQL |
-
-### SHOW scope variants (executor in `show_describe.ts`)
-
-`SHOW TABLES`, `SHOW VIEWS`, `SHOW SCHEMAS` accept these `IN` clauses:
-
-| Form | Scope |
-|------|-------|
-| `SHOW TABLES` | Current schema only (`ctx.currentSchema`) |
-| `SHOW TABLES IN SCHEMA [<db>.]<schema>` | That single schema |
-| `SHOW TABLES IN DATABASE <db>` | **Every schema** in that database (was schema-scoped — fixed) |
-| `SHOW TABLES IN ACCOUNT` | Every schema across every database |
-
-All variants apply per-schema `canReadSchema(role, db, schema)` filtering and an optional `LIKE '<pattern>'` suffix matched against object name. The `(db, schema)` pair set is built by `resolveShowTargets()` (private helper). When a player runs a bare `SHOW TABLES;` against an empty schema, `SnowSqlSession` appends a one-line dim hint pointing at `SHOW TABLES IN ACCOUNT;` / `SHOW SCHEMAS;`.
-
-### Sample Output
-```
-NEXACORP_DB.PUBLIC> SELECT id, name, created_at FROM projects LIMIT 3;
-+----+-----------------+---------------------+
-| ID | NAME            | CREATED_AT          |
-|----|-----------------|---------------------|
-|  1 | Data Pipeline   | 2026-02-03 09:00:00 |
-|  2 | ML Integration  | 2026-02-05 14:30:00 |
-|  3 | API Overhaul    | 2026-02-23 11:15:00 |
-+----+-----------------+---------------------+
-3 Row(s) produced. Time Elapsed: 0.142s
-```
-
-## Execution Flow
-
-1. Player types `snow sql` (or `snow sql -q "..."`)
-2. Command handler returns `{ snowSqlSession: SnowSqlSessionInfo }` on CommandResult
-3. `useTerminal.ts` creates `SnowSqlSession` instance (inline, not alt buffer)
-4. In REPL mode: session accumulates input until `;`, then:
-   a. `tokenize(sql)` → Token[]
-   b. `parse(tokens)` → AST
-   c. `plan(ast, context)` → LogicalPlan
-   d. `execute(plan, state, context)` → QueryResult + new SnowflakeState
-   e. `formatResultSet(result)` or `formatStatusMessage(result)` → ANSI string
-   f. Session writes output to terminal, updates state
-5. `!quit` exits session, returns control to shell prompt
-
-## VirtualFS Bridge
-
-`/opt/snowflake/` mirrors the database structure for `ls`/`cat` exploration:
-
-```
-/opt/snowflake/
-├── NEXACORP_DB/
-│   ├── PUBLIC/
-│   │   └── _tables/
-│   │       ├── EMPLOYEES.meta
-│   │       └── PROJECTS.meta
-│   └── _schemas.txt
-└── CHIP_ANALYTICS/
-    ├── PUBLIC/
-    │   └── _tables/
-    │       ├── DIRECTIVE_LOG.meta
-    │       └── FILE_MODIFICATIONS.meta
-    ├── INTERNAL/
-    │   └── _tables/
-    │       └── SUPPRESSED_ALERTS.meta
-    └── _schemas.txt
-```
-
-`.meta` files show column names, types, row counts — discoverable via `cat`.
-
-## State Persistence
-
-- `SnowflakeState` added to Zustand store alongside VirtualFS
-- `serialize()` / `deserialize()` handle JSON round-trip
-- Added to `partialize` config as `serializedSnowflake`
-- Restored in `onRehydrateStorage` (falls back to seed data)
-- Save/load system includes snowflake state in `SaveData`
-
-## Role-Based Access Control (`session/permissions.ts`)
-
-Schema-level permission model enforced across SELECT, DML, and DDL.
-
-| Role | Access |
-|------|--------|
-| `PUBLIC` | INFORMATION_SCHEMA only |
-| `ANALYST` | Read on ANALYTICS + RAW_NEXACORP |
-| `TRANSFORMER` | Read-write on ANALYTICS, read on RAW_NEXACORP (dbt service role) |
-| `ENGINEER` | Read-write on ANALYTICS, read on RAW_NEXACORP |
-| `SYSADMIN` | Full access |
-| `ACCOUNTADMIN` | Full access |
-
-- Player default role: `ANALYST`
-- `checkPermission(role, db, schema, "READ"|"WRITE")` — throws Snowflake-style error on denial
-- `canReadSchema(role, db, schema)` — used by SHOW commands to filter output
-- `isValidRole(role)` — validates role names for `USE ROLE`
-- INFORMATION_SCHEMA always readable; admin roles (`isAdmin: true`) bypass all checks
-- View expansion skips permission checks (owner-privilege semantics: `viewDepth > 0`)
-- SHOW TABLES/VIEWS/COLUMNS filtered by `canReadSchema()` to hide inaccessible schemas
-- dbt executor overrides session role to `TRANSFORMER` (`src/engine/dbt/executor.ts`)
-- Error format: `"SQL access control error:\nInsufficient privileges to operate on schema '...'"  `
-
-## Design Patterns
-
-- **Immutable state**: SnowflakeState mutations return new instances (same as VirtualFS)
-- **Pure pipeline**: SQL string → tokens → AST → plan → result, no side effects
-- **Custom parser**: Recursive descent, no external deps, clear error messages with position
-- **Session pattern**: SnowSqlSession follows EditorSession inline routing in useTerminal
-- **Function registry**: Name → implementation map, easy to add new functions
-- **Bridge pattern**: Structured data synced to VirtualFS as human-readable metadata files
-- **ANSI colors**: All output uses `colorize()` and `ansi` from `src/lib/ansi.ts`
-- **Registration pattern**: `register("snow", handler, "description", HELP_TEXTS.snow)` at module bottom
+`SnowflakeState` lives in the Zustand store; `serialize()`/`deserialize()` round-trip via `serializedSnowflake` in `partialize`, restored in `onRehydrateStorage` (falls back to seed on failure). See the **save skill** for the manual-slot behavior (manual loads keep the live Snowflake state rather than restoring a snapshot).

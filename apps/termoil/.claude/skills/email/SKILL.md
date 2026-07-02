@@ -5,286 +5,45 @@ description: "How the in-game email/mail system works — Maildir filesystem lay
 
 # Email System
 
-The email system delivers formal/system messages triggered by player actions, using a Maildir-compatible virtual filesystem. **Casual team conversations use Piper (`piper` command) instead** — see the **piper skill** for details.
+Delivers formal/system messages triggered by player actions, over a Maildir-compatible VirtualFS. **Casual team conversations use Piper instead** — see the **piper skill**.
 
-## Architecture
+Code map: `src/engine/mail/` (`types.ts` — all types, read them there; `emails.ts` routing dispatcher; `mailUtils.ts` parse/format/deliver/mark-read; `delivery.ts` event-based `checkEmailDeliveries` + the `GameEvent` union). Content in `src/story/emails/{home,nexacorp}.ts`. Inline replies use `src/engine/prompt/` (`PromptSession`). Command handler `commands/builtins/mail.ts`. Immediate emails seeded in `story/filesystem/nexacorp/index.ts` (`buildInitialMailFiles`) and `story/filesystem/home/system.ts` (`buildHomeMailFiles`). Delivery + prompt wiring in `useTerminal.ts` / `useSessionRouter.ts`.
 
-```
-src/engine/mail/
-├── types.ts          # Email, EmailDelivery, EmailTrigger, ReplyOption types
-├── emails.ts         # Email routing dispatcher: getEmailDefinitions(username, computer?, storyFlags?), imports from story/emails/
-├── mailUtils.ts      # Filesystem utilities: parse, format, deliver, mark read
-└── delivery.ts       # Event-based delivery (checkEmailDeliveries), GameEvent type
+## Triggers and events
 
-src/story/emails/
-├── home.ts           # Home PC email definitions: getHomeEmailDefinitions
-└── nexacorp.ts       # NexaCorp email definitions: getNexacorpEmailDefinitions
+`EmailTrigger` (union in `mail/types.ts`): `immediate`, `after_file_read`, `after_email_read`, `after_command`, `after_objective`, `after_story_flag`, `after_event_detail`. An array of triggers = any-of (first match wins). Several carry `requiredFlags` / `requireDelivered` gates.
 
-src/engine/prompt/
-├── types.ts          # PromptOption, PromptSessionInfo, PromptResult
-└── PromptSession.ts  # Inline prompt session (renders, validates, resolves)
+- **`after_event_detail`** matches any `GameEvent` whose `type` and `detail` both equal the trigger's fields. Use it to fan one event type out to multiple emails keyed by `detail` — the three home termination emails all match the synthesized `{ type: "terminated", detail }` event fired by `runTerminationTransition` (see the narrative skill).
+- The FS-mutation events (`directory_removed`, `file_created`, `file_modified`, `file_removed`) are emitted by the engine and consumed by story-flag triggers (e.g. `cleared_erik_known_hosts`); no email currently keys off them.
 
-src/engine/commands/builtins/mail.ts       # mail command handler (reply options → prompt)
-src/story/filesystem/nexacorp/index.ts     # Maildir dir creation + immediate email seeding (NexaCorp)
-src/story/filesystem/home/system.ts         # Maildir dir creation + immediate email seeding (Home PC)
-src/state/gameStore.ts                     # deliveredEmailIds state + addDeliveredEmails action
-src/hooks/useTerminal.ts                   # Delivery trigger + prompt session integration
-src/hooks/useSessionRouter.ts              # Processes triggerEvents from prompt sessions (email delivery + story flags)
-```
+## Filesystem layout
 
-## Data Model
+`/var/mail/{username}/{new,cur,sent}/` (new = unread, moved to cur/ on read). Filenames `{seq:03d}_{slugified_subject}`; files are RFC 2822-style (`From:`/`To:`/`Date:`/`Subject:`/`Status:` + blank line + body).
 
-### Core Types (`mail/types.ts`)
+## Delivery flow
 
-```ts
-interface Email {
-  id: string;       // e.g. "welcome_edward"
-  from: string;     // "Edward Torres <edward@nexacorp.com>"
-  to: string;       // "ren@nexacorp.com"
-  date: string;     // RFC 2822 format
-  subject: string;
-  body: string;
-}
+Player command → `useTerminal` calls `checkEmailDeliveries()` with a `GameEvent` → matching `EmailDelivery` defs written to `new/` → `deliveredEmailIds` (persisted Zustand) prevents dupes → "You have new mail" notification.
 
-interface ReplyOption {
-  label: string;           // Display text shown to the player
-  replyBody: string;       // Full text of the player's reply
-  triggerEvents?: GameEvent[]; // Game events fired on selection
-}
+**Trap — pass `storyFlags` through on re-seed.** `checkEmailDeliveries(fs, event, deliveredIds, computer?, storyFlags?)` routes home-vs-nexacorp by `computer` (default `"nexacorp"`; `"devcontainer"` = no mail). The `storyFlags` arg feeds `after_story_flag` matching AND flag-branched bodies (e.g. `marcus_board_debrief` selects one of four via `getMarcusDebrief(storyFlags)`). Callers that re-seed delivered emails (`gameStore.buildFs`'s `seedDeliveredEmails`, `useComputerTransitions`) **must** pass `storyFlags` so re-seeded bodies stay stable across FS rebuilds and save/load.
 
-interface EmailDelivery {
-  email: Email;
-  trigger: EmailTrigger | EmailTrigger[]; // Array = any-of (first match wins)
-  replyOptions?: ReplyOption[]; // If set, mail command shows inline prompt
-}
+## Mail command
 
-type EmailTrigger =
-  | { type: "immediate" }
-  | { type: "after_file_read"; filePath: string; requireDelivered?: string }
-  | { type: "after_email_read"; emailId: string }
-  | { type: "after_command"; command: string; requiredFlags?: string[] }
-  | { type: "after_objective"; objectiveId: string }
-  | { type: "after_story_flag"; flag: string; requiredFlags?: string[] }
-  | { type: "after_event_detail"; eventType: GameEvent["type"]; detail: string };
+`mail` lists the inbox; `mail <n>` reads by seq (marks read); `mail -s "subject" recipient` composes.
 
-type GameEvent =
-  | { type: "command_executed"; detail: string }
-  | { type: "file_read"; detail: string }
-  | { type: "objective_completed"; detail: string }
-  | { type: "directory_visit"; detail: string }
-  | { type: "directory_created"; detail: string }
-  | { type: "directory_removed"; detail: string }
-  | { type: "file_created"; detail: string }
-  | { type: "file_modified"; detail: string }
-  | { type: "file_removed"; detail: string }
-  | { type: "piper_delivered"; detail: string }
-  | { type: "terminated"; detail: "log_tampering" | "leadership_destruction" | "exfiltration" };
-```
+## Reply options & inline prompts
 
-The FS-mutation events (`directory_removed`, `file_created`, `file_modified`, `file_removed`) are emitted by the engine and consumed by story-flag triggers (e.g. `cleared_erik_known_hosts` fires on `file_removed`); no email trigger currently keys off them.
+An `EmailDelivery` can define `replyOptions` (numbered choices shown on read), integrating with `src/engine/prompt/`. Flow: `mail <n>` → mail command finds matching `replyOptions` → appends numbered options + returns a `promptSession` → `useTerminal` routes input → player picks a number → session saves the reply to `sent/`, fires `triggerEvents`, returns to prompt (Ctrl+C cancels). The reply's `Date:` is stamped from the live game clock (`gameNowFor()`) at pick time, not the original email's date.
 
-`after_event_detail` matches any `GameEvent` whose `type` and `detail` both equal the trigger's fields. Use it when the same event type (`terminated`, `objective_completed`, etc.) needs to fan out to multiple emails keyed off `detail`. The three home termination emails (`termination_log_tampering`, `termination_leadership_destruction`, `termination_exfiltration`) all match on the synthesized `{ type: "terminated", detail }` event fired by `runTerminationTransition` in `useComputerTransitions.ts` after a security tripwire.
+When a prompt session exits with `triggerEvents`, `useSessionRouter.routeInput()` runs them through `checkEmailDeliveries()` (follow-up emails) and sets story flags — mirroring `computeEffects()` for events originating from prompts rather than commands.
 
-### Parsed Types (`mail/mailUtils.ts`)
+## Character voice
 
-```ts
-interface ParsedEmail {
-  from: string; to: string; date: string;
-  subject: string; status: string; body: string;
-}
+Read `docs/characters.md` before writing email content — match each character's tone (Sarah casual/direct, Maya warm, Marcus bulleted/terse). Follow the em-dash rule (see narrative skill).
 
-interface MailEntry {
-  filename: string;    // e.g. "001_welcome_aboard"
-  dir: "new" | "cur";  // new = unread, cur = read
-  seq: number;         // sequence number
-  parsed: ParsedEmail;
-}
-```
+## Adding a new email
 
-## Filesystem Layout
+1. Define it in `story/emails/nexacorp.ts` (`getNexacorpEmailDefinitions`) or `home.ts` (`getHomeEmailDefinitions`) — an `EmailDelivery` with `email`, `trigger`, optional `replyOptions`.
+2. Pick the trigger type for when it should arrive.
+3. If it should arrive immediately, also seed it via `buildInitialMailFiles()` (NexaCorp) / `buildHomeMailFiles()` (home).
 
-```
-/var/mail/{username}/
-├── new/    # Unread emails (delivered here)
-├── cur/    # Read emails (moved from new/ on read)
-└── sent/   # Sent messages
-```
-
-**Filename pattern**: `{seq:03d}_{slugified_subject}` (e.g. `001_welcome_aboard`)
-
-**File format** (RFC 2822-style):
-```
-From: Edward Torres <edward@nexacorp.com>
-To: ren@nexacorp.com
-Date: Mon, 23 Feb 2026 07:45:00
-Subject: Welcome aboard!
-Status: R
-
-Email body here...
-```
-
-## Key Functions
-
-### `mailUtils.ts`
-| Function | Purpose |
-|----------|---------|
-| `getMailDir(username)` | Returns `/var/mail/{username}` |
-| `getNewDir(username)` / `getCurDir` / `getSentDir` | Subdirectory paths |
-| `slugify(subject)` | Subject to filename-safe string |
-| `formatEmailContent(email, read)` | Email object to RFC 2822 string |
-| `parseEmailContent(content)` | RFC 2822 string to ParsedEmail |
-| `getMailEntries(fs)` | All mail entries sorted by seq |
-| `markAsRead(fs, filename)` | Move new/ to cur/, set Status: R |
-| `deliverEmail(fs, email, seq)` | Write email file to new/ |
-
-### `delivery.ts`
-| Function | Purpose |
-|----------|---------|
-| `checkEmailDeliveries(fs, event, deliveredIds, computer?, storyFlags?)` | Check triggers, deliver matching emails, return `{ fs, newDeliveries }`. Routes to home or nexacorp definitions based on `computer` (defaults to "nexacorp"); returns empty for `"devcontainer"` (no mail system). The optional `storyFlags` param is passed through to `matchesCommonTrigger()` for `after_story_flag` triggers AND into `getHomeEmailDefinitions()`, where it can be used by emails whose body branches on flags (e.g. `marcus_board_debrief` uses `getMarcusDebrief(storyFlags)` to select one of four bodies keyed off `accused_*`). Callers that re-seed delivered emails (`seedDeliveredEmails` from `gameStore.buildFs()` and `useComputerTransitions`) must also pass storyFlags so re-seeded bodies stay stable across FS rebuilds and save/load. |
-
-## Mail Command (`mail.ts`)
-
-| Usage | Action |
-|-------|--------|
-| `mail` | List inbox (unread count, message table) |
-| `mail <number>` | Read message by seq number (marks as read) |
-| `mail -s "subject" recipient` | Send/compose a message |
-
-## Delivery Flow
-
-1. Player executes a command in terminal
-2. `useTerminal` hook calls `checkEmailDeliveries()` with appropriate `GameEvent`
-3. System matches pending `EmailDelivery` definitions against trigger conditions
-4. Matching emails are written to `/var/mail/{username}/new/` via `deliverEmail()`
-5. `deliveredEmailIds` in Zustand state prevents duplicate delivery
-6. Player sees notification: `"You have new mail in /var/mail/{username}"`
-
-## Adding a New Email
-
-1. **Define the email** in the appropriate file:
-   - **NexaCorp emails**: `story/emails/nexacorp.ts` inside `getNexacorpEmailDefinitions()`
-   - **Home PC emails**: `story/emails/home.ts` inside `getHomeEmailDefinitions()`
-   ```ts
-   {
-     email: {
-       id: "unique_id",
-       from: "Sender <sender@nexacorp.com>",
-       to: `${username}@nexacorp.com`,
-       date: "Mon, 23 Feb 2026 10:00:00",
-       subject: "Subject line",
-       body: "Email body text...",
-     },
-     trigger: { type: "after_file_read", filePath: "/path/to/file" },
-   }
-   ```
-2. Choose the appropriate trigger type based on when the email should arrive.
-3. Immediate emails are seeded via `buildInitialMailFiles()` in `story/filesystem/nexacorp/index.ts` (NexaCorp) or `buildHomeMailFiles()` in `story/filesystem/home/system.ts` (home).
-
-## Character Reference
-
-When writing email content, read `docs/characters.md` for each character's personality, writing style, email tone, and mystery angle. Match their voice — e.g., Sarah is casual and direct ("hey", "lmk"), Maya is warm with genuine exclamation points, Marcus uses bullet points and short sentences.
-
-## Reply Options & Inline Prompt System
-
-Emails can define `replyOptions` to present numbered choices when the player reads them. This integrates with the generic prompt system in `src/engine/prompt/`.
-
-### Architecture
-
-```
-src/engine/prompt/
-├── types.ts          # PromptOption, PromptSessionInfo, PromptResult
-└── PromptSession.ts  # Renders prompt, validates input, resolves selection
-```
-
-### How It Works
-
-1. `mail <n>` reads an email; the mail command checks `getEmailDefinitions()` for matching `replyOptions`
-2. If found, numbered options are appended to the message output and a `promptSession` is returned in `CommandResult`
-3. `useTerminal` creates a `PromptSession` and routes input to it
-4. Player types a number + Enter; the session saves a reply to `sent/`, fires `triggerEvents`, and returns to normal prompt
-5. Ctrl+C cancels without sending
-
-The reply's `Date:` header is stamped from the live in-game clock (`gameNowFor()`) at the moment the player picks an option, so it matches `date` and other game-time outputs — not derived from the original email's date.
-
-### Adding Reply Options to an Email
-
-Add `replyOptions` to any `EmailDelivery` in `emails.ts`:
-```ts
-{
-  email: { id: "welcome_edward", ... },
-  trigger: { type: "immediate" },
-  replyOptions: [
-    { label: "Option A", replyBody: "Reply text for option A..." },
-    { label: "Option B", replyBody: "Reply text for option B...",
-      triggerEvents: [{ type: "objective_completed", detail: "some_objective" }] },
-  ],
-}
-```
-
-### Story Flag Processing via `useSessionRouter`
-
-When a prompt session exits with `triggerEvents`, `useSessionRouter.routeInput()` processes them:
-1. Checks each event against `checkEmailDeliveries()` to deliver follow-up emails
-2. Processes matching events to set story flags
-
-This mirrors the story flag processing in `computeEffects()` (`applyResult.ts`) but handles events originating from prompt sessions rather than commands.
-
-### `PromptSession` Input Handling
-
-- **Digits**: Echoed to terminal, buffered
-- **Enter**: Validates selection (1-N), resolves or shows error + re-prompts
-- **Backspace**: Deletes last digit
-- **Ctrl+C**: Cancels, returns to normal prompt
-
-## Design Patterns
-
-- **Immutable FS**: All mutations return new `VirtualFS` instances
-- **Pure functions**: Utilities have no side effects
-- **Event-driven delivery**: `GameEvent` union type triggers emails
-- **Duplication prevention**: `deliveredIds` array tracked in persisted Zustand state
-- **Maildir standard**: RFC-compatible layout (new/cur/sent)
-
-## Narrative Email Reference
-
-### NexaCorp Emails (`story/emails/nexacorp.ts`)
-
-| ID | From | Trigger | Narrative Purpose |
-|----|------|---------|-------------------|
-| `welcome_edward` | Edward Torres | immediate | Establish CTO, mention Piper + Jin Chen |
-| `it_provisioned` | NexaCorp IT | immediate | Teach `mail` command usage |
-| `oscar_coder_setup` | Oscar Diaz | after reading `/srv/engineering/onboarding.md` | Unlocks the `coder` command (sets `coder_unlocked`) |
-| `edward_paranoid` | Edward Torres | after reading `/srv/engineering/chen-handoff/notes.txt` | Casual check-in, supportive |
-| `maya_welcome` | Maya Johnson | after reading `it_provisioned` | HR welcome, team culture |
-| `edward_end_of_day` | Edward Torres | (complex trigger after Day 1 progress) | End-of-day debrief, hooks Chapter 3 |
-| `jessica_welcome` | Jessica Liu | after reading `welcome_edward` | Cross-team welcome from another department |
-| `tom_welcome` | Tom Park | after reading `welcome_edward` | Cross-team welcome from another department |
-
-*Casual colleague interactions (Sarah, Oscar, Dana, Auri, Jordan) live primarily in Piper — see the piper skill.*
-
-### Home PC Emails (`story/emails/home.ts`)
-
-| ID | From | Trigger | Narrative Purpose |
-|----|------|---------|-------------------|
-| `job_board_alert` | Indeed Job Alerts | immediate | Job listings, NexaCorp featured |
-| `backup_failure` | systemd | immediate | Surfaces a real bug in `~/scripts/backup.sh` for the backup quest (delivered via systemd `OnFailure=` notify template) |
-| `nexacorp_offer` | Edward Torres | immediate | The job offer (accept/reject reply options) |
-| `nexacorp_persuasion_1` | Edward Torres | after `rejected_nexacorp_1` objective | Sweetened deal after first rejection |
-| `nexacorp_persuasion_2` | Edward Torres | after `rejected_nexacorp_2` objective | Final personal pitch after second rejection |
-| `alex_good_news` | Alex Rivera | after `rejected_nexacorp_final` objective | Friend congratulates the player on (any) decision — soft landing for the dead end |
-| `nexacorp_followup` | Edward Torres | after `accepted_nexacorp` objective | Triggers transition to NexaCorp |
-| `chip_ssh_setup` | Edward Torres | after `accepted_nexacorp` objective | SSH onboarding instructions; reading it sets `ssh_unlocked` |
-| `marcus_board_debrief` | Marcus Reyes | `after_story_flag: returned_home_day2` + `accusation_made` | Day 2 board-meeting debrief; body branches on `accused_*` via `getMarcusDebrief(storyFlags)` |
-| `hr_security_freeze` | NexaCorp IT Security | `after_story_flag: returned_home_day2` + `pivoted_to_erik_pc` + `tracks_exposed_chapter4` | Day 2 audit consequence — arrives alongside `marcus_board_debrief` if the player pivoted to Erik's PC and left chipinfra's `~/.ssh/known_hosts` containing `nexacorp-lt05`. Scrubbing the file before `exit` suppresses it. One inline body branch on `accused_erik`. |
-
-### Home PC Reply Flow (Offer → Rejection → Persuasion Chain)
-
-The `nexacorp_offer` has two reply options: accept or reject.
-
-**Accept path** (at any stage): triggers `accepted_nexacorp` → delivers `nexacorp_followup` and `chip_ssh_setup` → reading the followup triggers the home→NexaCorp transition.
-
-**Rejection chain:**
-1. **`nexacorp_offer`**: "I'm in! When do I start?" (`accepted_nexacorp`) / "Thanks, but I'll have to pass" (`rejected_nexacorp_1`)
-2. **`nexacorp_persuasion_1`**: "Alright, you've convinced me" (`accepted_nexacorp`) / "I'm still going to pass" (`rejected_nexacorp_2`)
-3. **`nexacorp_persuasion_2`**: "Okay, I'll give it a shot" (`accepted_nexacorp` + `salary_180k`) / "My answer is final — good luck" (`rejected_nexacorp_final`)
-
-If the player rejects all three times (`rejected_nexacorp_final`), `alex_good_news` arrives as the soft landing — the recruitment thread closes but no transition happens.
+The full email roster (IDs, senders, triggers, narrative purpose) is the set of definitions in `story/emails/*.ts` — read them there rather than a mirror. The one flow worth stating: the home `nexacorp_offer` → accept (any stage) delivers `nexacorp_followup` + `chip_ssh_setup` and the followup-read triggers the transition; reject cascades through `nexacorp_persuasion_1` → `_2` → `rejected_nexacorp_final` (dead end, `alex_good_news` soft landing).
