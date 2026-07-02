@@ -798,17 +798,26 @@ describe("git pull (fast-forward to remote-tracking ref)", () => {
     expect(pull.error).toContain("would be overwritten");
   });
 
-  it("does NOT fast-forward when the tracking ref equals local (falls through)", () => {
+  it("reports up to date when the tracking ref equals local on an unregistered remote", () => {
     let fs = initRepo(makeFs());
     fs = fs.writeFile("/home/player/a.txt", "v1").fs!;
     fs = addAndCommit(fs, "/home/player", "first");
     const c0 = resolveHead(fs, "/home/player")!;
     fs = fs.writeFile("/home/player/.git/refs/remotes/origin/main", c0).fs!; // equal → not behind
     fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
-    // No REMOTE_REPOS entry for "test-remote" → it falls through to the getUpdates path,
-    // proving the new branch did not fire.
     const pull = gitPull(fs, "/home/player", undefined, undefined, {});
-    expect(pull.error).toContain("repository 'test-remote' not found");
+    expect(pull.error).toBeUndefined();
+    expect(pull.output).toBe("Already up to date.");
+  });
+
+  it("a second --ff-only pull after catching up is a no-op, not an error", () => {
+    let fs = seedBehindByTwo(makeFs());
+    fs = fs.writeFile("/home/player/.git/config", CONFIG).fs!;
+    const first = gitPull(fs, "/home/player", undefined, undefined, {}, true);
+    expect(first.output).toContain("Fast-forward");
+    const second = gitPull(first.fs, "/home/player", undefined, undefined, {}, true);
+    expect(second.error).toBeUndefined();
+    expect(second.output).toBe("Already up to date.");
   });
 
   it("--ff-only still fast-forwards when strictly behind", () => {

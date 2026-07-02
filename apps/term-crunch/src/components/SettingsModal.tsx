@@ -55,7 +55,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         spellCheck={false}
-        className="min-h-[180px] flex-1 resize-none rounded border border-[#1c2430] bg-[#0a0e14] p-3 font-mono text-xs leading-relaxed text-[#b3b1ad] focus:border-[#6b7680] focus:outline-none"
+        className="min-h-[240px] flex-1 resize-none overflow-x-auto whitespace-pre rounded border border-[#1c2430] bg-[#0a0e14] p-3 font-mono text-xs leading-relaxed text-[#b3b1ad] focus:border-[#6b7680] focus:outline-none"
       />
     </div>
   );
@@ -66,7 +66,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       onMouseDown={onClose}
     >
       <div
-        className="flex max-h-full w-full max-w-3xl flex-col gap-4 rounded-lg border border-[#1c2430] bg-[#0d1117] p-5 text-[#b3b1ad] shadow-2xl"
+        className="flex h-[80vh] max-h-full w-full max-w-6xl flex-col gap-4 rounded-lg border border-[#1c2430] bg-[#0d1117] p-5 text-[#b3b1ad] shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

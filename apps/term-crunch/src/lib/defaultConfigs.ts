@@ -1,16 +1,9 @@
 /**
- * Default `~/.zshrc` and `~/.tmux.conf` shipped in the Settings editor. They are
- * real, working configs (parsed by the shared `@tt/core` parsers), not just
- * documentation: the tmux.conf reproduces term-crunch's built-in look + binds,
- * and the zshrc seeds a couple of illustrative aliases/exports so editing them
- * has a visible effect. Players can rewrite either; "Reset to defaults" restores
- * these strings.
+ * Default `~/.zshrc` and `~/.tmux.conf` shipped in the Settings editor. 
+ * They are real, working configs (parsed by the shared `@tt/core` parsers)
  */
 
-/** Reproduces the built-in status-bar palette, prefix, and vim pane binds. */
-export const DEFAULT_TMUX_CONF = `# ~/.tmux.conf — edit me, then Save to apply live.
-
-# Prefix key (try C-a). Supported: C-Space or C-<letter>.
+export const DEFAULT_TMUX_CONF = `# Prefix key. Supported: C-Space or C-<letter>.
 set -g prefix C-Space
 
 # Status-bar colors (named ANSI colors or hex; "default" = transparent).
@@ -31,11 +24,7 @@ bind -r K resize-pane -U 5
 bind -r L resize-pane -R 5
 `;
 
-/** Generic, oh-my-zsh-style aliases + an export so editing the zshrc is visible. */
-export const DEFAULT_ZSHRC = `# ~/.zshrc — edit me, then Save to apply live.
-# Aliases and exports here are active in every challenge.
-
-# Navigation
+export const DEFAULT_ZSHRC = `# Navigation
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'

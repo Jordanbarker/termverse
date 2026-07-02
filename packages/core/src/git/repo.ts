@@ -1108,6 +1108,12 @@ export function gitPull(
 
   const remoteDef = REMOTE_REPOS[remoteUrl];
   if (!remoteDef) {
+    // Unregistered remote with a seeded tracking ref: if the branch is caught up
+    // to (or ahead of) the tracking tip, a repeat pull is a no-op, not a failure.
+    if (localTip && trackingTip &&
+        (localTip === trackingTip || ancestorSet(fs, root, localTip).has(trackingTip))) {
+      return { fs, output: "Already up to date." };
+    }
     return { fs, output: "", error: `fatal: repository '${remoteUrl}' not found` };
   }
 
