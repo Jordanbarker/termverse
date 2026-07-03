@@ -344,6 +344,12 @@ export const HELP_TEXTS: Record<string, string> = {
     "Display manual page for COMMAND.",
   ].join("\n"),
 
+  shortcuts: [
+    "Usage: shortcuts",
+    "",
+    "Show keyboard shortcuts for the command line, scrollback, and terminal tabs.",
+  ].join("\n"),
+
   df: [
     "Usage: df [-h]",
     "",

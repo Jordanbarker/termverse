@@ -98,4 +98,4 @@ function getCommandDescription(cmd: string): string {
   return descriptions[cmd] ?? cmd;
 }
 
-register("man", man, "Display manual pages", HELP_TEXTS.man);
+register("man", man, "Display a command's manual page: man <command>", HELP_TEXTS.man);

@@ -11,7 +11,7 @@ import { useGameStore } from "../state/gameStore";
  * blocks it at run time (via `execute`). A challenge with no `commands` list
  * keeps the engine default of allow-all.
  *
- * `help`, `clear`, and `man` are always available so the player can orient,
+ * `help`, `clear`, `man`, and `shortcuts` are always available so the player can orient,
  * reset, and read the manual, and the challenge-navigation builtins
  * (`challenges`/`goto`/`next`/`prev`/`track`, engine/commands/navigation.ts)
  * so the player can always move between challenges. `man` self-scopes:
@@ -22,7 +22,7 @@ import { useGameStore } from "../state/gameStore";
  * Mirrors termoil's src/story/availabilityPolicy.ts seam usage; the
  * current challenge is read lazily from the store so import order doesn't matter.
  */
-const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "challenges", "goto", "next", "prev", "track"]);
+const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "challenges", "goto", "next", "prev", "track"]);
 
 function isAvailable(commandName: string): boolean {
   const { activeCategory, challengeIndex } = useGameStore.getState();

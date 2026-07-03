@@ -8,6 +8,7 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   "pwd",
   "clear",
   "help",
+  "shortcuts",
   "mail",
   "nano",
   "piper",
@@ -88,7 +89,7 @@ export const DEVCONTAINER_ONLY: ReadonlySet<string> = new Set([
 
 /** Commands available in the Coder dev container. */
 export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
-  "ls", "cd", "cat", "pwd", "clear", "help", "nano", "python", "python3", "dbt",
+  "ls", "cd", "cat", "pwd", "clear", "help", "shortcuts", "nano", "python", "python3", "dbt",
   "snow", "chip", "grep", "find", "diff", "head", "tail", "wc", "less",
   "sort", "uniq", "echo", "whoami", "hostname", "file", "tree",
   "date", "which", "command", "type", "man", "mkdir", "rm", "mv", "cp", "touch", "chmod",

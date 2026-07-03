@@ -5,6 +5,7 @@ import "./cd";
 import "./cat";
 import "./clear";
 import "./help";
+import "./shortcuts";
 import "./nano";
 import "./python";
 import "./snow";

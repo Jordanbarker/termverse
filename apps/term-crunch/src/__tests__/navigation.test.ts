@@ -87,6 +87,17 @@ describe("challenge navigation commands", () => {
     }
   });
 
+  it("help lists shortcuts; shortcuts prints the full reference", () => {
+    const helpOut = strip(run("help").output);
+    expect(helpOut).toContain("shortcuts");
+    expect(helpOut).not.toContain("Keyboard shortcuts:");
+
+    const out = strip(run("shortcuts").output);
+    expect(out).toContain("Keyboard shortcuts:");
+    expect(out).toContain("Command line:");
+    expect(out).toContain("Scrollback:");
+  });
+
   it("track lists, validates, and queues a category switch", () => {
     const listing = strip(run("track").output);
     expect(listing).toContain("[all]");

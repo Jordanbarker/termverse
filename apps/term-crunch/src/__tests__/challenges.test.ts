@@ -838,11 +838,12 @@ describe("per-challenge command allowlist", () => {
   beforeAll(() => setAvailabilityPolicy(CRUNCH_AVAILABILITY_POLICY));
   afterAll(() => resetAvailabilityPolicy());
 
-  it("always allows help, clear, and man, regardless of the challenge list", () => {
+  it("always allows help, clear, man, and shortcuts, regardless of the challenge list", () => {
     select("panes-split"); // commands: []
     expect(isCommandAvailable("help", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("clear", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("man", CRUNCH_MACHINE)).toBe(true);
+    expect(isCommandAvailable("shortcuts", CRUNCH_MACHINE)).toBe(true);
   });
 
   it("allows exactly the listed commands (plus help/clear) and hides the rest", () => {
@@ -854,7 +855,7 @@ describe("per-challenge command allowlist", () => {
     expect(isCommandAvailable("rm", CRUNCH_MACHINE)).toBe(false);
 
     const listed = getAvailableCommands(CRUNCH_MACHINE).map((c) => c.name).sort();
-    expect(listed).toEqual(["cat", "cd", "chmod", "clear", "help", "ls", "man", "pwd"]);
+    expect(listed).toEqual(["cat", "cd", "chmod", "clear", "help", "ls", "man", "pwd", "shortcuts"]);
   });
 
   it("blocks off-list commands with a friendly hint message", () => {
@@ -872,6 +873,6 @@ describe("per-challenge command allowlist", () => {
     // getAvailableCommands lists primaries only (no aliases leak in).
     const listed = getAvailableCommands(CRUNCH_MACHINE).map((c) => c.name);
     expect(listed).not.toContain("python3");
-    expect(listed.sort()).toEqual(["cat", "cd", "clear", "git", "help", "ls", "man", "pwd"]);
+    expect(listed.sort()).toEqual(["cat", "cd", "clear", "git", "help", "ls", "man", "pwd", "shortcuts"]);
   });
 });

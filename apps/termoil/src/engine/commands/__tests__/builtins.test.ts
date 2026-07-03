@@ -15,6 +15,7 @@ import "@tt/core/commands/builtins/cat";
 import "@tt/core/commands/builtins/pwd";
 import "@tt/core/commands/builtins/clear";
 import "@tt/core/commands/builtins/help";
+import "@tt/core/commands/builtins/shortcuts";
 import "@tt/core/commands/builtins/nano";
 import "../builtins/save";
 import "../builtins/load";
@@ -392,8 +393,17 @@ describe("help", () => {
     expect(result.output).toContain("cat");
   });
 
-  it("always shows command line and scrollback shortcuts", () => {
+  it("lists the shortcuts command instead of listing shortcuts inline", () => {
     const result = execute("help", [], {}, ctx());
+    expect(result.output).toContain("shortcuts");
+    expect(result.output).not.toContain("Keyboard shortcuts");
+    expect(result.output).not.toContain("Shift+PgUp/Down");
+  });
+});
+
+describe("shortcuts", () => {
+  it("always shows command line and scrollback shortcuts", () => {
+    const result = execute("shortcuts", [], {}, ctx());
     expect(result.output).toContain("Keyboard shortcuts");
     expect(result.output).toContain("Tab");
     expect(result.output).toContain("Ctrl+C");
@@ -405,7 +415,7 @@ describe("help", () => {
   });
 
   it("shows tab shortcuts when tabs_unlocked is set", () => {
-    const result = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
+    const result = execute("shortcuts", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
     expect(result.output).toContain("Terminal tabs");
     expect(result.output).toContain("Ctrl+Space, C");
     expect(result.output).toContain("Ctrl+Space, X");
@@ -413,21 +423,21 @@ describe("help", () => {
   });
 
   it("reflects a custom tab prefix from ~/.tmux.conf", () => {
-    const result = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true }, tabPrefixLabel: "Ctrl+B" });
+    const result = execute("shortcuts", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true }, tabPrefixLabel: "Ctrl+B" });
     expect(result.output).toContain("Ctrl+B, C");
   });
 
   it("shows the copy mode shortcut regardless of tabs_unlocked", () => {
-    const locked = execute("help", [], {}, ctx());
+    const locked = execute("shortcuts", [], {}, ctx());
     expect(locked.output).toContain("Copy mode");
     expect(locked.output).toContain("Ctrl+Space, [");
 
-    const unlocked = execute("help", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
+    const unlocked = execute("shortcuts", [], {}, { ...ctx(), storyFlags: { ...ALL_UNLOCKED, tabs_unlocked: true } });
     expect(unlocked.output).toContain("Copy mode");
   });
 
   it("hides tab shortcuts when tabs_unlocked is not set", () => {
-    const result = execute("help", [], {}, ctx());
+    const result = execute("shortcuts", [], {}, ctx());
     // Copy mode (and thus the bare prefix label) shows unconditionally, so assert
     // the absence of the tab-specific block rather than the prefix label itself.
     expect(result.output).not.toContain("Terminal tabs");
