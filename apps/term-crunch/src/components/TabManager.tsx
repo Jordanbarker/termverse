@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import "@xterm/xterm/css/xterm.css";
 
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
@@ -144,24 +144,10 @@ export default function TabManager() {
     toggleCopyModeHelp: () => setCopyModeHelpHidden((v) => !v),
   };
 
+  // Challenge (re)loads need no special handling here: loadChallenge builds its
+  // window with fresh (never-reset) pane ids, so the hook's [windows] mount
+  // effect disposes the old panes and creates+prompts the new ones.
   const tm = useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext });
-
-  // Challenge (re)load: tear down every pane so the hook's layout pass rebuilds
-  // them fresh (empty scrollback + a clean prompt). loadChallenge resets the
-  // pane-id counters, so the next challenge's pane reuses the previous one's id —
-  // without this the old terminal (and its scrollback) would be reused without a
-  // fresh prompt. Keyed on challengeStartTime, which is re-stamped on advance,
-  // restart, and track switch, but not on in-challenge pane/window mutations.
-  const challengeStartTime = useGameStore((s) => s.challengeStartTime);
-  const loadedChallengeRef = useRef(challengeStartTime);
-  useEffect(() => {
-    if (loadedChallengeRef.current === challengeStartTime) return;
-    loadedChallengeRef.current = challengeStartTime;
-    tm.disposeAllPanes();
-    // tm.disposeAllPanes only reads the hook's runtime map; keying on it would
-    // re-run the teardown every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [challengeStartTime]);
 
   const activeWindow = windows.find((w) => w.id === activeWindowId) ?? windows[0];
   const activeRect = useMemo(

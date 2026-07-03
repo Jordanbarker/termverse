@@ -122,8 +122,6 @@ export interface UseTabManagerResult {
   tabTheme: TabBarTheme;
   tabBindings: Record<string, PaneBinding>;
   getRuntime(paneId: string): PaneRuntime | undefined;
-  /** Tear down every pane so the next layout pass rebuilds them fresh (term-crunch challenge reload). */
-  disposeAllPanes(): void;
 }
 
 export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext }: UseTabManagerOptions): UseTabManagerResult {
@@ -350,10 +348,6 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     rt.containerEl.remove();
   }
 
-  function disposeAllPanes() {
-    for (const [id, rt] of runtimesRef.current) disposeRuntime(id, rt);
-    runtimesRef.current.clear();
-  }
 
   // Mount/unmount pane instances when the set of panes changes (split/close/window add).
   useEffect(() => {
@@ -479,6 +473,5 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     tabTheme,
     tabBindings,
     getRuntime: (paneId) => runtimesRef.current.get(paneId),
-    disposeAllPanes,
   };
 }

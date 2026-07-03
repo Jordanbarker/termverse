@@ -21,8 +21,8 @@ import type { Challenge } from "./types";
  * compares the whole tree against the target. Per-nudge delta is ~0.05–0.07,
  * so ±0.05 contains a reachable stopping point and overshoot is reversible.
  *
- * Both windows are BUILDERS so loadChallenge's resetPaneIdCounters() yields
- * fresh ids; the target is captured once since it never changes.
+ * Both windows are BUILDERS so each load mints fresh ids from the monotonic
+ * counters; the target is captured once since it never changes.
  */
 const COLUMN_RATIO = 0.3; // file tree 30% / build log 70% of the left column
 const ROOT_RATIO = 0.3; // left column 30% / editor 70% of the window

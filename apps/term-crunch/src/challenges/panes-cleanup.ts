@@ -15,9 +15,9 @@ import type { Challenge } from "./types";
  * the grid to `(h L L)`. Ratios/ids are ignored by paneTreeMatches, so where the
  * player leaves the dividers or which bottom pane they kill doesn't matter.
  *
- * `initialWindow` is a BUILDER (not stored data) because loadChallenge calls
- * resetPaneIdCounters() first — building here yields fresh, collision-free ids
- * even if the player splits mid-challenge (pane chords are always available).
+ * `initialWindow` is a BUILDER (not stored data) — each load mints fresh ids
+ * from the monotonic pane counters, so ids never collide across loads or with
+ * mid-challenge splits (pane chords are always available).
  */
 function buildInitialWindow(): WindowState {
   const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);

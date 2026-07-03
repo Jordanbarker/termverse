@@ -16,7 +16,6 @@ import {
   setSplitRatio,
   nudgeSplitRatio,
   mapLeaf,
-  resetPaneIdCounters,
 } from "@tt/core/terminal/paneTypes";
 import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";
 import { CRUNCH_MACHINE, HOME_DIR, MAX_PANES_PER_WINDOW, MAX_WINDOWS } from "../lib/machine";
@@ -130,7 +129,6 @@ export const useGameStore = create<GameState>()(
   loadChallenge: (index) => {
     const challenge = getCategory(get().activeCategory).challenges[index];
     if (!challenge) return;
-    resetPaneIdCounters();
     const { zshrc, tmuxConf } = get();
     // Seed the player's dotfiles on top of the fresh challenge fs, then activate
     // the zshrc's aliases/exports for the session (mirrors a login shell sourcing

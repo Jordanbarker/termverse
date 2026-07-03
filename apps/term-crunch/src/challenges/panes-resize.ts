@@ -15,8 +15,8 @@ import type { Challenge } from "./types";
  * 70%" is `ratio ≈ 0.70`. Per-nudge delta is ~0.05–0.07, so ±0.05 reliably
  * contains a reachable stopping point (and overshooting is reversible — no lock).
  *
- * Both windows are BUILDERS so loadChallenge's resetPaneIdCounters() yields fresh
- * ids; the target is captured once since it never changes.
+ * Both windows are BUILDERS so each load mints fresh ids from the monotonic
+ * counters; the target is captured once since it never changes.
  */
 const TARGET_RATIO = 0.7;
 const RATIO_TOLERANCE = 0.05;

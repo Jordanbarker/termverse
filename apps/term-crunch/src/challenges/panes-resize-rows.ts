@@ -16,8 +16,8 @@ import type { Challenge } from "./types";
  * ~0.05–0.07 → ±0.05 always contains a reachable stopping point, and
  * overshooting is reversible via K.
  *
- * Both windows are BUILDERS so loadChallenge's resetPaneIdCounters() yields
- * fresh ids; the target is captured once since it never changes.
+ * Both windows are BUILDERS so each load mints fresh ids from the monotonic
+ * counters; the target is captured once since it never changes.
  */
 const TARGET_RATIO = 0.7;
 const RATIO_TOLERANCE = 0.05;

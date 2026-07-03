@@ -48,10 +48,11 @@ export interface Challenge {
   /** Pane challenges: the layout the player must reproduce (RIGHT schematic). */
   targetWindow?: WindowState;
   /**
-   * Pane cleanup/resize challenges: a builder for the messy STARTING layout,
-   * invoked by loadChallenge AFTER resetPaneIdCounters() so ids are fresh and
-   * collision-free. A function (not data) because pane chords can mint new ids
-   * mid-challenge; omitted = start from a single pane (makeWindow).
+   * Pane cleanup/resize challenges: a builder for the messy STARTING layout.
+   * Each invocation mints fresh, never-reused pane ids (loadChallenge must NOT
+   * reset the counters — TabManager relies on new ids to tear down the previous
+   * challenge's terminals). A function (not data) because pane chords can mint
+   * new ids mid-challenge; omitted = start from a single pane (makeWindow).
    */
   initialWindow?: () => WindowState;
   /** Window challenges: the window strip the player must reproduce (RIGHT schematic). */

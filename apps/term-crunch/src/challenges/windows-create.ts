@@ -1,15 +1,13 @@
-import { makeWindow, resetPaneIdCounters, type WindowState } from "@tt/core/terminal/paneTypes";
+import { makeWindow, type WindowState } from "@tt/core/terminal/paneTypes";
 import { CRUNCH_MACHINE, HOME_DIR } from "../lib/machine";
 import type { Challenge } from "./types";
 
 /**
  * Target = three windows, one of them renamed. Built with the same pure
- * `makeWindow` helper the player drives (ids differ but the strip schematic
- * shows count + labels, not ids). `resetPaneIdCounters` once before the loop
- * gives the constructed windows sequential, non-colliding ids.
+ * `makeWindow` helper the player drives — the monotonic id counters keep the
+ * ids non-colliding, and the strip schematic shows count + labels, not ids.
  */
 function buildTargetWindows(): WindowState[] {
-  resetPaneIdCounters();
   const wins: WindowState[] = [];
   for (let i = 0; i < 3; i++) {
     const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
