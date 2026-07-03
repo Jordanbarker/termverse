@@ -26,6 +26,7 @@ import { structKey, paneTreeMatches } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { runLine } from "../hooks/useTerminal";
 import { panesSplit } from "../challenges/panes-split";
+import { panesGrid } from "../challenges/panes-grid";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import { gitStashChallenge } from "../challenges/git-stash";
@@ -73,6 +74,35 @@ describe("panes-split challenge", () => {
     const win2: WindowState = { ...win, root: r2.root, activePaneId: r2.newPaneId };
     expect(structKey(win2.root)).toBe("(h L (v L L))");
     expect(panesSplit.steps[0].isComplete(snap(win2))).toBe(true);
+  });
+});
+
+describe("panes-grid challenge", () => {
+  const step = panesGrid.steps[0];
+
+  it("matches only once both columns are split into two rows each", () => {
+    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+
+    // single pane: not yet matching
+    expect(step.isComplete(snap(win))).toBe(false);
+
+    // two columns: (h L L) — not yet
+    const cols = splitNode(win.root, win.activePaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    const winCols: WindowState = { ...win, root: cols.root, activePaneId: cols.newPaneId };
+    expect(structKey(winCols.root)).toBe("(h L L)");
+    expect(step.isComplete(snap(winCols))).toBe(false);
+
+    // only the left column split: (h (v L L) L) — still not a full grid
+    const left = splitNode(cols.root, win.activePaneId, "v", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    const winLeft: WindowState = { ...win, root: left.root, activePaneId: left.newPaneId };
+    expect(structKey(winLeft.root)).toBe("(h (v L L) L)");
+    expect(step.isComplete(snap(winLeft))).toBe(false);
+
+    // split the right column too: (h (v L L) (v L L)) — complete
+    const right = splitNode(left.root, cols.newPaneId, "v", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    const winGrid: WindowState = { ...win, root: right.root, activePaneId: right.newPaneId };
+    expect(structKey(winGrid.root)).toBe("(h (v L L) (v L L))");
+    expect(step.isComplete(snap(winGrid))).toBe(true);
   });
 });
 

@@ -1,4 +1,5 @@
 import { panesSplit } from "./panes-split";
+import { panesGrid } from "./panes-grid";
 import { windowsCreate } from "./windows-create";
 import { gitFirstCommit } from "./git-first-commit";
 import { gitStashChallenge } from "./git-stash";
@@ -9,4 +10,4 @@ import { chmodPerms } from "./chmod-perms";
 import type { Challenge } from "./types";
 
 /** Ordered, linear progression. The player advances one challenge at a time. */
-export const CHALLENGES: Challenge[] = [panesSplit, windowsCreate, gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms];
+export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, windowsCreate, gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms];
