@@ -138,7 +138,9 @@ export const useGameStore = create<GameState>()(
     const fs = applyConfigs(challenge.setup(buildBaseFs()), zshrc, tmuxConf);
     // Git challenges drop the player inside the seeded repo (gitRepoPath) so they
     // don't have to `cd` in before any git command works; everything else starts at ~.
-    const win = makeWindow(CRUNCH_MACHINE, challenge.gitRepoPath ?? HOME_DIR);
+    const win = challenge.initialWindow
+      ? challenge.initialWindow()
+      : makeWindow(CRUNCH_MACHINE, challenge.gitRepoPath ?? HOME_DIR);
     set({
       fs,
       envVars: parseEnvAssignments(zshrc),

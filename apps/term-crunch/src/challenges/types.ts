@@ -47,6 +47,13 @@ export interface Challenge {
   setup: (base: VirtualFS) => VirtualFS;
   /** Pane challenges: the layout the player must reproduce (RIGHT schematic). */
   targetWindow?: WindowState;
+  /**
+   * Pane cleanup/resize challenges: a builder for the messy STARTING layout,
+   * invoked by loadChallenge AFTER resetPaneIdCounters() so ids are fresh and
+   * collision-free. A function (not data) because pane chords can mint new ids
+   * mid-challenge; omitted = start from a single pane (makeWindow).
+   */
+  initialWindow?: () => WindowState;
   /** Window challenges: the window strip the player must reproduce (RIGHT schematic). */
   targetWindows?: WindowState[];
   /** Git challenges: the repo path validators + the panel readout point at. */

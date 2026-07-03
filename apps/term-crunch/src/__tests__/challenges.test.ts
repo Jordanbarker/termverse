@@ -16,6 +16,8 @@ import {
   makeWindow,
   makeLeaf,
   splitNode,
+  collapsePane,
+  allLeaves,
   resetPaneIdCounters,
   type WindowState,
 } from "@tt/core/terminal/paneTypes";
@@ -27,6 +29,7 @@ import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { runLine } from "../hooks/useTerminal";
 import { panesSplit } from "../challenges/panes-split";
 import { panesGrid } from "../challenges/panes-grid";
+import { panesCleanup } from "../challenges/panes-cleanup";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import { gitStashChallenge } from "../challenges/git-stash";
@@ -104,6 +107,44 @@ describe("panes-grid challenge", () => {
     const winGrid: WindowState = { ...win, root: right.root, activePaneId: right.newPaneId };
     expect(structKey(winGrid.root)).toBe("(h (v L L) (v L L))");
     expect(step.isComplete(snap(winGrid))).toBe(true);
+  });
+});
+
+describe("panes-cleanup challenge", () => {
+  const step = panesCleanup.steps[0];
+
+  it("seeds a 2×2 grid that does not yet satisfy the two-column target", () => {
+    const win = panesCleanup.initialWindow!();
+    expect(structKey(win.root)).toBe("(h (v L L) (v L L))");
+    expect(step.isComplete(snap(win))).toBe(false);
+  });
+
+  it("completes once each column is collapsed to a single pane: (h L L)", () => {
+    const win = panesCleanup.initialWindow!();
+    // in-order leaves: [left-top, left-bottom, right-top, right-bottom]
+    const leaves = allLeaves(win.root);
+    expect(leaves).toHaveLength(4);
+
+    // kill left-bottom → left column collapses to a single leaf
+    const afterLeft = collapsePane(win.root, leaves[1].id)!;
+    expect(structKey(afterLeft)).toBe("(h L (v L L))");
+    expect(step.isComplete(snap({ ...win, root: afterLeft, activePaneId: leaves[0].id }))).toBe(false);
+
+    // kill right-bottom → right column collapses too → (h L L)
+    const afterRight = collapsePane(afterLeft, leaves[3].id)!;
+    expect(structKey(afterRight)).toBe("(h L L)");
+    expect(step.isComplete(snap({ ...win, root: afterRight, activePaneId: leaves[0].id }))).toBe(true);
+  });
+
+  it("mints fresh, internally-unique ids on each build (as loadChallenge does)", () => {
+    resetPaneIdCounters();
+    const a = panesCleanup.initialWindow!();
+    resetPaneIdCounters();
+    const b = panesCleanup.initialWindow!();
+    for (const w of [a, b]) {
+      const ids = allLeaves(w.root).map((l) => l.id);
+      expect(new Set(ids).size).toBe(ids.length); // no dup ids within a tree
+    }
   });
 });
 
@@ -604,6 +645,12 @@ describe("starting cwd", () => {
   it("starts non-git challenges at HOME_DIR", () => {
     useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "panes-split"));
     expect(leafCwd()).toBe(HOME_DIR);
+  });
+
+  it("seeds the multi-pane initialWindow for cleanup challenges", () => {
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "panes-cleanup"));
+    const win = useGameStore.getState().windows[0];
+    expect(structKey(win.root)).toBe("(h (v L L) (v L L))");
   });
 });
 
