@@ -268,6 +268,87 @@ describe("CopyModeController", () => {
     expect(term.scrollLinesCalls).toEqual([]);
   });
 
+  it("scrolls a full page up/down on Ctrl+B / Ctrl+F and PageUp/PageDown", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 10, cursorX: 0, cursorY: 9, baseY: 40, viewportY: 40, length: 100,
+    });
+    controller.enter(); // cursor row = 49
+    controller.handleKeydown(key("b", true)); // full page = 10 -> row 39
+    expect(term.lastSelect()).toEqual([0, 39, 1]);
+    expect(term.scrollLinesCalls).toContain(-10);
+    controller.handleKeydown(key("f", true)); // -> row 49
+    expect(term.lastSelect()).toEqual([0, 49, 1]);
+    expect(term.scrollLinesCalls).toContain(10);
+    controller.handleKeydown(key("PageUp")); // -> row 39
+    expect(term.lastSelect()).toEqual([0, 39, 1]);
+    controller.handleKeydown(key("PageDown")); // -> row 49
+    expect(term.lastSelect()).toEqual([0, 49, 1]);
+  });
+
+  it("treats plain b as a word motion, not a page (only Ctrl+B pages)", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 5, cursorX: 8, cursorY: 0, baseY: 0, length: 3,
+      lines: { 0: "foo bar baz" },
+    });
+    controller.enter(); // cursor at 'b' of "baz" (col 8)
+    controller.handleKeydown(key("b")); // no ctrl -> back one word to "bar" (col 4)
+    expect(term.lastSelect()).toEqual([4, 0, 1]);
+    expect(term.scrollLinesCalls).toEqual([]); // did not page
+  });
+
+  it("jumps to the first non-blank column on ^", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 5, cursorX: 10, cursorY: 0, baseY: 0, length: 1,
+      lines: { 0: "    hello" }, // first non-blank at col 4
+    });
+    controller.enter();
+    controller.handleKeydown(key("^"));
+    expect(term.lastSelect()).toEqual([4, 0, 1]);
+    controller.handleKeydown(key("0")); // 0 still goes to absolute col 0
+    expect(term.lastSelect()).toEqual([0, 0, 1]);
+  });
+
+  it("jumps to top / middle / bottom of the visible screen on H / M / L", () => {
+    const { term, controller } = setup({
+      cols: 80, rows: 10, cursorX: 0, cursorY: 5, baseY: 20, viewportY: 20, length: 60,
+    });
+    controller.enter();
+    controller.handleKeydown(key("H")); // top -> viewportY = 20
+    expect(term.lastSelect()).toEqual([0, 20, 1]);
+    controller.handleKeydown(key("M")); // middle -> 20 + floor(9/2) = 24
+    expect(term.lastSelect()).toEqual([0, 24, 1]);
+    controller.handleKeydown(key("L")); // bottom -> 20 + 10 - 1 = 29
+    expect(term.lastSelect()).toEqual([0, 29, 1]);
+  });
+
+  it("hops words with w / b / e (whitespace-delimited, wrapping lines)", () => {
+    const mk = () => setup({
+      cols: 80, rows: 5, cursorX: 0, cursorY: 0, baseY: 0, length: 3,
+      lines: { 0: "foo.bar baz", 1: "next line", 2: "" },
+    });
+
+    // w: start of next word; punctuation is part of the word (tmux semantics).
+    const fwd = mk();
+    fwd.controller.enter(); // (0,0) on "foo.bar"
+    fwd.controller.handleKeydown(key("w"));
+    expect(fwd.term.lastSelect()).toEqual([8, 0, 1]); // "baz"
+    fwd.controller.handleKeydown(key("w")); // wraps to next line -> "next"
+    expect(fwd.term.lastSelect()).toEqual([0, 1, 1]);
+
+    // e: end of next word.
+    const end = mk();
+    end.controller.enter(); // (0,0)
+    end.controller.handleKeydown(key("e"));
+    expect(end.term.lastSelect()).toEqual([6, 0, 1]); // last char of "foo.bar"
+
+    // b: start of previous word, wrapping back across the line boundary.
+    const back = mk();
+    back.controller.enter();
+    back.controller.handleKeydown(key("j")); // -> row 1 "next line"
+    back.controller.handleKeydown(key("b")); // back to "baz" on row 0
+    expect(back.term.lastSelect()).toEqual([8, 0, 1]);
+  });
+
   it("fires onToggleHelp on `?` and consumes the key without exiting", () => {
     const { controller, onToggleHelp } = setup();
     controller.enter();

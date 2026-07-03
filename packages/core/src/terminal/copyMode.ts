@@ -67,7 +67,7 @@ const EOL_COL = Number.MAX_SAFE_INTEGER;
 
 /** One-line key hint shown in the COPY MODE overlay (expanded). */
 export const COPY_MODE_HINT =
-  " · hjkl/arrows move · 0/$ line · g/G top/bot · ^u/^d half-page · v select · y yank · esc exit · ? hide";
+  " · hjkl move · w/b/e word · 0/^/$ line · g/G top/bot · H/M/L screen · ^u/^d ^b/^f page · v select · y yank · esc exit · ? hide";
 /** Collapsed hint shown when the help overlay is toggled off. */
 export const COPY_MODE_HINT_HIDDEN = " · ? help";
 
@@ -212,15 +212,56 @@ export class CopyModeController {
         // Plain u/d are unbound in copy mode — swallow them unchanged.
         if (!e.ctrlKey) return true;
         const half = Math.max(1, Math.floor(this.term.rows / 2));
-        const prevRow = this.cursor.row;
-        const dir = e.key.toLowerCase() === "u" ? -1 : 1;
-        this.cursor.row = Math.min(maxRow, Math.max(0, prevRow + dir * half));
-        this.cursor.col = this.clampCol(this.desiredCol, this.cursor.row);
-        // Scroll the viewport with the cursor so it keeps its on-screen row;
-        // ensureVisible() below corrects at the buffer edges.
-        this.term.scrollLines(this.cursor.row - prevRow);
+        this.moveByRows(e.key.toLowerCase() === "u" ? -half : half);
         break;
       }
+      case "b":
+      case "B":
+        // Ctrl+B: full page up (tmux page-up). Plain b falls through to the
+        // word-motion handler below.
+        if (e.ctrlKey) {
+          this.moveByRows(-this.term.rows);
+          break;
+        }
+        this.wordBack();
+        break;
+      case "f":
+      case "F":
+        // Ctrl+F: full page down (tmux page-down). Plain f/F is find-char in vi,
+        // which we don't implement — swallow it.
+        if (!e.ctrlKey) return true;
+        this.moveByRows(this.term.rows);
+        break;
+      case "PageUp":
+        this.moveByRows(-this.term.rows);
+        break;
+      case "PageDown":
+        this.moveByRows(this.term.rows);
+        break;
+      case "^":
+        this.cursor.col = this.desiredCol = this.firstNonBlankColOfRow(this.cursor.row);
+        break;
+      case "H":
+        // Top of the visible screen.
+        this.cursor.row = Math.min(maxRow, buf.viewportY);
+        this.cursor.col = this.clampCol(this.desiredCol, this.cursor.row);
+        break;
+      case "M":
+        // Middle of the visible screen.
+        this.cursor.row = Math.min(maxRow, buf.viewportY + Math.floor((this.term.rows - 1) / 2));
+        this.cursor.col = this.clampCol(this.desiredCol, this.cursor.row);
+        break;
+      case "L":
+        // Bottom of the visible screen.
+        this.cursor.row = Math.min(maxRow, buf.viewportY + this.term.rows - 1);
+        this.cursor.col = this.clampCol(this.desiredCol, this.cursor.row);
+        break;
+      case "w":
+        this.wordForward();
+        break;
+      case "e":
+        this.wordEnd();
+        break;
       case "v":
         // Toggle the visual selection anchor on/off at the current cursor.
         this.anchor = this.anchor ? null : { ...this.cursor };
@@ -259,6 +300,105 @@ export class CopyModeController {
   /** Clamp a column to a row's last content column (0 for empty rows). */
   private clampCol(col: number, row: number): number {
     return Math.min(col, this.lastColOfRow(row));
+  }
+
+  /** Column of the first non-blank cell on a row (0 when blank/empty). */
+  private firstNonBlankColOfRow(row: number): number {
+    const line = this.term.buffer.active.getLine(row);
+    if (!line) return 0;
+    const i = line.translateToString(false).search(/\S/);
+    return i < 0 ? 0 : i;
+  }
+
+  /** Move the cursor by delta rows (clamped) and scroll the viewport to match. */
+  private moveByRows(delta: number): void {
+    const maxRow = Math.max(0, this.term.buffer.active.length - 1);
+    const prevRow = this.cursor.row;
+    this.cursor.row = Math.min(maxRow, Math.max(0, prevRow + delta));
+    this.cursor.col = this.clampCol(this.desiredCol, this.cursor.row);
+    // Scroll the viewport with the cursor so it keeps its on-screen row;
+    // ensureVisible() (called by the caller) corrects at the buffer edges.
+    this.term.scrollLines(this.cursor.row - prevRow);
+  }
+
+  /**
+   * Word motions use tmux's default word-separator semantics: separators are
+   * whitespace, so a "word" is a maximal run of non-whitespace (punctuation
+   * included). Motions wrap across lines and clamp at the buffer ends.
+   */
+  private isWordChar(p: Point): boolean {
+    const line = this.term.buffer.active.getLine(p.row);
+    const ch = line?.translateToString(false)[p.col];
+    return ch !== undefined && ch !== " " && ch !== "\t";
+  }
+
+  /** Next cell (line-wrapping), or null at the end of the buffer. */
+  private nextCell(p: Point): Point | null {
+    const maxRow = Math.max(0, this.term.buffer.active.length - 1);
+    if (p.col < this.lastColOfRow(p.row)) return { col: p.col + 1, row: p.row };
+    if (p.row < maxRow) return { col: 0, row: p.row + 1 };
+    return null;
+  }
+
+  /** Previous cell (line-wrapping), or null at the start of the buffer. */
+  private prevCell(p: Point): Point | null {
+    if (p.col > 0) return { col: p.col - 1, row: p.row };
+    if (p.row > 0) {
+      const row = p.row - 1;
+      return { col: this.lastColOfRow(row), row };
+    }
+    return null;
+  }
+
+  /**
+   * vi `w`: to the start of the next word. A line boundary always breaks a word
+   * (the end of one line and start of the next are never the same word), so the
+   * skip loops stop when the row changes.
+   */
+  private wordForward(): void {
+    let p: Point = this.cursor;
+    // Skip to the end of the current word within this row.
+    let n = this.nextCell(p);
+    while (n && this.isWordChar(p) && n.row === p.row && this.isWordChar(n)) {
+      p = n;
+      n = this.nextCell(p);
+    }
+    // Step off it, then skip whitespace / line gaps to the next word start.
+    let q = n;
+    while (q && !this.isWordChar(q)) q = this.nextCell(q);
+    if (q) this.setCursor(q);
+  }
+
+  /** vi `e`: to the end of the next word. */
+  private wordEnd(): void {
+    let p = this.nextCell(this.cursor);
+    while (p && !this.isWordChar(p)) p = this.nextCell(p);
+    // Advance to the last non-blank of this word (within its row).
+    while (p) {
+      const n = this.nextCell(p);
+      if (!n || n.row !== p.row || !this.isWordChar(n)) break;
+      p = n;
+    }
+    if (p) this.setCursor(p);
+  }
+
+  /** vi `b`: to the start of the previous word. */
+  private wordBack(): void {
+    let p = this.prevCell(this.cursor);
+    while (p && !this.isWordChar(p)) p = this.prevCell(p);
+    // Back up to the first non-blank of this word (within its row).
+    while (p) {
+      const pr = this.prevCell(p);
+      if (!pr || pr.row !== p.row || !this.isWordChar(pr)) break;
+      p = pr;
+    }
+    if (p) this.setCursor(p);
+  }
+
+  /** Set the cursor to a resolved point and sync the preferred column. */
+  private setCursor(p: Point): void {
+    this.cursor = { ...p };
+    this.desiredCol = p.col;
   }
 
   /** Scroll the viewport so the cursor row stays visible. */
