@@ -174,12 +174,19 @@ export const useGameStore = create<GameState>()(
       cwd: activeCwd(state.windows, state.activeWindowId),
     };
 
-    const step = challenge.steps[state.stepIndex];
-    if (!step || !step.isComplete(snap)) return;
+    // Cascade through every consecutive satisfied step: predicates are pure
+    // state checks, so out-of-order play (e.g. renaming a window before
+    // opening the last one) can pre-satisfy a later step — without the
+    // cascade the player would park on an already-true step with no further
+    // action to re-trigger the check.
+    let stepIndex = state.stepIndex;
+    while (stepIndex < challenge.steps.length && challenge.steps[stepIndex].isComplete(snap)) {
+      stepIndex++;
+    }
+    if (stepIndex === state.stepIndex) return; // current step not satisfied
 
-    // This step passed. Advance within the challenge, or to the next challenge.
-    if (state.stepIndex + 1 < challenge.steps.length) {
-      set({ stepIndex: state.stepIndex + 1, flash: "✓ Step complete" });
+    if (stepIndex < challenge.steps.length) {
+      set({ stepIndex, flash: "✓ Step complete" });
       return;
     }
 

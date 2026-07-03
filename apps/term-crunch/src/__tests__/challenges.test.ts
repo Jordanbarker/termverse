@@ -690,6 +690,39 @@ describe("group-relative completion gate", () => {
   });
 });
 
+describe("out-of-order step completion (cascade)", () => {
+  // checkCompletion cascades through consecutive satisfied steps, so play
+  // that reaches the target state in a different order still completes.
+  const windowsCreateIndex = getCategory("all").challenges.findIndex((c) => c.id === "windows-create");
+  beforeAll(() => useGameStore.setState({ activeCategory: "all" }));
+  afterAll(() => {
+    useGameStore.setState({ activeCategory: "all" });
+    useGameStore.getState().loadChallenge(0);
+  });
+
+  it("create → rename → create completes windows-create", () => {
+    const state = useGameStore.getState;
+    state().loadChallenge(windowsCreateIndex);
+    state().newWindow(); // step 0: 2 windows
+    expect(state().stepIndex).toBe(1);
+    state().renameWindow(state().windows[1].id, "logs"); // pre-satisfies step 2
+    expect(state().stepIndex).toBe(1);
+    state().newWindow(); // step 1 passes, cascade consumes step 2 → done
+    expect(state().awaitingContinue).toBe(true);
+  });
+
+  it("rename first, then create twice, completes windows-create", () => {
+    const state = useGameStore.getState;
+    state().loadChallenge(windowsCreateIndex);
+    state().renameWindow(state().windows[0].id, "logs");
+    expect(state().stepIndex).toBe(0);
+    state().newWindow();
+    expect(state().stepIndex).toBe(1);
+    state().newWindow();
+    expect(state().awaitingContinue).toBe(true);
+  });
+});
+
 describe("starting cwd", () => {
   // loadChallenge resolves the challenge from the active category; pin it to "all"
   // so the global registry indices below line up, and restore afterward.
