@@ -27,7 +27,6 @@ import { buildBaseFs } from "../lib/seed";
 import { readGitState } from "../lib/gitState";
 import { structKey, paneTreeMatches, paneTreeMatchesWithRatio } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
-import { runLine } from "../hooks/useTerminal";
 import { panesSplit } from "../challenges/panes-split";
 import { panesGrid } from "../challenges/panes-grid";
 import { panesCleanup } from "../challenges/panes-cleanup";

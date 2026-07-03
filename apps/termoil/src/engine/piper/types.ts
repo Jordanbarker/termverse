@@ -1,5 +1,5 @@
 import { GameEvent } from "../mail/delivery";
-import { ComputerId, StoryFlags } from "../../state/types";
+import { ComputerId } from "../../state/types";
 
 export interface PiperMessage {
   id: string;

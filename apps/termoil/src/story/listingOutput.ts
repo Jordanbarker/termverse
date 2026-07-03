@@ -31,7 +31,7 @@ export function renderSavesList(): string {
     }
   }
   lines.push("");
-  lines.push(`Use ${colorize("save 1|2|3", ansi.cyan)} or ${colorize("load 1|2|3|auto", ansi.cyan)}`);
+  lines.push(`Use ${colorize("save 1|2|3", ansi.cyan)} or ${colorize("load 1|2|3", ansi.cyan)}`);
   return lines.join("\n");
 }
 

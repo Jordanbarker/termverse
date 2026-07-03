@@ -179,6 +179,13 @@ describe("grep", () => {
     expect(plain).toContain("hello foo");
   });
 
+  it("highlights every match on a line, not just the first", () => {
+    const fs = createTestFS().writeFile("/home/player/multi.txt", "foo bar foo baz foo\n").fs!;
+    const result = execute("grep", ["foo", "multi.txt"], {}, ctx(fs));
+    // each occurrence is wrapped in its own color escape
+    expect(result.output.split("\x1b[31m").length - 1).toBe(3);
+  });
+
   it("returns exit code 1 when no matches", () => {
     const result = execute("grep", ["zzzzz", "notes.txt"], {}, ctx());
     expect(result.exitCode).toBe(1);
@@ -1498,6 +1505,11 @@ describe("sort (additional)", () => {
     const result = execute("sort", ["data.txt"], { u: true }, ctx());
     const lines = result.output.split("\n");
     expect(lines).toEqual(["apple", "banana", "cherry"]);
+  });
+
+  it("-n -u dedupes by numeric key, keeping the first occurrence", () => {
+    const result = execute("sort", [], { n: true, u: true }, ctx(undefined, { stdin: "1.0\n2\n1\n02" }));
+    expect(result.output).toBe("1.0\n2");
   });
 });
 

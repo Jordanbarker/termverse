@@ -501,9 +501,9 @@ describe("load", () => {
     expect(result.gameAction).toEqual({ type: "load", slotId: "slot-2" });
   });
 
-  it("loads auto slot", () => {
+  it("rejects the removed auto slot", () => {
     const result = execute("load", ["auto"], {}, ctx());
-    expect(result.gameAction).toEqual({ type: "load", slotId: "auto" });
+    expect(result.output).toContain("invalid slot");
   });
 
   it("rejects invalid slot", () => {

@@ -49,6 +49,8 @@ const grep: CommandHandler = (args, flags, ctx) => {
     // Fall back to literal string matching
     regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), ignoreCase ? "i" : "");
   }
+  // Global variant so highlighting colors every match on a line, not just the first.
+  const highlightRegex = new RegExp(regex.source, regex.flags + "g");
 
   // Collect files to search
   const filesToSearch: { path: string; content: string }[] = [];
@@ -106,7 +108,7 @@ const grep: CommandHandler = (args, flags, ctx) => {
           // Highlight match in the line
           let displayLine = line;
           if (!invertMatch) {
-            displayLine = line.replace(regex, (m) => colorize(m, ansi.red, ansi.bold));
+            displayLine = line.replace(highlightRegex, (m) => colorize(m, ansi.red, ansi.bold));
           }
 
           const parts: string[] = [];

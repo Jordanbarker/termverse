@@ -58,7 +58,6 @@ export function listMatchingEntries(
       : entry.name.startsWith(prefix);
 
     if (!matches) continue;
-    if (!prefix && entry.name === prefix) continue;
 
     const displayName = entry.name + (isDirectory(entry) ? "/" : "");
     results.push({ name: entry.name, displayName });

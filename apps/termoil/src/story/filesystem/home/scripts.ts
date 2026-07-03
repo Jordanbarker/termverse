@@ -163,7 +163,7 @@ def apply_to_job(driver, job, dry_run=False):
 
         # Try to fill common form fields
         for selector, value in [
-            ("input[name*='name'], #input-applicant-name", PLAYER.displayName),
+            ("input[name*='name'], #input-applicant-name", "Ren"),
             ("input[name*='email'], #input-applicant-email", "ren@protonmail.com"),
         ]:
             try:

@@ -6,7 +6,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import TabBar from "./TabBar";
 import PaneDividers from "@tt/core/components/PaneDividers";
-import { useGameStore, getActiveLeaf, getActivePaneId } from "../../state/gameStore";
+import { useGameStore, getActiveLeaf, getActivePaneId, MAX_WINDOWS } from "../../state/gameStore";
 import { allLeaves, paneRects, nearestResizableSplit, nodeBox } from "@tt/core/terminal/paneTypes";
 import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
 import { useTerminal } from "../../hooks/useTerminal";
@@ -223,7 +223,7 @@ export default function TabManager() {
       const idx = store.windows.findIndex((w) => w.id === store.activeWindowId);
       const prevIdx = (idx - 1 + store.windows.length) % store.windows.length;
       store.setActiveWindow(store.windows[prevIdx].id);
-    } else if (key >= "1" && key <= "5") {
+    } else if (key >= "1" && key <= String(MAX_WINDOWS)) {
       // Jump to window N (windows stay 1-indexed; panes don't affect this)
       const winIdx = parseInt(key) - 1;
       if (winIdx < store.windows.length) {

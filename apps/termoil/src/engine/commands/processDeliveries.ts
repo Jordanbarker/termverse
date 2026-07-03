@@ -4,7 +4,7 @@ import { checkPiperDeliveries } from "../piper/delivery";
 import { getTriggersForComputer, checkStoryFlagTriggers } from "../narrative/storyFlags";
 import { ComputerId, StoryFlags } from "../../state/types";
 import { MachineId } from "@tt/core/machine";
-import { StoryFlagUpdate, DeliveryResult } from "@tt/core/commands/applyResult";
+import { DeliveryResult } from "@tt/core/commands/applyResult";
 
 export type { DeliveryResult };
 

@@ -397,7 +397,7 @@ export function useTerminal() {
     (term: Terminal, data: string) => {
       // Handle newgame confirmation prompt
       if (confirmNewGameRef.current) {
-        if (data === "\r" || data === "\n") return;
+        if (data === "" || data === "\r" || data === "\n") return;
         const ch = data[0].toLowerCase();
         confirmNewGameRef.current = false;
         if (ch === "y") {

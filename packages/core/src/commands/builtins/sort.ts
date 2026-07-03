@@ -40,11 +40,15 @@ const sort: CommandHandler = (args, flags, ctx) => {
   if (reverse) lines.reverse();
 
   if (unique) {
+    // GNU sort -u dedupes by sort key: with -n, numerically equal lines
+    // (e.g. "1" and "1.0") collapse to the first occurrence.
+    const keyOf = (line: string) => (numeric ? String(parseFloat(line) || 0) : line);
     const seen = new Set<string>();
     const deduped: string[] = [];
     for (const line of lines) {
-      if (!seen.has(line)) {
-        seen.add(line);
+      const key = keyOf(line);
+      if (!seen.has(key)) {
+        seen.add(key);
         deduped.push(line);
       }
     }

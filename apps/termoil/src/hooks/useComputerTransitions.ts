@@ -354,9 +354,6 @@ export function useComputerTransitions(deps: TransitionDeps) {
     writePrompt(term);
   }, [cwdRef, activeComputerRef, writePrompt]);
 
-  /** Backwards-compatible shim — callers that still ask for nexacorp explicitly. */
-  const runExitToNexacorp = useCallback((term: Terminal) => runExitToParent(term, "nexacorp"), [runExitToParent]);
-
   const runExitToHome = useCallback((term: Terminal) => {
     const store = useGameStore.getState();
 
@@ -608,7 +605,7 @@ export function useComputerTransitions(deps: TransitionDeps) {
       let newFs = new VirtualFS(root, `/home/${username}`, `/home/${username}`);
       const allDelivered = s.deliveredEmailIds;
       if (allDelivered.length > 0) {
-        newFs = seedDeliveredEmails(newFs, allDelivered, "home", username, readIds);
+        newFs = seedDeliveredEmails(newFs, allDelivered, "home", username, readIds, s.storyFlags);
       }
 
       // Preserve known_hosts from previous FS
@@ -645,7 +642,8 @@ export function useComputerTransitions(deps: TransitionDeps) {
         homeFs,
         shutdownEvent,
         [...latest.deliveredEmailIds],
-        "home"
+        "home",
+        latest.storyFlags
       );
       if (emailResult.newDeliveries.length > 0) {
         latest.setComputerFs("home", emailResult.fs);
@@ -869,5 +867,5 @@ export function useComputerTransitions(deps: TransitionDeps) {
     [runCoderTransition, runExitToParent, runSshTransition, runExitToHome, runTerminationTransition]
   );
 
-  return { runSshTransition, runCoderTransition, runExitToNexacorp, runExitToParent, runExitToHome, runShutdownTransition, runRebootTransition, runTerminationTransition, dispatchTransition };
+  return { runSshTransition, runCoderTransition, runExitToParent, runExitToHome, runShutdownTransition, runRebootTransition, runTerminationTransition, dispatchTransition };
 }

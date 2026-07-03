@@ -11,10 +11,10 @@ Code map: `engine/filesystem/serialization.ts` (`serializeFS`/`deserializeFS`, p
 
 ## Slots
 
-- **auto** — Zustand auto-persist, rebuilt on every state change via `partialize`, written through `createDebouncedStorage(1000)` (≤ once/sec). Key `termoil-save`.
+- **auto-persist** — Zustand auto-persist, rebuilt on every state change via `partialize`, written through `createDebouncedStorage(1000)` (≤ once/sec). Key `termoil-save`. Not a loadable slot — it rehydrates on page load via `merge`.
 - **slot-1/2/3** — manual. Keys `termoil-slot-{slotId}`.
 
-Terminal commands: `save`/`load` list slots; `save 1|2|3` saves; `load 1|2|3|auto` loads; `newgame` resets all state + reloads the page.
+Terminal commands: `save`/`load` list slots; `save 1|2|3` saves; `load 1|2|3` loads; `newgame` resets all state + reloads the page.
 
 ## What gets saved
 
@@ -27,7 +27,7 @@ Terminal commands: `save`/`load` list slots; `save 1|2|3` saves; `load 1|2|3|aut
 
 Plus plain narrative/identity fields (`username`, `gamePhase`, `currentChapter`, `completedObjectives`, `deliveredEmailIds`, `deliveredPiperIds`, `storyFlags`, `hasSeenIntro`).
 
-**Manual `SaveData` (via `save`) is a separate shape** (`saveTypes.ts`): it does **not** carry `hasSeenIntro`, `serializedSnowflake`, or `copyModeHelpHidden` — loading a manual slot keeps the live Snowflake state rather than restoring a snapshot.
+**Manual `SaveData` (via `save`) is a separate shape** (`saveTypes.ts`): it carries `serializedSnowflake` (restored + nexacorp FS re-bridged via `syncToVirtualFS` in `loadGame`, mirroring `merge`), but does **not** carry `hasSeenIntro` or `copyModeHelpHidden`.
 
 ## Updating for narrative progression
 

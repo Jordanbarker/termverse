@@ -206,8 +206,13 @@ export default function ChallengePanel() {
 function StepGoal({ step, hasBrief, resetKey }: { step: Step; hasBrief: boolean; resetKey: string }) {
   const [hintLevel, setHintLevel] = useState(0);
 
-  // Collapse hints back to hidden on every step/challenge change.
-  useEffect(() => setHintLevel(0), [resetKey]);
+  // Collapse hints back to hidden on every step/challenge change (render-time
+  // reset — see react.dev "You Might Not Need an Effect").
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    setHintLevel(0);
+  }
 
   const linkBtn =
     "self-start text-xs text-[#6b7680] underline decoration-dotted underline-offset-2 hover:text-[#e6b450]";

@@ -13,6 +13,9 @@ import { ComputerId } from "../types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
 import { deserializeFS } from "@tt/core/filesystem/serialization";
+import { SnowflakeState } from "@tt/core/snowflake/state";
+
+const emptySnowflake = () => new SnowflakeState({ databases: {}, warehouses: {} });
 
 /** A single-pane window for a given computer/cwd. */
 const win = (computerId: ComputerId, cwd: string) => makeWindow(computerId, cwd);
@@ -97,6 +100,7 @@ function createState(): SaveableState {
     windows: [win("nexacorp", "/home/player")],
     activeWindowIndex: 0,
     notifiedChipTopicIds: [],
+    snowflakeState: emptySnowflake(),
   };
 }
 
@@ -147,6 +151,13 @@ describe("createSaveData", () => {
     const data = createSaveData(state, "Test");
     state.zshHistory.nexacorp = "mutated";
     expect(data.zshHistory.nexacorp).toBe("ls\ncd docs\ncat readme.md\n");
+  });
+
+  it("serializes the snowflake state", () => {
+    const state = createState();
+    const data = createSaveData(state, "Test");
+    expect(data.serializedSnowflake).toBeDefined();
+    expect(data.serializedSnowflake.databases).toBeDefined();
   });
 
   it("serializes computerStates", () => {
@@ -223,11 +234,10 @@ describe("deleteSlot", () => {
 });
 
 describe("listSaveSlots", () => {
-  it("returns all 4 slots", () => {
+  it("returns all 3 slots", () => {
     const slots = listSaveSlots();
-    expect(slots).toHaveLength(4);
+    expect(slots).toHaveLength(3);
     expect(slots.map((s) => s.slotId)).toEqual([
-      "auto",
       "slot-1",
       "slot-2",
       "slot-3",
@@ -274,6 +284,7 @@ describe("multi-tab round-trip", () => {
       ],
       activeWindowIndex: 1,
       notifiedChipTopicIds: [],
+      snowflakeState: emptySnowflake(),
     };
 
     const data = createSaveData(state, "3-tab save");
@@ -311,6 +322,7 @@ describe("multi-tab round-trip", () => {
       ],
       activeWindowIndex: 0,
       notifiedChipTopicIds: [],
+      snowflakeState: emptySnowflake(),
     };
 
     const data = createSaveData(state, "isolation test");
@@ -341,6 +353,7 @@ describe("multi-tab round-trip", () => {
       windows: [win("nexacorp", "/home/player")],
       activeWindowIndex: 0,
       notifiedChipTopicIds: [],
+      snowflakeState: emptySnowflake(),
     };
 
     const data = createSaveData(state, "single window");
@@ -376,6 +389,7 @@ describe("multi-tab round-trip", () => {
       ],
       activeWindowIndex: 2,
       notifiedChipTopicIds: [],
+      snowflakeState: emptySnowflake(),
     };
 
     const data = createSaveData(state, "max tabs");

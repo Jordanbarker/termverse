@@ -304,8 +304,8 @@ export function focusDirectionTarget(
     return r.y >= cur.y + cur.h - 1e-6; // D
   });
   if (candidates.length === 0) return undefined;
-  // Prefer panes whose perpendicular range overlaps the current pane; among
-  // those, pick the closest edge. Fall back to nearest center when none overlap.
+  // Prefer panes whose perpendicular range overlaps the current pane; break
+  // ties by closest edge (also the fallback ordering when none overlap).
   const overlaps = (r: PaneRect) =>
     horizontal
       ? r.y < cur.y + cur.h - 1e-6 && r.y + r.h > cur.y + 1e-6

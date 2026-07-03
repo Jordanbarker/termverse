@@ -185,7 +185,3 @@ export async function runLine(
 
   return { startSession };
 }
-
-export function useTerminal() {
-  return { runLine, getPrompt };
-}

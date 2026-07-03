@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useGameStore } from "../../state/gameStore";
+import { useGameStore, MAX_WINDOWS } from "../../state/gameStore";
 import { PaneLeaf, allLeaves } from "@tt/core/terminal/paneTypes";
 import { windowLabel } from "@tt/core/terminal/windowLabel";
 import { COMPUTERS, ComputerId } from "../../state/types";
@@ -61,7 +61,7 @@ export default function TabBar({
   const hasMultipleComputers = availableComputers.length > 1;
 
   const handlePlusClick = () => {
-    if (windows.length >= 5) return;
+    if (windows.length >= MAX_WINDOWS) return;
     if (hasMultipleComputers) {
       setDropdownOpen(!dropdownOpen);
     } else {
@@ -92,7 +92,7 @@ export default function TabBar({
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={handlePlusClick}
-            disabled={windows.length >= 5}
+            disabled={windows.length >= MAX_WINDOWS}
             className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
             style={{ color: theme.statusFg }}
           >

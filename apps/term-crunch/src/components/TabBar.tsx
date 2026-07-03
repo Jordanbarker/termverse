@@ -2,6 +2,7 @@
 
 import { useGameStore } from "../state/gameStore";
 import { windowLabel } from "../lib/windowLabel";
+import { MAX_WINDOWS } from "../lib/machine";
 import TmuxStatusBar, { StatusBarTheme } from "@tt/core/components/TmuxStatusBar";
 
 interface TabBarProps {
@@ -40,7 +41,7 @@ export default function TabBar({
       trailing={
         <button
           onClick={onNewWindow}
-          disabled={windows.length >= 5}
+          disabled={windows.length >= MAX_WINDOWS}
           className="px-2 py-0.5 opacity-70 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
           style={{ color: theme.statusFg }}
         >

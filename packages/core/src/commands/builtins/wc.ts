@@ -6,6 +6,9 @@ import { formatSize } from "@tt/core/lib/formatSize";
 import { HELP_TEXTS } from "./helpTexts";
 
 function countStats(content: string): { lines: number; words: number; chars: number } {
+  // GNU wc -l counts \n chars, but this engine's convention is that file
+  // content and piped output are newline-joined WITHOUT a trailing \n
+  // (e.g. `ls | wc -l`), so the unterminated final line must count too.
   const lines = content === "" ? 0 : content.replace(/\n$/, "").split("\n").length;
   const words = content.trim() === "" ? 0 : content.trim().split(/\s+/).length;
   const chars = content.length;

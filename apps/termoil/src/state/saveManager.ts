@@ -9,6 +9,8 @@ import {
 } from "./saveTypes";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
 import { WindowState, serializeWindow } from "@tt/core/terminal/paneTypes";
+import { SnowflakeState } from "@tt/core/snowflake/state";
+import { serializeSnowflake } from "@tt/core/snowflake/serialization";
 
 const SLOT_KEY_PREFIX = "termoil-slot-";
 
@@ -16,7 +18,7 @@ function slotKey(slotId: SaveSlotId): string {
   return `${SLOT_KEY_PREFIX}${slotId}`;
 }
 
-export const ALL_SLOTS: SaveSlotId[] = ["auto", "slot-1", "slot-2", "slot-3"];
+export const ALL_SLOTS: SaveSlotId[] = ["slot-1", "slot-2", "slot-3"];
 
 export interface SaveableState {
   username: string;
@@ -31,6 +33,7 @@ export interface SaveableState {
   windows: WindowState[];
   activeWindowIndex: number;
   notifiedChipTopicIds: string[];
+  snowflakeState: SnowflakeState;
 }
 
 export function createSaveData(state: SaveableState, label: string): SaveData {
@@ -55,6 +58,7 @@ export function createSaveData(state: SaveableState, label: string): SaveData {
     windows: state.windows.map(serializeWindow),
     activeWindowIndex: state.activeWindowIndex >= 0 ? state.activeWindowIndex : 0,
     notifiedChipTopicIds: [...state.notifiedChipTopicIds],
+    serializedSnowflake: serializeSnowflake(state.snowflakeState),
   };
 }
 
@@ -118,7 +122,6 @@ export function listSaveSlots(): SaveSlotMeta[] {
 }
 
 export function formatSlotName(slotId: SaveSlotId): string {
-  if (slotId === "auto") return "Auto Save";
   return slotId.replace("slot-", "Slot ");
 }
 

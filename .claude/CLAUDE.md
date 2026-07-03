@@ -30,10 +30,11 @@ npm run dev:termoil  # termoil dev server only
 npm run dev:crunch   # term-crunch dev server only
 npm run build        # termoil production build (static export to apps/termoil/out/)
 npm run build:crunch # term-crunch production build
+npm run build:all    # both production builds
 npm run lint         # ESLint
 npm run typecheck    # TypeScript checking across all workspaces
 npm run test         # Vitest (or: npx vitest run)
-npm run check        # Combined typecheck + test + build
+npm run check        # Combined lint + typecheck + test + build:all (also run in CI)
 ```
 
 ## Deploy

@@ -50,7 +50,7 @@ export interface Toast {
 }
 
 /** Max windows (tmux-style tabs) and panes per window. */
-const MAX_WINDOWS = 5;
+export const MAX_WINDOWS = 5;
 const MAX_PANES_PER_WINDOW = 6;
 
 /** State subset the active-pane selectors need. */
@@ -501,6 +501,15 @@ export const useGameStore = create<GameStore>()(
         const data = loadFromSlot(slotId);
         if (!data) return false;
 
+        let sfState: SnowflakeState;
+        try {
+          sfState = data.serializedSnowflake?.databases
+            ? deserializeSnowflake(data.serializedSnowflake)
+            : createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown });
+        } catch {
+          sfState = createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown });
+        }
+
         const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
         for (const [id, cs] of Object.entries(data.computerStates)) {
           try {
@@ -512,6 +521,9 @@ export const useGameStore = create<GameStore>()(
               mounts: cs.mounts ?? {},
             };
           } catch { /* skip corrupted entries */ }
+        }
+        if (loadedComputerState.nexacorp) {
+          loadedComputerState.nexacorp = { ...loadedComputerState.nexacorp, fs: syncToVirtualFS(sfState, loadedComputerState.nexacorp.fs) };
         }
 
         resetPaneIdCounters();
@@ -529,6 +541,7 @@ export const useGameStore = create<GameStore>()(
           deliveredEmailIds: data.deliveredEmailIds,
           deliveredPiperIds: data.deliveredPiperIds,
           storyFlags: data.storyFlags,
+          snowflakeState: sfState,
           computerState: loadedComputerState,
           zshHistory: data.zshHistory ?? {},
           windows,
