@@ -14,7 +14,7 @@ import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "@tt/core/lib
 import { seedImmediatePiper } from "../../engine/piper/delivery";
 import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "@tt/core/terminal/tmuxConfig";
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
-import { CopyModeController } from "@tt/core/terminal/copyMode";
+import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
 import { useRenameWindowPrompt } from "@tt/core/terminal/useRenameWindowPrompt";
 import { sessionUsesAltScreen } from "@tt/core/session/types";
 import { copyToClipboard } from "@tt/core/lib/clipboard";
@@ -684,9 +684,7 @@ export default function TabManager() {
           <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
             <span className="font-bold text-[#e6b450]">COPY MODE</span>
             <span className="text-[#6c7380]">
-              {copyModeHelpHidden
-                ? " · ? help"
-                : " · hjkl/arrows move · 0/$ line · g/G top/bot · v select · y yank · esc exit · ? hide"}
+              {copyModeHelpHidden ? COPY_MODE_HINT_HIDDEN : COPY_MODE_HINT}
             </span>
           </div>
         )}

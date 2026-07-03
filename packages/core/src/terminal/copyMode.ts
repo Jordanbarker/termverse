@@ -65,6 +65,12 @@ const SHOW_CURSOR = "\x1b[?25h";
 /** Preferred-column sentinel: "stick to end-of-line" on vertical moves (vi `$`). */
 const EOL_COL = Number.MAX_SAFE_INTEGER;
 
+/** One-line key hint shown in the COPY MODE overlay (expanded). */
+export const COPY_MODE_HINT =
+  " · hjkl/arrows move · 0/$ line · g/G top/bot · ^u/^d half-page · v select · y yank · esc exit · ? hide";
+/** Collapsed hint shown when the help overlay is toggled off. */
+export const COPY_MODE_HINT_HIDDEN = " · ? help";
+
 export class CopyModeController {
   private active = false;
   private cursor: Point = { col: 0, row: 0 };

@@ -15,7 +15,7 @@ import {
   type PaneBinding,
 } from "@tt/core/terminal/tmuxConfig";
 import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
-import { CopyModeController } from "@tt/core/terminal/copyMode";
+import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
 import { copyToClipboard } from "@tt/core/lib/clipboard";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { EditorSession } from "@tt/core/editor/EditorSession";
@@ -467,9 +467,7 @@ export default function TabManager() {
           <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
             <span className="font-bold text-[#e6b450]">COPY MODE</span>
             <span className="text-[#6c7380]">
-              {copyModeHelpHidden
-                ? " · ? help"
-                : " · hjkl/arrows move · 0/$ line · g/G top/bot · v select · y yank · esc exit · ? hide"}
+              {copyModeHelpHidden ? COPY_MODE_HINT_HIDDEN : COPY_MODE_HINT}
             </span>
           </div>
         )}
