@@ -145,7 +145,7 @@ export default function ChallengePanel() {
             />
           )}
 
-          {challenge.type === "pane" && challenge.targetWindow && activeWindow && (
+          {challenge.type === "tmux" && challenge.targetWindow && activeWindow && (
             <div className="flex flex-col gap-3">
               <div>
                 <div className="mb-1 text-xs uppercase tracking-wide text-[#6b7680]">Current</div>
@@ -158,7 +158,7 @@ export default function ChallengePanel() {
             </div>
           )}
 
-          {challenge.type === "pane" && challenge.targetWindows && (
+          {challenge.type === "tmux" && challenge.targetWindows && (
             <div className="flex flex-col gap-3">
               <div>
                 <div className="mb-1 text-xs uppercase tracking-wide text-[#6b7680]">Current</div>
@@ -174,7 +174,9 @@ export default function ChallengePanel() {
             </div>
           )}
 
-          {challenge.type === "fs" && challenge.fsWatchPath && (
+          {/* Gated on the field, not the type: an fs-detected challenge in any
+              track (e.g. the copy-mode tmux challenge) still gets the tree. */}
+          {challenge.fsWatchPath && (
             <FsTreeView fs={fs} watchPath={challenge.fsWatchPath} />
           )}
 

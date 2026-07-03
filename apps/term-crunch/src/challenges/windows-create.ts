@@ -23,7 +23,7 @@ const targetWindows = buildTargetWindows();
 export const windowsCreate: Challenge = {
   id: "windows-create",
   title: "Open more windows",
-  type: "pane",
+  type: "tmux",
   targetWindows,
   // Pure keyboard-chord challenge — no shell commands needed.
   commands: [],

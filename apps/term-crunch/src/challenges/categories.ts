@@ -17,7 +17,7 @@ const byType = (t: Challenge["type"]) => CHALLENGES.filter((c) => c.type === t);
 
 export const CATEGORIES: Category[] = [
   { id: "all", label: "All", challenges: CHALLENGES },
-  { id: "panes", label: "Tmux / Panes", challenges: byType("pane") },
+  { id: "tmux", label: "Tmux", challenges: byType("tmux") },
   { id: "git", label: "Git", challenges: byType("git") },
   { id: "fs", label: "Filesystem", challenges: byType("fs") },
 ];

@@ -15,6 +15,8 @@ import {
   type PaneBinding,
 } from "@tt/core/terminal/tmuxConfig";
 import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
+import { CopyModeController } from "@tt/core/terminal/copyMode";
+import { copyToClipboard } from "@tt/core/lib/clipboard";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { EditorSession } from "@tt/core/editor/EditorSession";
 import { LessSession } from "@tt/core/pager/LessSession";
@@ -54,6 +56,7 @@ interface PaneRuntime {
   container: HTMLDivElement;
   prefix: boolean;
   editor: LineEditor;
+  copyMode: CopyModeController;
 }
 
 export default function TabManager() {
@@ -65,6 +68,12 @@ export default function TabManager() {
   // tmux prefix-state indicator (component-scoped: one prefix is armed at a time,
   // always in the focused pane). Per-pane consumption still uses PaneRuntime.prefix.
   const [prefixActive, setPrefixActive] = useState(false);
+
+  // tmux/vi copy mode (entered via `<prefix> [`). Component-scoped UI flags; each
+  // pane owns its own CopyModeController on its PaneRuntime. Help-hidden state is
+  // local (not persisted) — term-crunch keeps copy mode self-contained.
+  const [copyModeActive, setCopyModeActive] = useState(false);
+  const [copyModeHelpHidden, setCopyModeHelpHidden] = useState(false);
 
   // tmux rename-window modal (shared @tt/core hook): drives the status-line takeover.
   const rename = useRenameWindowPrompt((id, name) =>
@@ -198,6 +207,8 @@ export default function TabManager() {
     }
 
     switch (data) {
+      // copy mode (keyboard-only entry; independent of the challenge allowlist)
+      case "[": runtimes.current.get(paneId)?.copyMode.enter(); break;
       // pane chords
       case "|": store.splitPane(paneId, "h"); break;
       case "-": store.splitPane(paneId, "v"); break;
@@ -304,11 +315,31 @@ export default function TabManager() {
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(container);
+
+    // tmux/vi copy mode — the engine controller owns cursor/selection; the yank
+    // side effect (clipboard) lives here.
+    const copyMode = new CopyModeController(term, {
+      onChange: (active) => setCopyModeActive(active),
+      onToggleHelp: () => setCopyModeHelpHidden((v) => !v),
+      onYank: (text) => { void copyToClipboard(text); },
+    });
+
+    // While copy mode is active, swallow every key so nothing reaches the shell;
+    // preventDefault keeps junk out of xterm's hidden textarea.
+    term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (copyMode.isActive()) {
+        if (e.type === "keydown") { e.preventDefault(); copyMode.handleKeydown(e); }
+        return false;
+      }
+      return true;
+    });
+
     const rt: PaneRuntime = {
       term,
       fit,
       container,
       prefix: false,
+      copyMode,
       editor: new LineEditor({
         getContext: () => buildSuggestionContext(paneId),
         getHistory: historyEntries,
@@ -346,6 +377,7 @@ export default function TabManager() {
     if (loadedChallengeRef.current === challengeStartTime) return;
     loadedChallengeRef.current = challengeStartTime;
     for (const [, rt] of runtimes.current) {
+      rt.copyMode.exit({ refocus: false }); // clear copyModeActive across a reseed
       rt.term.dispose();
       rt.container.remove();
     }
@@ -364,6 +396,7 @@ export default function TabManager() {
     const liveIds = new Set(windows.flatMap((w) => allLeaves(w.root)).map((l) => l.id));
     for (const [id, rt] of runtimes.current) {
       if (!liveIds.has(id)) {
+        rt.copyMode.exit({ refocus: false });
         rt.term.dispose();
         rt.container.remove();
         runtimes.current.delete(id);
@@ -430,6 +463,16 @@ export default function TabManager() {
           measured size already excludes the status bar. */}
       <div className="relative flex-1">
         <div ref={wrapperRef} className="absolute inset-0" />
+        {copyModeActive && (
+          <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
+            <span className="font-bold text-[#e6b450]">COPY MODE</span>
+            <span className="text-[#6c7380]">
+              {copyModeHelpHidden
+                ? " · ? help"
+                : " · hjkl/arrows move · 0/$ line · g/G top/bot · v select · y yank · esc exit · ? hide"}
+            </span>
+          </div>
+        )}
         {activeWindow && size.w > 0 && (
           <PaneDividers
             root={activeWindow.root}

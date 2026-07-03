@@ -7,7 +7,8 @@ import { gitPullFf } from "./git-pull-ff";
 import { gitRebaseChallenge } from "./git-rebase";
 import { rmBomb } from "./rm-bomb";
 import { chmodPerms } from "./chmod-perms";
+import { copyModeYank } from "./copy-mode-yank";
 import type { Challenge } from "./types";
 
 /** Ordered, linear progression. The player advances one challenge at a time. */
-export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, windowsCreate, gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms];
+export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, windowsCreate, gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];

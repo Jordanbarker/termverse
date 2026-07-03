@@ -33,7 +33,7 @@ export interface Step {
 export interface Challenge {
   id: string;
   title: string;
-  type: "pane" | "git" | "fs";
+  type: "tmux" | "git" | "fs";
   /**
    * The persistent scenario + overall objective, shown above the current step so
    * the player always sees the whole task. Command-free. Omitted = the panel just

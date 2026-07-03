@@ -26,7 +26,7 @@ const targetWindow = buildTargetWindow();
 export const panesSplit: Challenge = {
   id: "panes-split",
   title: "Split the window",
-  type: "pane",
+  type: "tmux",
   targetWindow,
   // Pure keyboard-chord challenge — no shell commands needed.
   commands: [],

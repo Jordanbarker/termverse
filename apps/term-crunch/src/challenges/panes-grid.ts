@@ -30,7 +30,7 @@ const targetWindow = buildTargetWindow();
 export const panesGrid: Challenge = {
   id: "panes-grid",
   title: "Build a 2×2 grid",
-  type: "pane",
+  type: "tmux",
   targetWindow,
   // Pure keyboard-chord challenge — no shell commands needed.
   commands: [],

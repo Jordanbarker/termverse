@@ -34,6 +34,7 @@ import { gitPullFf } from "../challenges/git-pull-ff";
 import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
+import { copyModeYank } from "../challenges/copy-mode-yank";
 import type { ChallengeSnapshot } from "../challenges/types";
 
 function snap(activeWindow: WindowState, fs = buildBaseFs(), cwd = HOME_DIR): ChallengeSnapshot {
@@ -455,11 +456,42 @@ describe("chmod-perms challenge", () => {
   });
 });
 
+describe("copy-mode-yank challenge", () => {
+  const TOKEN = "moonlit-cipher-7f3c91a0e5";
+  const TARGET_DIR = `/home/player/${TOKEN}`;
+  const LOG = "/home/player/war-and-peace.log";
+  const [step] = copyModeYank.steps;
+
+  function fsSnap(fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot {
+    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+    return { activeWindow: win, windows: [win], fs, cwd: HOME_DIR };
+  }
+
+  it("seeds the log with the passphrase buried in it, step unsatisfied", () => {
+    const fs = copyModeYank.setup(buildBaseFs());
+    const body = fs.readFile(LOG).content ?? "";
+    expect(body).toContain(TOKEN);
+    // token sits alone on its own line so a copy-mode line-yank grabs just it
+    expect(body).toContain(`\n${TOKEN}\n`);
+    expect(step.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("completes once a directory named after the token exists", () => {
+    const fs = copyModeYank.setup(buildBaseFs()).makeDirectory(TARGET_DIR).fs!;
+    expect(step.isComplete(fsSnap(fs))).toBe(true);
+  });
+
+  it("does NOT complete for a wrong directory name", () => {
+    const fs = copyModeYank.setup(buildBaseFs()).makeDirectory("/home/player/wrong").fs!;
+    expect(step.isComplete(fsSnap(fs))).toBe(false);
+  });
+});
+
 describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
   // text — that's the whole point of the rework, so guard it. The pane challenges
   // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
-  const objectiveFirst = [gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms];
+  const objectiveFirst = [gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];
 
   it("each has a brief and every step has a hint + command", () => {
     for (const c of objectiveFirst) {
@@ -479,9 +511,9 @@ describe("categories", () => {
   });
 
   it("type-derived groups contain only their type and are non-empty", () => {
-    const cases: Array<[string, "git" | "pane" | "fs"]> = [
+    const cases: Array<[string, "git" | "tmux" | "fs"]> = [
       ["git", "git"],
-      ["panes", "pane"],
+      ["tmux", "tmux"],
       ["fs", "fs"],
     ];
     for (const [id, type] of cases) {
