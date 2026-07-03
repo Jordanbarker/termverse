@@ -7,51 +7,51 @@ const TARGET_DIR = `/home/player/${TOKEN}`;
 // alt idea: https://en.wikisource.org/wiki/Frankenstein,_or_the_Modern_Prometheus_(First_Edition,_1818)/Volume_2/Chapter_9
 const LOG_BODY = `
 FREEZING
+FREEZING
+FREEZING
+FREEZING
+FREEZING
 
-
-
-
+COLDER
+COLDER
+COLDER
+COLDER
+COLDER
 
 COLD
-
-
-
-
 COLD
-
-
-
-
+COLD
+COLD
+COLD
 
 WARM
-
-
-
-
+WARM
+WARM
+WARM
+WARM
 
 WARMER
-
-
-
-
+WARMER
+WARMER
+WARMER
+WARMER
 
 HOT 
-
-
-
-
+HOT 
+HOT 
+HOT 
+HOT 
 
 HOT HOT HOT 
-
-
-
-
+HOT HOT HOT 
+HOT HOT HOT 
+HOT HOT HOT 
 
 BURNING
-
-
-
-
+BURNING
+BURNING
+BURNING
+BURNING
 
 --------
 
@@ -59,54 +59,53 @@ ${TOKEN}
 
 --------
 
-
-
-
-
+BURNING
+BURNING
+BURNING
+BURNING
+BURNING
 BURNING
 
-
-
-
-
+HOT HOT HOT 
+HOT HOT HOT 
+HOT HOT HOT 
+HOT HOT HOT 
 HOT HOT HOT 
 
-
-
-
-
+HOT
+HOT
+HOT
+HOT
 HOT
 
-
-
-
-
+WARMER
+WARMER
+WARMER
+WARMER
 WARMER
 
-
-
-
-
-
+WARM
+WARM
+WARM
+WARM
 WARM
 
-
-
-
-
-
+COLD
+COLD
+COLD
+COLD
 COLD
 
+COLDER
+COLDER
+COLDER
+COLDER
+COLDER
 
-
-
-
-COLD
-
-
-
-
-
+FREEZING
+FREEZING
+FREEZING
+FREEZING
 FREEZING
 `;
 
