@@ -3,6 +3,15 @@ import { register, getAvailableCommands } from "../registry";
 import { colorize, ansi } from "@tt/core/lib/ansi";
 
 const META_COMMANDS = new Set(["save", "load", "newgame", "cheat"]);
+
+/**
+ * Mark app-registered builtins as game-control "meta" commands: help lists them
+ * after the in-world commands, in cyan. Core pre-seeds termoil's save-system set;
+ * other apps add theirs at registration time (e.g. term-crunch's challenge nav).
+ */
+export function registerMetaCommands(...names: string[]): void {
+  for (const n of names) META_COMMANDS.add(n);
+}
 const HIDDEN_COMMANDS = new Set(["help", "true", "false"]);
 
 const help: CommandHandler = (_args, _flags, ctx) => {

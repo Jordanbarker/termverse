@@ -10,6 +10,9 @@ import type { SuggestionContext } from "@tt/core/suggestions/suggest";
 import "@tt/core/commands/builtins";
 // Side-effect import: registers the per-challenge command-allowlist policy.
 import "../lib/availabilityPolicy";
+// Registers the challenge-navigation builtins (challenges/goto/next/prev/track)
+// and exposes the pending navigation they queue for post-commit application.
+import { consumePendingNavigation } from "../engine/commands/navigation";
 
 import { useGameStore } from "../state/gameStore";
 import { CRUNCH_MACHINE, HOME_DIR, USERNAME, GIT_AUTHOR } from "../lib/machine";
@@ -159,6 +162,13 @@ export async function runLine(
   store.setAliases(aliases);
   store.setPaneCwd(paneId, runningCwd);
   store.checkCompletion();
+
+  // Apply any navigation queued by challenges/goto/next/prev/track AFTER the
+  // shell-state commit above, so loadChallenge's freshly seeded fs/windows
+  // aren't clobbered by this pipeline's accumulated state.
+  const nav = consumePendingNavigation();
+  if (nav?.type === "load") store.loadChallenge(nav.index);
+  else if (nav?.type === "category") store.selectCategory(nav.id);
 
   return { startSession };
 }

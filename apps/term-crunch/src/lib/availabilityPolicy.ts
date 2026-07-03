@@ -12,14 +12,17 @@ import { useGameStore } from "../state/gameStore";
  * keeps the engine default of allow-all.
  *
  * `help`, `clear`, and `man` are always available so the player can orient,
- * reset, and read the manual. `man` self-scopes: `man <cmd>` only renders a page
- * for commands the current challenge allows (core `man.ts` checks availability),
- * so it returns "No manual entry" for off-list commands.
+ * reset, and read the manual, and the challenge-navigation builtins
+ * (`challenges`/`goto`/`next`/`prev`/`track`, engine/commands/navigation.ts)
+ * so the player can always move between challenges. `man` self-scopes:
+ * `man <cmd>` only renders a page for commands the current challenge allows
+ * (core `man.ts` checks availability), so it returns "No manual entry" for
+ * off-list commands.
  *
  * Mirrors termoil's src/story/availabilityPolicy.ts seam usage; the
  * current challenge is read lazily from the store so import order doesn't matter.
  */
-const ALWAYS_AVAILABLE = new Set(["help", "clear", "man"]);
+const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "challenges", "goto", "next", "prev", "track"]);
 
 function isAvailable(commandName: string): boolean {
   const { activeCategory, challengeIndex } = useGameStore.getState();
