@@ -13,7 +13,9 @@ Code map: `commands/{types,registry,parser,runPipeline,applyResult,flagValidatio
 
 `parseInput` (tokenize respecting quotes), `parsePipeline` (split on unquoted `|`), `parseChainedPipeline` (split on `&&`/`||`/`;` first, then each segment's pipeline), plus `splitOnPipe`/`splitOnChainOperators`. Flag parsing: `-x` → `{x:true}`, `-xyz` → three flags, `--flag` → `{flag:true}`.
 
-`analyzeIncompleteInput(input)` detects zsh secondary-prompt continuation (unterminated quote, trailing `\`/`|`/`&&`/`||`); `null` = submittable. **Trap: its quote scan duplicates `tokenize`'s exact rules (no backslash escaping) — keep the two in sync.** It has no opinion on trailing `&`/`;` (not continuation in zsh). Consumed by `@tt/core/terminal/lineEditor`'s `LineEditor`, which accumulates physical lines into `pendingLines` and defers submission until the joined input parses clean.
+All quote-aware scanning (tokenize, pipe/chain splitting, alias expansion, continuation detection) goes through the private `scanQuoted` visitor helper at the top of `parser.ts` — use it rather than hand-rolling another quote loop. Rules: `'`/`"` toggle unless the other is active, no backslash escaping.
+
+`analyzeIncompleteInput(input)` detects zsh secondary-prompt continuation (unterminated quote, trailing `\`/`|`/`&&`/`||`); `null` = submittable. It has no opinion on trailing `&`/`;` (not continuation in zsh). Consumed by `@tt/core/terminal/lineEditor`'s `LineEditor`, which accumulates physical lines into `pendingLines` and defers submission until the joined input parses clean.
 
 ## Flag validation (`flagValidation.ts`)
 

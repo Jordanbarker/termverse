@@ -1,5 +1,40 @@
 import { ParsedCommand, ChainOperator, ChainSegment } from "@tt/core/commands/types";
 
+interface QuoteState {
+  inSingle: boolean;
+  inDouble: boolean;
+}
+
+/**
+ * Walk `input` tracking zsh-style quote state (`'`/`"` toggle unless the other
+ * is active; no backslash escaping). Calls `visit` for every character with the
+ * state as of BEFORE the character; `isQuote` marks a toggling quote char.
+ * `visit` may return a count of extra characters to consume (lookahead, e.g.
+ * the second `&` of `&&`). Returns the final quote state.
+ *
+ * All quote-aware scanning in this module goes through here — don't hand-roll
+ * another quote loop.
+ */
+function scanQuoted(
+  input: string,
+  visit?: (char: string, i: number, state: QuoteState, isQuote: boolean) => number | void
+): QuoteState {
+  const state: QuoteState = { inSingle: false, inDouble: false };
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const isQuote = (char === "'" && !state.inDouble) || (char === '"' && !state.inSingle);
+    const skip = visit?.(char, i, state, isQuote);
+    if (isQuote) {
+      if (char === "'") state.inSingle = !state.inSingle;
+      else state.inDouble = !state.inDouble;
+    }
+    if (skip) i += skip;
+  }
+
+  return state;
+}
+
 /**
  * Tokenize and parse raw terminal input into a structured command.
  */
@@ -56,25 +91,15 @@ export function parsePipeline(raw: string): ParsedCommand[] {
 export function splitOnPipe(input: string): string[] {
   const segments: string[] = [];
   let current = "";
-  let inSingle = false;
-  let inDouble = false;
 
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-
-    if (char === "'" && !inDouble) {
-      inSingle = !inSingle;
-      current += char;
-    } else if (char === '"' && !inSingle) {
-      inDouble = !inDouble;
-      current += char;
-    } else if (char === "|" && !inSingle && !inDouble) {
+  scanQuoted(input, (char, _i, state, isQuote) => {
+    if (!isQuote && char === "|" && !state.inSingle && !state.inDouble) {
       segments.push(current.trim());
       current = "";
     } else {
       current += char;
     }
-  }
+  });
 
   if (current.trim()) {
     segments.push(current.trim());
@@ -93,41 +118,29 @@ export function splitOnChainOperators(input: string): { text: string; operator: 
   const segments: { text: string; operator: ChainOperator | null }[] = [];
   let current = "";
   let currentOperator: ChainOperator | null = null;
-  let inSingle = false;
-  let inDouble = false;
 
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-
-    if (char === "'" && !inDouble) {
-      inSingle = !inSingle;
-      current += char;
-    } else if (char === '"' && !inSingle) {
-      inDouble = !inDouble;
-      current += char;
-    } else if (!inSingle && !inDouble) {
+  scanQuoted(input, (char, i, state, isQuote) => {
+    if (!isQuote && !state.inSingle && !state.inDouble) {
       // Two-character lookahead for && and ||
       if (char === '&' && input[i + 1] === '&') {
         segments.push({ text: current, operator: currentOperator });
         current = "";
         currentOperator = '&&';
-        i++; // skip second &
+        return 1; // skip second &
       } else if (char === '|' && input[i + 1] === '|') {
         segments.push({ text: current, operator: currentOperator });
         current = "";
         currentOperator = '||';
-        i++; // skip second |
+        return 1; // skip second |
       } else if (char === ';') {
         segments.push({ text: current, operator: currentOperator });
         current = "";
         currentOperator = ';';
-      } else {
-        current += char;
+        return;
       }
-    } else {
-      current += char;
     }
-  }
+    current += char;
+  });
 
   segments.push({ text: current, operator: currentOperator });
   return segments;
@@ -191,87 +204,61 @@ export function expandAliases(input: string, aliases: Record<string, string>): s
   if (!input || Object.keys(aliases).length === 0) return input;
 
   const result: string[] = [];
-  let i = 0;
   let atCommandPos = true; // start of input is a command position
-  let inSingle = false;
-  let inDouble = false;
 
-  while (i < input.length) {
-    const char = input[i];
-
-    // Track quote state
-    if (char === "'" && !inDouble) {
-      inSingle = !inSingle;
+  scanQuoted(input, (char, i, state, isQuote) => {
+    if (isQuote) {
       result.push(char);
       atCommandPos = false;
-      i++;
-      continue;
-    }
-    if (char === '"' && !inSingle) {
-      inDouble = !inDouble;
-      result.push(char);
-      atCommandPos = false;
-      i++;
-      continue;
+      return;
     }
 
-    // Detect chain operators outside quotes → next word is a command position
-    if (!inSingle && !inDouble) {
+    if (!state.inSingle && !state.inDouble) {
+      // Chain operators → next word is a command position
       if (char === '&' && input[i + 1] === '&') {
         result.push('&&');
-        i += 2;
         atCommandPos = true;
-        continue;
+        return 1;
       }
       if (char === '|' && input[i + 1] === '|') {
         result.push('||');
-        i += 2;
         atCommandPos = true;
-        continue;
+        return 1;
       }
       if (char === ';') {
         result.push(';');
-        i++;
         atCommandPos = true;
-        continue;
-      }
-    }
-
-    // Skip whitespace (preserve it)
-    if (char === ' ' && !inSingle && !inDouble) {
-      result.push(char);
-      i++;
-      continue;
-    }
-
-    // At a command position outside quotes: extract the word and check aliases
-    if (atCommandPos && !inSingle && !inDouble) {
-      // Extract the word (until space, quote, or chain operator)
-      let word = '';
-      while (i < input.length) {
-        const c = input[i];
-        if (c === ' ' || c === "'" || c === '"') break;
-        if (c === '&' && input[i + 1] === '&') break;
-        if (c === '|' && input[i + 1] === '|') break;
-        if (c === ';') break;
-        word += c;
-        i++;
+        return;
       }
 
-      if (word in aliases) {
-        result.push(aliases[word]);
-      } else {
-        result.push(word);
+      // Preserve whitespace without leaving the command position
+      if (char === ' ') {
+        result.push(char);
+        return;
       }
-      atCommandPos = false;
-      continue;
+
+      // At a command position: extract the word and check aliases.
+      // Word chars are by construction unquoted, so consuming them here is safe.
+      if (atCommandPos) {
+        let word = '';
+        for (let j = i; j < input.length; j++) {
+          const c = input[j];
+          if (c === ' ' || c === "'" || c === '"') break;
+          if (c === '&' && input[j + 1] === '&') break;
+          if (c === '|' && input[j + 1] === '|') break;
+          if (c === ';') break;
+          word += c;
+        }
+        result.push(word in aliases ? aliases[word] : word);
+        atCommandPos = false;
+        return word.length - 1;
+      }
     }
 
     // Non-command-position content: just pass through
     result.push(char);
     atCommandPos = false;
-    i++;
-  }
+  });
 
   return result.join('');
 }
@@ -283,22 +270,12 @@ export type ContinuationKind = "quote" | "dquote" | "backslash" | "pipe" | "cmda
  * secondary prompt (`dquote>`, `pipe>`, ...) instead of erroring, mirroring real
  * interactive zsh behavior. Returns `null` when the input is complete/submittable.
  *
- * The quote scan below duplicates `tokenize`'s exact quote rules (no backslash
- * escaping, `'`/`"` toggle unless the other is active) — keep the two in sync.
+ * Quote rules match `tokenize`'s exactly — both scan via `scanQuoted`.
  */
 export function analyzeIncompleteInput(input: string): { kind: ContinuationKind; prompt: string } | null {
   if (!input) return null;
 
-  let inSingle = false;
-  let inDouble = false;
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-    if (char === "'" && !inDouble) {
-      inSingle = !inSingle;
-    } else if (char === '"' && !inSingle) {
-      inDouble = !inDouble;
-    }
-  }
+  const { inSingle, inDouble } = scanQuoted(input);
 
   if (inSingle) return { kind: "quote", prompt: "quote> " };
   if (inDouble) return { kind: "dquote", prompt: "dquote> " };
@@ -317,23 +294,15 @@ export function analyzeIncompleteInput(input: string): { kind: ContinuationKind;
 
 /**
  * Split input into tokens, respecting single and double quotes.
- *
- * Quote rules here must stay in sync with `analyzeIncompleteInput`'s scan above.
+ * Quote chars themselves are dropped from the tokens.
  */
 function tokenize(input: string): string[] | null {
   const tokens: string[] = [];
   let current = "";
-  let inSingle = false;
-  let inDouble = false;
 
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-
-    if (char === "'" && !inDouble) {
-      inSingle = !inSingle;
-    } else if (char === '"' && !inSingle) {
-      inDouble = !inDouble;
-    } else if (char === " " && !inSingle && !inDouble) {
+  const { inSingle, inDouble } = scanQuoted(input, (char, _i, state, isQuote) => {
+    if (isQuote) return;
+    if (char === " " && !state.inSingle && !state.inDouble) {
       if (current) {
         tokens.push(current);
         current = "";
@@ -341,7 +310,7 @@ function tokenize(input: string): string[] | null {
     } else {
       current += char;
     }
-  }
+  });
 
   if (inSingle || inDouble) return null;
 
