@@ -105,7 +105,7 @@ export const gitPullFf: Challenge = {
   commands: ["git", "ls", "cat", "cd", "pwd"],
   brief:
     "Your feat/add-sql branch is 2 commits behind origin with a dirty tree (a modified file " +
-    "and an untracked one). Catch up without a merge, then reapply your work. `git status` shows the state.",
+    "and an untracked one). Catch up without a merge, then reapply your work.",
   setup,
   steps: [
     {
