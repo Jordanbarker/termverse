@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore, getActiveLeaf, getActivePaneId } from "../state/gameStore";
-import { parseInput, parseChainedPipeline, expandAliases } from "@tt/core/commands/parser";
-import { execute, executeAsync, isAsyncCommand, commandReadsFiles } from "@tt/core/commands/registry";
+import { parseChainedPipeline, expandAliases } from "@tt/core/commands/parser";
+import { runPipeline } from "@tt/core/commands/runPipeline";
 import { STANDARD_MODEL_ORDER } from "@/story/data/dbt/data";
-import { resolvePath } from "@tt/core/lib/pathUtils";
-import { colorize, ansi, stripAnsi } from "@tt/core/lib/ansi";
+import { colorize, ansi } from "@tt/core/lib/ansi";
 import { expandZshPrompt } from "@tt/core/lib/promptExpand";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createDefaultContext } from "@tt/core/snowflake/session/context";
@@ -28,9 +27,8 @@ import { useCommandLine } from "./useCommandLine";
 import { useComputerTransitions } from "./useComputerTransitions";
 import { CommandContext } from "@tt/core/commands/types";
 import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
-import { parseZshHistory } from "@tt/core/terminal/zshHistory";
+import { parseZshHistory, appendZshHistory } from "@tt/core/terminal/zshHistory";
 import { Mounts } from "@tt/core/filesystem/mounts";
-import { applyRedirection, extractStdoutRedirect, precheckRedirects } from "@tt/core/commands/redirection";
 
 // ---------------------------------------------------------------------------
 // Module-scope helpers (no React dependencies)
@@ -102,13 +100,6 @@ function buildCommandContext(
       return parseTmuxPrefix(conf).label;
     })(),
   };
-}
-
-/** Check if a command result contains fields that require stopping the chain. */
-function isChainEarlyReturn(result: import("@tt/core/commands/types").CommandResult): boolean {
-  return !!(result.editorSession || result.interactiveSession || result.snowSqlSession ||
-    result.sshSession || result.chipSession || result.piperSession || result.promptSession ||
-    result.incrementalLines || result.transitionTo);
 }
 
 // Ensure all builtins are registered
@@ -467,13 +458,14 @@ export function useTerminal() {
         const store = useGameStore.getState();
         const initialFs = store.computerState[computerId]!.fs;
         const homeDir = initialFs.homeDir;
+        const initialMounts = store.computerState[computerId]?.mounts ?? {};
 
         const applyCommandResult = (
           cmdResult: import("@tt/core/commands/types").CommandResult,
           parsedCmd: import("@tt/core/commands/types").ParsedCommand,
           runningFs: VirtualFS,
           isFinal: boolean
-        ) => {
+        ): import("@tt/core/commands/runPipeline").ApplySegmentOutcome => {
           const latestStore = useGameStore.getState();
           const targetComputer = cmdResult.transitionTo;
           const effects = computeEffects(cmdResult, {
@@ -520,159 +512,43 @@ export function useTerminal() {
             }
             // Check if segment triggers session/incremental/transition — must stop chain
             if (effects.startSession || effects.incrementalLines || effects.transitionTo) {
-              return executeEffects(term, effects, submittingPaneId);
+              const suppress = executeEffects(term, effects, submittingPaneId);
+              return { newCwd: effects.newCwd, stopChain: true, earlyReturn: suppress };
             }
-            return false;
+            return { newCwd: effects.newCwd };
           }
 
-          return executeEffects(term, effects, submittingPaneId);
+          return { newCwd: effects.newCwd, earlyReturn: executeEffects(term, effects, submittingPaneId) };
         };
 
-        let runningFs = initialFs;
-        const initialMounts = store.computerState[computerId]?.mounts ?? {};
-        let runningMounts: Mounts = initialMounts;
-        let lastExitCode = 0;
-        let earlyReturn = false;
-        let wroteOutput = false;
-
-        for (let ci = 0; ci < chain.length; ci++) {
-          const seg = chain[ci];
-
-          // Check chain operator logic
-          if (seg.operator === '&&' && lastExitCode !== 0) continue;
-          if (seg.operator === '||' && lastExitCode === 0) continue;
-          // ';' and null (first): always execute
-
-          const pipeline = [...seg.pipeline];
-
-          // Extract redirection from last pipeline command (per-segment)
-          const lastSegment = pipeline[pipeline.length - 1];
-          const { command: stripped, redirects, parseError } =
-            extractStdoutRedirect(lastSegment.raw);
-          if (parseError) {
-            if (wroteOutput) term.write("\r\n");
-            term.write(colorize(parseError, ansi.red));
-            wroteOutput = true;
-            lastExitCode = 1;
-            continue;
-          }
-          if (redirects.length > 0) {
-            // zsh opens redirect targets before exec — a bad target means the command never runs
-            const precheckError = precheckRedirects(redirects, cwdRef.current, homeDir, runningFs);
-            if (precheckError) {
-              if (wroteOutput) term.write("\r\n");
-              term.write(colorize(precheckError, ansi.red));
-              wroteOutput = true;
-              lastExitCode = 1;
-              continue;
-            }
-            pipeline[pipeline.length - 1] = parseInput(stripped);
-          }
-
-          // Async detection per segment
-          const hasAsyncCmd = pipeline.some((p) => isAsyncCommand(p.command));
-          if (hasAsyncCmd) {
-            if (wroteOutput) term.write("\r\n");
-            term.write(colorize("Loading...", ansi.dim));
-          }
-
-          // Execute pipeline for this segment
-          let stdin: string | undefined; // reset per chain segment
-          let lastResult: import("@tt/core/commands/types").CommandResult = { output: "" };
-          const allTriggerEvents: import("../engine/mail/delivery").GameEvent[] = [];
-          let pipelineViolation: import("../story/security").SecurityViolation | undefined;
-
-          for (let pi = 0; pi < pipeline.length; pi++) {
-            const p = pipeline[pi];
-            if (!p.command) continue;
-
-            const ctx = buildCommandContext(
-              runningFs,
-              cwdRef.current,
-              computerId,
-              homeDir,
-              stdin,
-              p.rawArgs,
-              pi < pipeline.length - 1 || redirects.length > 0,
-              useGameStore.getState(),
-              runningMounts
-            );
-
-            if (isAsyncCommand(p.command)) {
-              lastResult = await executeAsync(p.command, p.args, p.flags, ctx);
-            } else {
-              lastResult = execute(p.command, p.args, p.flags, ctx);
-            }
-
-            if (lastResult.triggerEvents) {
-              allTriggerEvents.push(...lastResult.triggerEvents);
-            }
-
-            if (lastResult.securityViolation && !pipelineViolation) {
-              pipelineViolation = lastResult.securityViolation;
-            }
-
-            // Intermediate pipeline commands: generate file_read events
-            if (pi < pipeline.length - 1 && commandReadsFiles(p.command)) {
-              for (const arg of p.args) {
-                if (!arg.startsWith("-")) {
-                  const absPath = resolvePath(arg, cwdRef.current, homeDir);
-                  if (!runningFs.readFile(absPath).error) {
-                    allTriggerEvents.push({ type: "file_read" as const, detail: absPath });
-                  }
-                }
-              }
-            }
-
-            if (lastResult.newFs) {
-              runningFs = lastResult.newFs;
-            }
-
-            if (lastResult.newMounts) {
-              runningMounts = lastResult.newMounts;
-            }
-
-            stdin = stripAnsi(lastResult.output);
-          }
-
-          if (allTriggerEvents.length > 0) {
-            lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
-          }
-
-          if (pipelineViolation && !lastResult.securityViolation) {
-            lastResult = { ...lastResult, securityViolation: pipelineViolation };
-          }
-
-          if (redirects.length > 0 && lastResult) {
-            const redir = applyRedirection(redirects, lastResult, cwdRef.current, homeDir, runningFs, computerId, computerId === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined);
-            lastResult = redir.result;
-            runningFs = redir.fs;
-          }
-
-          lastExitCode = lastResult.exitCode ?? 0;
-          if (lastResult.output) wroteOutput = true;
-
-          if (hasAsyncCmd) {
-            term.write("\r\x1b[K");
-          }
-
-          const isFinal = ci === chain.length - 1 || isChainEarlyReturn(lastResult);
-          earlyReturn = applyCommandResult(lastResult, pipeline[pipeline.length - 1], runningFs, isFinal) ?? false;
-
-          // If segment triggers session/incremental/transition, stop chain
-          if (isChainEarlyReturn(lastResult) || earlyReturn) break;
-        }
+        const run = await runPipeline({
+          chain,
+          fs: initialFs,
+          cwd: cwdRef.current,
+          homeDir,
+          mounts: initialMounts,
+          buildContext: ({ fs, cwd, stdin, rawArgs, isPiped, mounts }) =>
+            buildCommandContext(fs, cwd, computerId, homeDir, stdin, rawArgs, isPiped, useGameStore.getState(), mounts),
+          write: (t) => term.write(t),
+          redirection: {
+            computerId,
+            securityPolicy: computerId === "nexacorp" ? NEXACORP_SECURITY_POLICY : undefined,
+          },
+          intermediateFileReadEvents: true,
+          applySegment: (cmdResult, parsedCmd, state, isFinal) =>
+            applyCommandResult(cmdResult, parsedCmd, state.fs, isFinal),
+        });
+        let runningFs = run.fs;
 
         // Append command to .zsh_history in the virtual filesystem (HIST_IGNORE_DUPS)
-        const historyPath = `${homeDir}/.zsh_history`;
-        const existing = runningFs.readFile(historyPath);
-        const prev = existing.content ?? "";
-        const lastLine = prev.trimEnd().split("\n").pop() ?? "";
-        if (!result.skipHistory && lastLine !== result.input) {
-          const suffix = prev.endsWith("\n") || prev === "" ? "" : "\n";
-          const historyUpdated = prev + suffix + result.input + "\n";
-          const histWrite = runningFs.writeFile(historyPath, historyUpdated);
-          if (histWrite.fs) runningFs = histWrite.fs;
+        if (!result.skipHistory) {
+          const historyPath = `${homeDir}/.zsh_history`;
+          const prev = runningFs.readFile(historyPath).content ?? "";
+          const historyUpdated = appendZshHistory(prev, result.input);
+          if (historyUpdated !== prev) {
+            const histWrite = runningFs.writeFile(historyPath, historyUpdated);
+            if (histWrite.fs) runningFs = histWrite.fs;
+          }
         }
 
         // Write final FS to store once
@@ -681,11 +557,11 @@ export function useTerminal() {
         }
 
         // Write final mounts to store once
-        if (runningMounts !== initialMounts) {
-          useGameStore.getState().setComputerMounts(computerId, runningMounts);
+        if (run.mounts !== initialMounts) {
+          useGameStore.getState().setComputerMounts(computerId, run.mounts);
         }
 
-        if (!earlyReturn) {
+        if (!run.earlyReturn) {
           writePrompt(term);
         }
         } finally {

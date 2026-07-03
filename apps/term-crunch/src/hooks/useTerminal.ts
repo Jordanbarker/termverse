@@ -1,9 +1,9 @@
 import type { Terminal } from "@xterm/xterm";
 import { expandAliases, parseChainedPipeline } from "@tt/core/commands/parser";
-import { execute, executeAsync, isAsyncCommand, getAvailableCommands } from "@tt/core/commands/registry";
+import { getAvailableCommands } from "@tt/core/commands/registry";
+import { runPipeline } from "@tt/core/commands/runPipeline";
 import { computeEffects, type ApplyContext, type SessionToStart } from "@tt/core/commands/applyResult";
-import type { CommandContext, CommandResult } from "@tt/core/commands/types";
-import { parseZshHistory } from "@tt/core/terminal/zshHistory";
+import { parseZshHistory, appendZshHistory } from "@tt/core/terminal/zshHistory";
 import { findLeaf } from "@tt/core/terminal/paneTypes";
 import type { SuggestionContext } from "@tt/core/suggestions/suggest";
 // Side-effect import: registers every builtin (ls/cd/cat/git/echo/...) into the registry.
@@ -56,23 +56,15 @@ export function buildSuggestionContext(paneId: string): SuggestionContext {
   };
 }
 
-function appendHistory(content: string, input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) return content;
-  const lines = content.split("\n").filter((l) => l.length > 0);
-  if (lines[lines.length - 1] === trimmed) return content; // HIST_IGNORE_DUPS
-  const sep = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
-  return content + sep + trimmed + "\n";
-}
-
 /**
  * Run a full command line (alias-expanded, chained, piped) in the given pane,
  * writing output to its terminal and committing FS/cwd/env to the store. Returns
  * a session to start when a command opens one (nano/less) so the caller can
  * instantiate it against this pane's terminal.
  *
- * Lean port of useTerminal.ts: no redirects, story flags, deliveries, or
- * multi-machine routing (none are needed by the term-crunch challenges).
+ * Thin wrapper over the shared @tt/core runPipeline: no redirects, story
+ * flags, deliveries, or multi-machine routing (none are needed by the
+ * term-crunch challenges).
  */
 export async function runLine(
   term: Terminal,
@@ -93,85 +85,70 @@ export async function runLine(
   }
   const empty = chain.length === 1 && chain[0].pipeline.length === 1 && !chain[0].pipeline[0].command;
 
-  let runningFs = store.fs;
-  let runningCwd = startCwd;
   let envVars = { ...store.envVars };
   let aliases = { ...store.aliases };
-  let lastExit = 0;
+  let runningFs = store.fs;
+  let runningCwd = startCwd;
   let startSession: SessionToStart | undefined;
 
   if (!empty) {
-    for (const seg of chain) {
-      if (seg.operator === "&&" && lastExit !== 0) continue;
-      if (seg.operator === "||" && lastExit === 0) continue;
-
-      let stdin: string | undefined;
-      let lastResult: CommandResult = { output: "" };
-      const allTrigger: NonNullable<CommandResult["triggerEvents"]> = [];
-
-      for (let pi = 0; pi < seg.pipeline.length; pi++) {
-        const p = seg.pipeline[pi];
-        if (!p.command) continue;
-
-        const ctx: CommandContext = {
-          fs: runningFs,
-          cwd: runningCwd,
-          homeDir: HOME_DIR,
-          username: USERNAME,
-          activeComputer: CRUNCH_MACHINE,
-          rawArgs: p.rawArgs,
-          isPiped: pi < seg.pipeline.length - 1,
-          stdin,
-          commandHistory: parseZshHistory(runningFs.readFile(HIST_PATH).content ?? ""),
-          envVars,
-          setEnvVars: (e) => { envVars = e; },
-          aliases,
-          setAliases: (a) => { aliases = a; },
-          gitAuthor: GIT_AUTHOR,
-        };
-
-        lastResult = isAsyncCommand(p.command)
-          ? await executeAsync(p.command, p.args, p.flags, ctx)
-          : execute(p.command, p.args, p.flags, ctx);
-
-        if (lastResult.triggerEvents) allTrigger.push(...lastResult.triggerEvents);
-        if (lastResult.newFs) runningFs = lastResult.newFs;
-        stdin = lastResult.output;
-      }
-
-      if (allTrigger.length > 0) lastResult = { ...lastResult, triggerEvents: allTrigger };
-      lastExit = lastResult.exitCode ?? 0;
-
-      const lastParsed = seg.pipeline[seg.pipeline.length - 1];
-      const applyCtx: ApplyContext = {
-        parsedCommand: lastParsed.command,
-        parsedArgs: lastParsed.args,
-        cwd: runningCwd,
+    const run = await runPipeline({
+      chain,
+      fs: store.fs,
+      cwd: startCwd,
+      homeDir: HOME_DIR,
+      buildContext: ({ fs, cwd, stdin, rawArgs, isPiped }) => ({
+        fs,
+        cwd,
         homeDir: HOME_DIR,
-        activeComputer: CRUNCH_MACHINE,
         username: USERNAME,
-        deliveredEmailIds: [],
-        deliveredPiperIds: [],
-        storyFlags: {},
-        fs: runningFs,
-      };
-      const effects = computeEffects(lastResult, applyCtx);
+        activeComputer: CRUNCH_MACHINE,
+        rawArgs,
+        isPiped,
+        stdin,
+        commandHistory: parseZshHistory(fs.readFile(HIST_PATH).content ?? ""),
+        envVars,
+        setEnvVars: (e) => { envVars = e; },
+        aliases,
+        setAliases: (a) => { aliases = a; },
+        gitAuthor: GIT_AUTHOR,
+      }),
+      write: (t) => term.write(t),
+      applySegment: (lastResult, lastParsed, state) => {
+        const applyCtx: ApplyContext = {
+          parsedCommand: lastParsed.command,
+          parsedArgs: lastParsed.args,
+          cwd: state.cwd,
+          homeDir: HOME_DIR,
+          activeComputer: CRUNCH_MACHINE,
+          username: USERNAME,
+          deliveredEmailIds: [],
+          deliveredPiperIds: [],
+          storyFlags: {},
+          fs: state.fs,
+        };
+        const effects = computeEffects(lastResult, applyCtx);
 
-      if (effects.newFs) runningFs = effects.newFs;
-      if (effects.newCwd) runningCwd = effects.newCwd;
-      if (effects.clearScreen) term.clear();
-      writeOut(term, effects.output);
+        if (effects.newFs) runningFs = effects.newFs;
+        if (effects.clearScreen) term.clear();
+        writeOut(term, effects.output);
 
-      if (effects.startSession?.type === "editor" || effects.startSession?.type === "less") {
-        startSession = effects.startSession;
-        break; // session takes over the screen — stop the chain
-      }
-    }
+        if (effects.startSession?.type === "editor" || effects.startSession?.type === "less") {
+          startSession = effects.startSession;
+          return { newCwd: effects.newCwd, stopChain: true }; // session takes over the screen
+        }
+        return { newCwd: effects.newCwd };
+      },
+    });
+    // Prefer the effects-level FS (it bakes cd's new cwd into the VirtualFS);
+    // fall back to the loop's accumulated FS when no segment produced one.
+    if (runningFs === store.fs) runningFs = run.fs;
+    runningCwd = run.cwd;
   }
 
   // Append to history, then commit shell state to the store.
   const histContent = runningFs.readFile(HIST_PATH).content ?? "";
-  const newHist = appendHistory(histContent, input);
+  const newHist = appendZshHistory(histContent, input);
   if (newHist !== histContent) {
     const w = runningFs.writeFile(HIST_PATH, newHist);
     if (w.fs) runningFs = w.fs;

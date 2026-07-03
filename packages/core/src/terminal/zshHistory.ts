@@ -14,3 +14,16 @@ export function parseZshHistory(content: string): string[] {
     .map((line) => line.trimEnd())
     .filter((line) => line.length > 0);
 }
+
+// Append a submitted command to the HISTFILE content, zsh-style: skip blank
+// input, dedupe against the immediately preceding entry (HIST_IGNORE_DUPS),
+// and keep the file newline-terminated. Returns the content unchanged when
+// nothing should be appended.
+export function appendZshHistory(content: string, input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return content;
+  const lastLine = content.trimEnd().split("\n").pop() ?? "";
+  if (lastLine === trimmed) return content;
+  const sep = content === "" || content.endsWith("\n") ? "" : "\n";
+  return content + sep + trimmed + "\n";
+}
