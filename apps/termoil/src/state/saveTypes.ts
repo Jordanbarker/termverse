@@ -4,14 +4,16 @@ import { GamePhase, ComputerId, StoryFlags } from "./types";
 import { SavedWindowState } from "@tt/core/terminal/paneTypes";
 import { SerializedSnowflake } from "@tt/core/snowflake/serialization";
 
-export const SAVE_FORMAT_VERSION = 17;
+export const SAVE_FORMAT_VERSION = 18;
 
 export type SaveSlotId = "slot-1" | "slot-2" | "slot-3";
 
-export interface SaveData {
+// The versioned snapshot shared by BOTH persistence paths: the Zustand
+// auto-persist blob (partialize/merge) and manual save slots. Produced by
+// serializeGameState() and consumed by restoreGameState() in saveManager.ts —
+// add new persisted fields there, here, and nowhere else.
+export interface SavePayload {
   version: number;
-  timestamp: number;
-  label: string;
   username: string;
   gamePhase: GamePhase;
   currentChapter: string;
@@ -19,6 +21,7 @@ export interface SaveData {
   deliveredEmailIds: string[];
   deliveredPiperIds: string[];
   storyFlags: StoryFlags;
+  hasSeenIntro: boolean;
   computerStates: Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>;
   // Durable per-computer .zsh_history mirror (survives removeComputer).
   zshHistory: Partial<Record<ComputerId, string>>;
@@ -27,6 +30,14 @@ export interface SaveData {
   activeWindowIndex: number;
   notifiedChipTopicIds: string[];
   serializedSnowflake: SerializedSnowflake;
+  // UI preference: hide the copy-mode key-hint overlay.
+  copyModeHelpHidden: boolean;
+}
+
+// A manual save slot: the shared payload plus slot metadata.
+export interface SaveData extends SavePayload {
+  timestamp: number;
+  label: string;
 }
 
 export interface SaveSlotMeta {

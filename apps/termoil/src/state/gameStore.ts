@@ -3,22 +3,13 @@ import { persist } from "zustand/middleware";
 import { createDebouncedStorage } from "./debouncedStorage";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { Mounts } from "@tt/core/filesystem/mounts";
-import { createNexacorpFilesystem } from "../story/filesystem/nexacorp";
-import { createHomeFilesystem } from "../story/filesystem/home";
-import { createDevcontainerFilesystem } from "../story/filesystem/devcontainer";
-import { createChipinfraFilesystem } from "../story/filesystem/chipinfra";
-import { createErikpcFilesystem } from "../story/filesystem/erikpc";
-import { getComputerUsername } from "../story/player";
 import "../story/git/remotes"; // side effect: registers this story's clonable git remotes into @tt/core
-import { serializeFS, deserializeFS, SerializedFS } from "@tt/core/filesystem/serialization";
-import { createSaveData, saveToSlot, loadFromSlot } from "./saveManager";
-import { SaveSlotId } from "./saveTypes";
+import { buildFs, createSaveData, saveToSlot, loadFromSlot, serializeGameState, restoreGameState } from "./saveManager";
+import { SaveSlotId, SavePayload, SAVE_FORMAT_VERSION } from "./saveTypes";
 import { GamePhase, ComputerId, StoryFlags, PLAYER } from "./types";
 import { SnowflakeState } from "@tt/core/snowflake/state";
 import { createInitialSnowflakeState } from "@/story/data/snowflake/initial_data";
-import { serializeSnowflake, deserializeSnowflake, SerializedSnowflake } from "@tt/core/snowflake/serialization";
 import { syncToVirtualFS } from "@tt/core/snowflake/bridge/fs_bridge";
-import { seedDeliveredEmails } from "../engine/mail/delivery";
 import { getDefaultEnv, initEnvForComputer, initAliasesForComputer } from "../story/env";
 import { findNewlyAvailableChipTopics } from "../engine/chip/notifications";
 import {
@@ -38,11 +29,10 @@ import {
   nudgeSplitRatio,
   focusDirectionTarget,
   nextLeafId,
-  rebuildWindow,
-  serializeWindow,
   resetPaneIdCounters,
-  SavedWindowState,
 } from "@tt/core/terminal/paneTypes";
+
+export { buildFs };
 
 export interface Toast {
   id: string;
@@ -148,32 +138,6 @@ interface GameStore {
   setPendingPiperNotification: (value: boolean) => void;
   markChipTopicsNotified: (ids: string[]) => void;
   setCopyModeHelpHidden: (hidden: boolean) => void;
-}
-
-export function buildFs(
-  username: string,
-  computer: ComputerId,
-  storyFlags: StoryFlags = {},
-  deliveredEmailIds: string[] = []
-) {
-  const root = computer === "home"
-    ? createHomeFilesystem(username)
-    : computer === "devcontainer"
-      ? createDevcontainerFilesystem(username, storyFlags)
-      : computer === "chipinfra"
-        ? createChipinfraFilesystem(username, storyFlags)
-        : computer === "erik-pc"
-          ? createErikpcFilesystem(username)
-          : createNexacorpFilesystem(username, storyFlags);
-  const sessionUser = getComputerUsername(computer, username);
-  const homeDir = `/home/${sessionUser}`;
-  let fs = new VirtualFS(root, homeDir, homeDir);
-
-  if (deliveredEmailIds.length > 0) {
-    fs = seedDeliveredEmails(fs, deliveredEmailIds, computer, username, new Set(), storyFlags);
-  }
-
-  return fs;
 }
 
 function createInitialState(username = PLAYER.username) {
@@ -490,65 +454,14 @@ export const useGameStore = create<GameStore>()(
       },
 
       saveGame: (slotId, label) => {
-        const state = get();
-        const activeWindowIndex = state.windows.findIndex((w) => w.id === state.activeWindowId);
-        const saveable = { ...state, activeWindowIndex: activeWindowIndex >= 0 ? activeWindowIndex : 0, notifiedChipTopicIds: [...state.notifiedChipTopicIds] };
-        const data = createSaveData(saveable, label ?? `Save ${slotId}`);
+        const data = createSaveData(get(), label ?? `Save ${slotId}`);
         return saveToSlot(slotId, data);
       },
 
       loadGame: (slotId) => {
         const data = loadFromSlot(slotId);
-        if (!data) return false;
-
-        let sfState: SnowflakeState;
-        try {
-          sfState = data.serializedSnowflake?.databases
-            ? deserializeSnowflake(data.serializedSnowflake)
-            : createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown });
-        } catch {
-          sfState = createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown });
-        }
-
-        const loadedComputerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
-        for (const [id, cs] of Object.entries(data.computerStates)) {
-          try {
-            const loadedFs = deserializeFS(cs.fs);
-            loadedComputerState[id as ComputerId] = {
-              fs: loadedFs,
-              envVars: cs.envVars,
-              aliases: cs.aliases,
-              mounts: cs.mounts ?? {},
-            };
-          } catch { /* skip corrupted entries */ }
-        }
-        if (loadedComputerState.nexacorp) {
-          loadedComputerState.nexacorp = { ...loadedComputerState.nexacorp, fs: syncToVirtualFS(sfState, loadedComputerState.nexacorp.fs) };
-        }
-
-        resetPaneIdCounters();
-        const savedWindows = data.windows && data.windows.length > 0
-          ? data.windows
-          : [{ root: { kind: "leaf" as const, computerId: "home" as ComputerId, cwd: `/home/${data.username}` }, activePaneIndex: 0 }];
-        const windows = savedWindows.map(rebuildWindow);
-        const activeIdx = Math.min(data.activeWindowIndex ?? 0, windows.length - 1);
-
-        set({
-          username: data.username,
-          gamePhase: data.gamePhase,
-          currentChapter: data.currentChapter,
-          completedObjectives: data.completedObjectives,
-          deliveredEmailIds: data.deliveredEmailIds,
-          deliveredPiperIds: data.deliveredPiperIds,
-          storyFlags: data.storyFlags,
-          snowflakeState: sfState,
-          computerState: loadedComputerState,
-          zshHistory: data.zshHistory ?? {},
-          windows,
-          activeWindowId: windows[activeIdx].id,
-          activeSnowSession: null,
-          notifiedChipTopicIds: data.notifiedChipTopicIds ?? [],
-        });
+        if (!data || data.version !== SAVE_FORMAT_VERSION) return false;
+        set(restoreGameState(data));
         return true;
       },
 
@@ -600,130 +513,13 @@ export const useGameStore = create<GameStore>()(
     {
       name: "termoil-save",
       storage: createDebouncedStorage(1000),
-      partialize: (state) => {
-        // Serialize all computer FS entries (the .zsh_history file lives inside fs).
-        const serializedComputerState: Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }> = {};
-        for (const [id, cs] of Object.entries(state.computerState)) {
-          if (cs) serializedComputerState[id] = { fs: serializeFS(cs.fs), envVars: cs.envVars, aliases: cs.aliases, mounts: cs.mounts ?? {} };
-        }
-        // Persist window/pane layout
-        const activeWindowIndex = state.windows.findIndex((w) => w.id === state.activeWindowId);
-        return {
-          username: state.username,
-          currentChapter: state.currentChapter,
-          completedObjectives: state.completedObjectives,
-          deliveredEmailIds: state.deliveredEmailIds,
-          deliveredPiperIds: state.deliveredPiperIds,
-          gamePhase: state.gamePhase,
-          storyFlags: state.storyFlags,
-          hasSeenIntro: state.hasSeenIntro,
-          serializedSnowflake: serializeSnowflake(state.snowflakeState),
-          serializedComputerState,
-          zshHistory: state.zshHistory,
-          persistedWindows: state.windows.map(serializeWindow),
-          persistedActiveWindowIndex: activeWindowIndex >= 0 ? activeWindowIndex : 0,
-          notifiedChipTopicIds: state.notifiedChipTopicIds,
-          copyModeHelpHidden: state.copyModeHelpHidden,
-        };
-      },
+      partialize: (state) => serializeGameState(state),
       merge: (persisted, currentState) => {
-        const p = persisted as Record<string, unknown> | null;
-        if (!p) return currentState;
-
-        const username = (p.username as string) ?? currentState.username;
-        const storyFlags = (p.storyFlags as StoryFlags) ?? currentState.storyFlags;
-
-        // Reconstruct SnowflakeState
-        let sfState: SnowflakeState;
-        const serializedSf = p.serializedSnowflake as SerializedSnowflake | undefined;
-        try {
-          if (serializedSf?.databases) {
-            sfState = deserializeSnowflake(serializedSf);
-          } else {
-            sfState = createInitialSnowflakeState({ includeDay2: !!storyFlags.day1_shutdown });
-          }
-        } catch {
-          sfState = createInitialSnowflakeState({ includeDay2: !!storyFlags.day1_shutdown });
-        }
-
-        // Restore computerState from serialized data
-        const computerState: Partial<Record<ComputerId, { fs: VirtualFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts: Mounts }>> = {};
-        const serializedCS = p.serializedComputerState as Record<string, { fs: SerializedFS; envVars: Record<string, string>; aliases: Record<string, string>; mounts?: Mounts }> | undefined;
-        if (serializedCS) {
-          for (const [id, cs] of Object.entries(serializedCS)) {
-            try {
-              const restoredFs = deserializeFS(cs.fs);
-              computerState[id as ComputerId] = {
-                fs: restoredFs,
-                envVars: cs.envVars,
-                aliases: cs.aliases,
-                mounts: cs.mounts ?? {},
-              };
-            } catch { /* skip corrupted entries */ }
-          }
-          if (computerState.nexacorp) {
-            computerState.nexacorp = { ...computerState.nexacorp, fs: syncToVirtualFS(sfState, computerState.nexacorp.fs) };
-          }
-        }
-
-        // Restore windows + panes
-        resetPaneIdCounters();
-        const persistedWindows = p.persistedWindows as SavedWindowState[] | undefined;
-        const persistedActiveWindowIndex = (p.persistedActiveWindowIndex as number) ?? 0;
-        let windows: WindowState[];
-        if (persistedWindows && persistedWindows.length > 0) {
-          windows = persistedWindows.map(rebuildWindow);
-        } else {
-          windows = [makeWindow("home", `/home/${username}`)];
-        }
-        const activeIdx = Math.min(persistedActiveWindowIndex, windows.length - 1);
-
-        // Durable .zsh_history mirror (survives removeComputer between sessions).
-        const zshHistory = (p.zshHistory as Partial<Record<ComputerId, string>>) ?? {};
-
-        // Ensure every pane's computer has a corresponding computerState entry.
-        // A persisted pane can outlive its computerState if the FS failed to
-        // deserialize above, or if the save predates a new ComputerId. Without
-        // this rebuild, useTerminal asserts on store.computerState[id]!.fs.
-        const leafComputers = new Set<ComputerId>();
-        for (const w of windows) for (const l of allLeaves(w.root)) leafComputers.add(l.computerId as ComputerId);
-        for (const computerId of leafComputers) {
-          if (!computerState[computerId]) {
-            const fs = buildFs(username, computerId, storyFlags, (p.deliveredEmailIds as string[]) ?? []);
-            let finalFs = computerId === "nexacorp" ? syncToVirtualFS(sfState, fs) : fs;
-            // Restore the history mirror into the rebuilt fs (matches initComputer).
-            const savedHistory = zshHistory[computerId];
-            if (savedHistory != null) {
-              const written = finalFs.writeFile(`${finalFs.homeDir}/.zsh_history`, savedHistory);
-              if (written.fs) finalFs = written.fs;
-            }
-            computerState[computerId] = {
-              fs: finalFs,
-              envVars: initEnvForComputer(computerId, username, finalFs),
-              aliases: initAliasesForComputer(computerId, username, finalFs),
-              mounts: {},
-            };
-          }
-        }
-
-        return {
-          ...currentState,
-          username,
-          currentChapter: (p.currentChapter as string) ?? currentState.currentChapter,
-          completedObjectives: (p.completedObjectives as string[]) ?? currentState.completedObjectives,
-          deliveredEmailIds: (p.deliveredEmailIds as string[]) ?? currentState.deliveredEmailIds,
-          deliveredPiperIds: (p.deliveredPiperIds as string[]) ?? currentState.deliveredPiperIds,
-          gamePhase: (p.gamePhase as GamePhase) ?? currentState.gamePhase,
-          storyFlags,
-          hasSeenIntro: (p.hasSeenIntro as boolean) ?? currentState.hasSeenIntro,
-          snowflakeState: sfState,
-          computerState,
-          zshHistory,
-          windows,
-          activeWindowId: windows[activeIdx].id,
-          notifiedChipTopicIds: (p.notifiedChipTopicIds as string[]) ?? [],
-          copyModeHelpHidden: (p.copyModeHelpHidden as boolean) ?? currentState.copyModeHelpHidden,
-        };
+        const p = persisted as SavePayload | null;
+        // Version mismatch (or pre-versioned blob) => discard and start fresh.
+        // Pre-release: no migrations.
+        if (!p || p.version !== SAVE_FORMAT_VERSION) return currentState;
+        return { ...currentState, ...restoreGameState(p) };
       },
     }
   )

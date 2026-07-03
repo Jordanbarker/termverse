@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   createSaveData,
+  serializeGameState,
+  restoreGameState,
   saveToSlot,
   loadFromSlot,
   deleteSlot,
@@ -87,6 +89,7 @@ function createBareFS(): VirtualFS {
 
 function createState(): SaveableState {
   const fs = createMinimalFS();
+  const windows = [win("nexacorp", "/home/player")];
   return {
     username: "player",
     gamePhase: "playing",
@@ -95,12 +98,14 @@ function createState(): SaveableState {
     deliveredEmailIds: ["email-1"],
     deliveredPiperIds: [],
     storyFlags: {},
+    hasSeenIntro: true,
     computerState: { nexacorp: { fs, envVars: { USER: "player", HOME: "/home/player" }, aliases: {}, mounts: {} }},
     zshHistory: { nexacorp: "ls\ncd docs\ncat readme.md\n" },
-    windows: [win("nexacorp", "/home/player")],
-    activeWindowIndex: 0,
+    windows,
+    activeWindowId: windows[0].id,
     notifiedChipTopicIds: [],
     snowflakeState: emptySnowflake(),
+    copyModeHelpHidden: true,
   };
 }
 
@@ -189,10 +194,31 @@ describe("createSaveData", () => {
       win("nexacorp", "/home/player"),
       win("devcontainer", "/home/player/project"),
     ];
-    state.activeWindowIndex = 1;
+    state.activeWindowId = state.windows[1].id;
     const data = createSaveData(state, "Test");
     expect(data.windows).toHaveLength(2);
     expect(data.activeWindowIndex).toBe(1);
+  });
+});
+
+describe("serializeGameState / restoreGameState round-trip", () => {
+  it("restores the snapshot fields, including intro/copy-mode preferences", () => {
+    const state = createState();
+    const restored = restoreGameState(serializeGameState(state));
+
+    expect(restored.username).toBe("player");
+    expect(restored.gamePhase).toBe("playing");
+    expect(restored.currentChapter).toBe("chapter-1");
+    expect(restored.completedObjectives).toEqual(["obj-1"]);
+    expect(restored.hasSeenIntro).toBe(true);
+    expect(restored.copyModeHelpHidden).toBe(true);
+    expect(restored.zshHistory).toEqual(state.zshHistory);
+    expect(restored.windows).toHaveLength(1);
+    expect(restored.activeWindowId).toBe(restored.windows[0].id);
+    expect(restored.activeSnowSession).toBeNull();
+    expect(
+      restored.computerState.nexacorp!.fs.readFile("/home/player/test.txt").content
+    ).toBe("test content");
   });
 });
 
@@ -264,6 +290,11 @@ describe("listSaveSlots", () => {
 
 describe("multi-tab round-trip", () => {
   it("full round-trip with 3 tabs on 2 computers", () => {
+    const windows = [
+      win("nexacorp", "/home/player"),
+      win("devcontainer", "/home/player"),
+      win("nexacorp", "/home/player"),
+    ];
     const state: SaveableState = {
       username: "player",
       gamePhase: "playing",
@@ -272,19 +303,17 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      hasSeenIntro: false,
       zshHistory: {},
       computerState: {
         nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         devcontainer: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
       },
-      windows: [
-        win("nexacorp", "/home/player"),
-        win("devcontainer", "/home/player"),
-        win("nexacorp", "/home/player"),
-      ],
-      activeWindowIndex: 1,
+      windows,
+      activeWindowId: windows[1].id,
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
+      copyModeHelpHidden: false,
     };
 
     const data = createSaveData(state, "3-tab save");
@@ -303,6 +332,10 @@ describe("multi-tab round-trip", () => {
   });
 
   it("FS isolation preserved across save/load", () => {
+    const windows = [
+      win("nexacorp", "/home/player"),
+      win("devcontainer", "/home/player"),
+    ];
     const state: SaveableState = {
       username: "player",
       gamePhase: "playing",
@@ -311,18 +344,17 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      hasSeenIntro: false,
       zshHistory: {},
       computerState: {
         nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         devcontainer: { fs: createBareFS(), envVars: {}, aliases: {}, mounts: {} },
       },
-      windows: [
-        win("nexacorp", "/home/player"),
-        win("devcontainer", "/home/player"),
-      ],
-      activeWindowIndex: 0,
+      windows,
+      activeWindowId: windows[0].id,
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
+      copyModeHelpHidden: false,
     };
 
     const data = createSaveData(state, "isolation test");
@@ -340,6 +372,7 @@ describe("multi-tab round-trip", () => {
   });
 
   it("single tab round-trip", () => {
+    const windows = [win("nexacorp", "/home/player")];
     const state: SaveableState = {
       username: "player",
       gamePhase: "playing",
@@ -348,12 +381,14 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      hasSeenIntro: false,
       zshHistory: {},
       computerState: { nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} }},
-      windows: [win("nexacorp", "/home/player")],
-      activeWindowIndex: 0,
+      windows,
+      activeWindowId: windows[0].id,
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
+      copyModeHelpHidden: false,
     };
 
     const data = createSaveData(state, "single window");
@@ -366,6 +401,13 @@ describe("multi-tab round-trip", () => {
   });
 
   it("max tabs (5) round-trip", () => {
+    const windows = [
+      win("home", "/home/player"),
+      win("nexacorp", "/home/player"),
+      win("devcontainer", "/home/player"),
+      win("nexacorp", "/home/player"),
+      win("home", "/home/player"),
+    ];
     const state: SaveableState = {
       username: "player",
       gamePhase: "playing",
@@ -374,22 +416,18 @@ describe("multi-tab round-trip", () => {
       deliveredEmailIds: [],
       deliveredPiperIds: [],
       storyFlags: {},
+      hasSeenIntro: false,
       zshHistory: {},
       computerState: {
         home: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} },
         devcontainer: { fs: createBareFS(), envVars: {}, aliases: {}, mounts: {} },
       },
-      windows: [
-        win("home", "/home/player"),
-        win("nexacorp", "/home/player"),
-        win("devcontainer", "/home/player"),
-        win("nexacorp", "/home/player"),
-        win("home", "/home/player"),
-      ],
-      activeWindowIndex: 2,
+      windows,
+      activeWindowId: windows[2].id,
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
+      copyModeHelpHidden: false,
     };
 
     const data = createSaveData(state, "max tabs");
