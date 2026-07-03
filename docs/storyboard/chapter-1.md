@@ -87,8 +87,8 @@ Commands unlock progressively through Piper conversations and exploration:
      │                            │  │                            │
      │ Sequential:                │  │ Requires: fix_backup done  │
      │  1. file                   │  │                            │
-     │  2. which                  │  │  1. mkdir ~/backups        │
-     │  3. mkdir                  │  │  2. cp scripts             │
+     │  2. mkdir                  │  │  1. mkdir ~/backups        │
+     │  3. rm -r                  │  │  2. cp scripts             │
      │  4. mv                     │  │  3. read log               │
      │  5. echo/pipe              │  │  4. verify backup          │
      │  6. man                    │  │                            │
@@ -216,7 +216,7 @@ Commands unlock progressively through Piper conversations and exploration:
 
 | Quest | Trigger | Sub-objectives |
 |-------|---------|---------------|
-| Olive's Terminal Challenges | `olive_challenge_file` Piper delivered | file → which → mkdir → mv → echo → man |
+| Olive's Terminal Challenges | `olive_challenge_file` Piper delivered | file → mkdir → rm -r → mv → echo → man |
 | Fix & Extend Backup | `olive_backup_advice` Piper delivered | mkdir → cp → log → verify |
 
 [^1]: `ssh_unlocked` fires on **reading the email body** (`file_read` trigger on the `chip_ssh_setup` email id, see `src/story/storyFlags.ts:176`) — not on email delivery.

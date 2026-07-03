@@ -1,7 +1,7 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { setKnownFlags } from "../flagValidation";
-import { resolveCommandPath, pythonLocatedEvents } from "./which";
+import { resolveCommandPath } from "./which";
 import { HELP_TEXTS } from "./helpTexts";
 
 const SHELL_BUILTINS = new Set([
@@ -45,7 +45,6 @@ const type: CommandHandler = (args, flags, ctx) => {
   return {
     output: outputs.join("\n"),
     exitCode: anyMissing ? 1 : 0,
-    triggerEvents: pythonLocatedEvents(args),
   };
 };
 

@@ -351,9 +351,9 @@ that last one is your best friend. if you forget how something works, just man i
       ],
     },
 
-    // === dm_olive — challenge 2: which ===
+    // === dm_olive — challenge 2: mkdir ===
     {
-      id: "olive_challenge_which",
+      id: "olive_challenge_mkdir",
       channelId: "dm_olive",
       computer: "home",
       messages: [
@@ -361,28 +361,28 @@ that last one is your best friend. if you forget how something works, just man i
           id: "olive_ch2_1",
           from: "Olive Borden",
           timestamp: "",
-          body: "good. challenge 2: run 'which python3'.",
+          body: "good. challenge 2: create a ~/Projects directory with mkdir.",
         },
         {
           id: "olive_ch2_2",
           from: "Olive Borden",
           timestamp: "",
-          body: "shows you where a command actually lives on disk. useful when you have multiple versions installed and need to know which one runs by default.",
+          body: "every dev needs one. you can use it to organize anything you're working on.",
         },
       ],
       trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_file" },
       replyOptions: [
         {
-          label: "mission accomplished",
-          messageBody: "mission accomplished",
-          visibleWhen: { flag: "used_which_python" },
+          label: "easy peasy",
+          messageBody: "easy peasy",
+          visibleWhen: { flag: "created_projects_dir" },
         },
       ],
     },
 
-    // === dm_olive — challenge 3: mkdir ===
+    // === dm_olive — challenge 3: rm -r ===
     {
-      id: "olive_challenge_mkdir",
+      id: "olive_challenge_rm",
       channelId: "dm_olive",
       computer: "home",
       messages: [
@@ -390,21 +390,21 @@ that last one is your best friend. if you forget how something works, just man i
           id: "olive_ch3_1",
           from: "Olive Borden",
           timestamp: "",
-          body: "challenge 3: create a ~/Projects directory with mkdir.",
+          body: "challenge 3: now delete it. put a file in it first (touch ~/Projects/scratch.txt), then take the whole thing out with rm -r ~/Projects.",
         },
         {
           id: "olive_ch3_2",
           from: "Olive Borden",
           timestamp: "",
-          body: "every dev needs one. you can use it to organize anything you're working on.",
+          body: "plain rm refuses directories, -r recurses into them. no trash can in the terminal, so read the path twice before you -r anything (and three times before -rf).",
         },
       ],
-      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_which" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_mkdir" },
       replyOptions: [
         {
-          label: "easy peasy",
-          messageBody: "easy peasy",
-          visibleWhen: { flag: "created_projects_dir" },
+          label: "it's gone",
+          messageBody: "it's gone",
+          visibleWhen: { flag: "removed_projects_dir" },
         },
       ],
     },
@@ -428,7 +428,7 @@ that last one is your best friend. if you forget how something works, just man i
           body: "mv is both move and rename, same command. mv oldname newname renames in place, mv file dir/ moves it.",
         },
       ],
-      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_mkdir" },
+      trigger: { type: "after_piper_reply", deliveryId: "olive_challenge_rm" },
       replyOptions: [
         {
           label: "done and dusted!",

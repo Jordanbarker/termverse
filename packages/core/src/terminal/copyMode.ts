@@ -71,6 +71,16 @@ export const COPY_MODE_HINT =
 /** Collapsed hint shown when the help overlay is toggled off. */
 export const COPY_MODE_HINT_HIDDEN = " · ? help";
 
+/**
+ * High-contrast selection colors applied while copy mode is active so the
+ * cursor cell / selection stand out against the terminal's dim default
+ * selection. Gold matches the COPY MODE overlay accent; the dark foreground
+ * keeps selected text readable on top of it. Apps swap these into the live
+ * xterm theme on `onChange(active)` and restore their base theme on exit.
+ */
+export const COPY_MODE_SELECTION_BG = "#e6b450";
+export const COPY_MODE_SELECTION_FG = "#0a0e14";
+
 export class CopyModeController {
   private active = false;
   private cursor: Point = { col: 0, row: 0 };

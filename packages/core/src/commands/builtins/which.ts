@@ -49,13 +49,6 @@ export function resolveCommandPath(name: string, ctx: CommandContext): string | 
   return null;
 }
 
-/** Emit the python_located trigger event when args include python/python3. */
-export function pythonLocatedEvents(args: string[]) {
-  return args.some((a) => a === "python" || a === "python3")
-    ? [{ type: "command_executed" as const, detail: "python_located" }]
-    : undefined;
-}
-
 const which: CommandHandler = (args, _flags, ctx) => {
   if (args.length === 0) {
     return { output: "which: missing command argument" };
@@ -71,7 +64,6 @@ const which: CommandHandler = (args, _flags, ctx) => {
   return {
     output: outputs.join("\n"),
     exitCode: notFound ? 1 : 0,
-    triggerEvents: pythonLocatedEvents(args),
   };
 };
 

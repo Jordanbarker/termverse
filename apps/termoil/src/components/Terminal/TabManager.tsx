@@ -14,7 +14,7 @@ import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "@tt/core/lib
 import { seedImmediatePiper } from "../../engine/piper/delivery";
 import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, PaneBinding } from "@tt/core/terminal/tmuxConfig";
 import { ANSI_COLORS } from "@tt/core/terminal/ansiPalette";
-import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
+import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN, COPY_MODE_SELECTION_BG, COPY_MODE_SELECTION_FG } from "@tt/core/terminal/copyMode";
 import { useRenameWindowPrompt } from "@tt/core/terminal/useRenameWindowPrompt";
 import { sessionUsesAltScreen } from "@tt/core/session/types";
 import { copyToClipboard } from "@tt/core/lib/clipboard";
@@ -304,6 +304,11 @@ export default function TabManager() {
     const copyMode = new CopyModeController(term, {
       onChange: (active) => {
         setCopyModeActive(active);
+        // Brighten the selection to the gold copy-mode accent so the 1-cell
+        // cursor (a native selection) is easy to see; restore the base theme on exit.
+        term.options.theme = active
+          ? { ...XTERM_THEME, selectionBackground: COPY_MODE_SELECTION_BG, selectionForeground: COPY_MODE_SELECTION_FG }
+          : XTERM_THEME;
         // Leaving copy mode over a full-screen session: have the session re-render so it
         // re-asserts its own screen + cursor visibility (nano shows its cursor; less/piper
         // keep it hidden). exit() writes SHOW_CURSOR/scrollToBottom before firing this, so

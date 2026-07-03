@@ -146,18 +146,18 @@ describe("shutdown triggers — guarded so cosmetic reboots stay consequence-fre
   });
 });
 
-describe("used_which_python — python_located event", () => {
+describe("removed_projects_dir — directory_removed event", () => {
   const triggers = getStoryFlagTriggers(username);
 
-  it("fires on python_located (which/command/type emit this)", () => {
-    const event: GameEvent = { type: "command_executed", detail: "python_located" };
+  it("fires on directory_removed at ~/Projects (rm forces -r for directories)", () => {
+    const event: GameEvent = { type: "directory_removed", detail: `/home/${username}/Projects` };
     const flags = fireFlags(event, triggers, {});
-    expect(flags).toContain("used_which_python");
+    expect(flags).toContain("removed_projects_dir");
   });
 
-  it("does NOT fire on legacy 'which_python' detail (renamed)", () => {
-    const event: GameEvent = { type: "command_executed", detail: "which_python" };
+  it("does NOT fire on directory_removed elsewhere", () => {
+    const event: GameEvent = { type: "directory_removed", detail: `/home/${username}/backups` };
     const flags = fireFlags(event, triggers, {});
-    expect(flags).not.toContain("used_which_python");
+    expect(flags).not.toContain("removed_projects_dir");
   });
 });

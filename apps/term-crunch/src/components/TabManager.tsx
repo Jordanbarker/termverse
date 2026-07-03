@@ -15,7 +15,7 @@ import {
   type PaneBinding,
 } from "@tt/core/terminal/tmuxConfig";
 import { PANE_CHROME } from "@tt/core/terminal/paneChrome";
-import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
+import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN, COPY_MODE_SELECTION_BG, COPY_MODE_SELECTION_FG } from "@tt/core/terminal/copyMode";
 import { copyToClipboard } from "@tt/core/lib/clipboard";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { EditorSession } from "@tt/core/editor/EditorSession";
@@ -319,7 +319,14 @@ export default function TabManager() {
     // tmux/vi copy mode — the engine controller owns cursor/selection; the yank
     // side effect (clipboard) lives here.
     const copyMode = new CopyModeController(term, {
-      onChange: (active) => setCopyModeActive(active),
+      onChange: (active) => {
+        setCopyModeActive(active);
+        // Brighten the selection to the gold copy-mode accent so the 1-cell
+        // cursor (a native selection) is easy to see; restore the base theme on exit.
+        term.options.theme = active
+          ? { ...XTERM_THEME, selectionBackground: COPY_MODE_SELECTION_BG, selectionForeground: COPY_MODE_SELECTION_FG }
+          : XTERM_THEME;
+      },
       onToggleHelp: () => setCopyModeHelpHidden((v) => !v),
       onYank: (text) => { void copyToClipboard(text); },
     });

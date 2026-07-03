@@ -22,6 +22,8 @@ import { parseChainedPipeline, parseInput, expandAliases } from "@tt/core/comman
 import { execute, executeAsync, isAsyncCommand } from "@tt/core/commands/registry";
 import "../src/engine/commands/builtins"; // side-effect: registers all commands
 import { computeEffects, SessionToStart } from "@tt/core/commands/applyResult";
+import { processDeliveries } from "../src/engine/commands/processDeliveries";
+import { createDeviceProvider } from "../src/story/blockDevices";
 import { CommandResult, ChainSegment, ParsedCommand } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { createHomeFilesystem } from "../src/story/filesystem/home";
@@ -232,6 +234,7 @@ export class GameRunner {
       setAliases: (a: Record<string, string>) => { this.aliases[this.activeComputer] = a; },
       mounts: this.mounts[this.activeComputer],
       setMounts: (m: Mounts) => { this.mounts[this.activeComputer] = m; },
+      devices: createDeviceProvider(this.activeComputer, this.storyFlags),
       setCwd: (newCwd: string) => { this.cwd = newCwd; },
     };
   }
@@ -555,6 +558,7 @@ export class GameRunner {
       deliveredPiperIds: this.deliveredPiperIds,
       storyFlags: this.storyFlags,
       fs: this.fs,
+      processDeliveries,
     });
 
     // Apply FS changes

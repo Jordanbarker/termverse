@@ -1921,33 +1921,6 @@ describe("exit", () => {
 });
 
 // --- Quest trigger events ---
-describe("python_located trigger", () => {
-  it("emits python_located event for `which python`", () => {
-    const result = execute("which", ["python"], {}, ctx());
-    expect(result.triggerEvents).toContainEqual({ type: "command_executed", detail: "python_located" });
-  });
-
-  it("emits python_located event for `which python3`", () => {
-    const result = execute("which", ["python3"], {}, ctx());
-    expect(result.triggerEvents).toContainEqual({ type: "command_executed", detail: "python_located" });
-  });
-
-  it("emits python_located event for `command -v python3`", () => {
-    const result = execute("command", ["python3"], { v: true }, ctx());
-    expect(result.triggerEvents).toContainEqual({ type: "command_executed", detail: "python_located" });
-  });
-
-  it("emits python_located event for `type python3`", () => {
-    const result = execute("type", ["python3"], {}, ctx());
-    expect(result.triggerEvents).toContainEqual({ type: "command_executed", detail: "python_located" });
-  });
-
-  it("does not emit python_located for other commands", () => {
-    const result = execute("which", ["grep"], {}, ctx());
-    expect(result.triggerEvents).toBeUndefined();
-  });
-});
-
 describe("echo pipe trigger", () => {
   it("emits echo_pipe event when isPiped", () => {
     const result = execute("echo", ["hello"], {}, ctx(undefined, { isPiped: true }));

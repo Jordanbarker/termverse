@@ -79,8 +79,8 @@ export const STORY_FLAG_NAMES = [
   "olive_challenges_declined",
   "olive_challenges_read",
   "used_file_in_downloads",
-  "used_which_python",
   "created_projects_dir",
+  "removed_projects_dir",
   "used_mv_home",
   "used_echo_pipe",
   "used_man_command",
@@ -214,10 +214,9 @@ export function getStoryFlagTriggers(username: string): StoryFlagTrigger[] {
     { event: "command_executed", detail: "olive_challenges_declined", flag: "olive_challenges_declined", value: true },
     { event: "piper_delivered", detail: "olive_challenge_file", flag: "olive_challenges_read", value: true },
     { event: "file_read", pathPrefix: p.downloadsDir(username) + "/", flag: "used_file_in_downloads", value: true },
-    // Any way of locating the python interpreter — `which python3`, `command -v python3`,
-    // `type python3` — credits this objective.
-    { event: "command_executed", detail: "python_located", flag: "used_which_python", value: true },
     { event: "directory_created", path: p.projectsDir(username), flag: "created_projects_dir", value: true },
+    // rm forces -r for directories, so this event alone proves a recursive delete.
+    { event: "directory_removed", path: p.projectsDir(username), flag: "removed_projects_dir", value: true },
     { event: "command_executed", detail: "mv", flag: "used_mv_home", value: true },
     { event: "command_executed", detail: "echo_pipe", flag: "used_echo_pipe", value: true },
     { event: "command_executed", detail: "man", flag: "used_man_command", value: true },

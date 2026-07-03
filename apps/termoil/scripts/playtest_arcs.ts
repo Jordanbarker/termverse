@@ -144,14 +144,19 @@ function arc2_oliveChallenges() {
   expectExit(out, 0, "file command");
   expectFlag(r, "used_file_in_downloads");
 
-  step("Challenge 2: which python");
-  out = r.run("which python3");
-  expectFlag(r, "used_which_python");
-
-  step("Challenge 3: mkdir Projects");
+  step("Challenge 2: mkdir Projects");
   out = r.run("mkdir /home/ren/Projects");
   expectExit(out, 0, "mkdir");
   expectFlag(r, "created_projects_dir");
+
+  step("Challenge 3: rm -r Projects");
+  out = r.run("rm /home/ren/Projects");
+  expectExit(out, 1, "plain rm refuses a directory");
+  expectNoFlag(r, "removed_projects_dir");
+  r.run("touch /home/ren/Projects/scratch.txt");
+  out = r.run("rm -r /home/ren/Projects");
+  expectExit(out, 0, "rm -r");
+  expectFlag(r, "removed_projects_dir");
 
   step("Challenge 4: mv a file in home");
   // Create a file then mv it
