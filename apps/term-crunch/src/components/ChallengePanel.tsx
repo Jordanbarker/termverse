@@ -189,16 +189,6 @@ export default function ChallengePanel() {
       )}
       </div>
 
-      <div className="text-xs leading-relaxed text-[#4a5560]">
-        Prefix is <span className="text-[#b3b1ad]">Ctrl+Space</span>. Split: prefix then{" "}
-        <span className="text-[#b3b1ad]">|</span> / <span className="text-[#b3b1ad]">-</span>. Move
-        focus: prefix then arrows. Windows: prefix then{" "}
-        <span className="text-[#b3b1ad]">c</span> (new) /{" "}
-        <span className="text-[#b3b1ad]">n</span>,<span className="text-[#b3b1ad]">p</span> (switch) /{" "}
-        <span className="text-[#b3b1ad]">r</span> (rename). <span className="text-[#b3b1ad]">⚙</span>{" "}
-        edits <span className="text-[#b3b1ad]">~/.zshrc</span> + <span className="text-[#b3b1ad]">~/.tmux.conf</span>.
-      </div>
-
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </aside>
   );
