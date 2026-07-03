@@ -31,6 +31,8 @@ import { panesSplit } from "../challenges/panes-split";
 import { panesGrid } from "../challenges/panes-grid";
 import { panesCleanup } from "../challenges/panes-cleanup";
 import { panesResize } from "../challenges/panes-resize";
+import { panesResizeRows } from "../challenges/panes-resize-rows";
+import { panesResizeCorner } from "../challenges/panes-resize-corner";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import { gitStashChallenge } from "../challenges/git-stash";
@@ -214,6 +216,72 @@ describe("panes-resize challenge", () => {
     expect(step.isComplete(snap(at(0.6)))).toBe(false); // outside the band
     expect(step.isComplete(snap(at(0.66)))).toBe(true); // within the band
     expect(step.isComplete(snap(at(0.7)))).toBe(true); // dead on
+  });
+});
+
+describe("panes-resize-rows challenge", () => {
+  const step = panesResizeRows.steps[0];
+  const splitOf = (win: WindowState) => {
+    if (win.root.kind !== "split") throw new Error("expected a stacked split");
+    return win.root;
+  };
+
+  it("seeds a 50/50 stacked split that does not yet satisfy the ~70% target", () => {
+    const win = panesResizeRows.initialWindow!();
+    expect(structKey(win.root)).toBe("(v L L)");
+    expect(splitOf(win).ratio).toBe(0.5);
+    // structurally identical to the target, so only the ratio keeps it incomplete
+    expect(step.isComplete(snap(win))).toBe(false);
+  });
+
+  it("completes once the top pane is within ±0.05 of 70%, not before", () => {
+    const win = panesResizeRows.initialWindow!();
+    const at = (r: number): WindowState => ({ ...win, root: setSplitRatio(win.root, splitOf(win).id, r) });
+
+    expect(step.isComplete(snap(at(0.6)))).toBe(false); // outside the band
+    expect(step.isComplete(snap(at(0.66)))).toBe(true); // within the band
+    expect(step.isComplete(snap(at(0.7)))).toBe(true); // dead on
+  });
+});
+
+describe("panes-resize-corner challenge", () => {
+  const [stepK, stepH] = panesResizeCorner.steps;
+  const rootOf = (win: WindowState) => {
+    if (win.root.kind !== "split") throw new Error("expected an h-split root");
+    return win.root;
+  };
+  const colOf = (win: WindowState) => {
+    const col = rootOf(win).a;
+    if (col.kind !== "split") throw new Error("expected a v-split left column");
+    return col;
+  };
+  // Both dividers at the given ratios, everything else from the seeded window.
+  const at = (win: WindowState, colRatio: number, rootRatio: number): WindowState => ({
+    ...win,
+    root: setSplitRatio(setSplitRatio(win.root, colOf(win).id, colRatio), rootOf(win).id, rootRatio),
+  });
+
+  it("seeds a 50/50 sidebar layout focused on the bottom-left pane", () => {
+    const win = panesResizeCorner.initialWindow!();
+    expect(structKey(win.root)).toBe("(h (v L L) L)");
+    expect(rootOf(win).ratio).toBe(0.5);
+    expect(colOf(win).ratio).toBe(0.5);
+    expect(win.activePaneId).toBe(colOf(win).b.id);
+    expect(stepK.isComplete(snap(win))).toBe(false);
+  });
+
+  it("step 1 checks only the column ratio (~0.3), regardless of the root ratio", () => {
+    const win = panesResizeCorner.initialWindow!();
+    expect(stepK.isComplete(snap(at(win, 0.4, 0.5)))).toBe(false); // outside the band
+    expect(stepK.isComplete(snap(at(win, 0.34, 0.5)))).toBe(true); // within, root untouched
+    expect(stepK.isComplete(snap(at(win, 0.3, 0.3)))).toBe(true); // overshoot on root is fine
+  });
+
+  it("step 2 requires BOTH ratios in band", () => {
+    const win = panesResizeCorner.initialWindow!();
+    expect(stepH.isComplete(snap(at(win, 0.3, 0.5)))).toBe(false); // column done, root not
+    expect(stepH.isComplete(snap(at(win, 0.5, 0.3)))).toBe(false); // root done, column not
+    expect(stepH.isComplete(snap(at(win, 0.34, 0.26)))).toBe(true); // both within ±0.05
   });
 });
 
