@@ -124,6 +124,34 @@ describe("panes-grid challenge", () => {
     expect(structKey(winGrid.root)).toBe("(h (v L L) (v L L))");
     expect(step.isComplete(snap(winGrid))).toBe(true);
   });
+
+  it("also matches a rows-first build — (v (h L L) (h L L)) renders the same grid", () => {
+    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+
+    // two rows: (v L L)
+    const rows = splitNode(win.root, win.activePaneId, "v", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    // split the top row: (v (h L L) L) — not a full grid yet
+    const top = splitNode(rows.root, win.activePaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    expect(step.isComplete(snap({ ...win, root: top.root, activePaneId: top.newPaneId }))).toBe(false);
+
+    // split the bottom row too: (v (h L L) (h L L)) — geometry-equal to the target
+    const bottom = splitNode(top.root, rows.newPaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    expect(structKey(bottom.root)).toBe("(v (h L L) (h L L))");
+    expect(step.isComplete(snap({ ...win, root: bottom.root, activePaneId: bottom.newPaneId }))).toBe(true);
+  });
+
+  it("rejects a four-pane tree that is not a 2×2 grid", () => {
+    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+    // four columns: (h L (h L (h L L)))
+    let root = win.root;
+    let target = win.activePaneId;
+    for (let i = 0; i < 3; i++) {
+      const r = splitNode(root, target, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+      root = r.root;
+      target = r.newPaneId;
+    }
+    expect(step.isComplete(snap({ ...win, root, activePaneId: target }))).toBe(false);
+  });
 });
 
 describe("panes-cleanup challenge", () => {
