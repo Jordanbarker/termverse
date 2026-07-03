@@ -198,29 +198,24 @@ export function prunePanesByComputer(
   return prune(root);
 }
 
-/** Return a copy of the tree with split `splitId`'s ratio clamped + set. */
+/** Set (clamped) split `splitId`'s ratio, rebuilding only the path to it — unchanged subtrees keep identity. */
 export function setSplitRatio(root: PaneNode, splitId: string, ratio: number): PaneNode {
   const clamped = Math.max(MIN_PANE_RATIO, Math.min(1 - MIN_PANE_RATIO, ratio));
   const update = (node: PaneNode): PaneNode => {
     if (node.kind === "leaf") return node;
-    if (node.id === splitId) return { ...node, ratio: clamped, a: update(node.a), b: update(node.b) };
-    return { ...node, a: update(node.a), b: update(node.b) };
+    if (node.id === splitId) return node.ratio === clamped ? node : { ...node, ratio: clamped };
+    const a = update(node.a);
+    const b = update(node.b);
+    return a === node.a && b === node.b ? node : { ...node, a, b };
   };
   return update(root);
 }
 
 /** Return a copy of the tree with `delta` added to split `splitId`'s ratio (clamped). */
 export function nudgeSplitRatio(root: PaneNode, splitId: string, delta: number): PaneNode {
-  const split = findNode(root, splitId);
-  if (!split || split.kind !== "split") return root;
+  const split = findSplit(root, splitId);
+  if (!split) return root;
   return setSplitRatio(root, splitId, split.ratio + delta);
-}
-
-/** Find any node (leaf or split) by id, or undefined. */
-function findNode(node: PaneNode, id: string): PaneNode | undefined {
-  if (node.id === id) return node;
-  if (node.kind === "leaf") return undefined;
-  return findNode(node.a, id) ?? findNode(node.b, id);
 }
 
 /**
@@ -246,20 +241,27 @@ export function nearestResizableSplit(
 
 // --- geometry ------------------------------------------------------------
 
+/** A rectangle without a node id (any units). */
+export type Box = Omit<PaneRect, "id">;
+
+/** Given a split occupying `box`, the boxes of its two children (ratio along the split direction). */
+export function splitChildBoxes(split: PaneSplit, box: Box): { a: Box; b: Box } {
+  const { x, y, w, h } = box;
+  if (split.direction === "h") {
+    const wa = w * split.ratio;
+    return { a: { x, y, w: wa, h }, b: { x: x + wa, y, w: w - wa, h } };
+  }
+  const ha = h * split.ratio;
+  return { a: { x, y, w, h: ha }, b: { x, y: y + ha, w, h: h - ha } };
+}
+
 /** Compute each leaf's rectangle within the given box (any units). */
 export function paneRects(node: PaneNode, x = 0, y = 0, w = 1, h = 1): PaneRect[] {
   if (node.kind === "leaf") return [{ id: node.id, x, y, w, h }];
-  if (node.direction === "h") {
-    const wa = w * node.ratio;
-    return [
-      ...paneRects(node.a, x, y, wa, h),
-      ...paneRects(node.b, x + wa, y, w - wa, h),
-    ];
-  }
-  const ha = h * node.ratio;
+  const { a, b } = splitChildBoxes(node, { x, y, w, h });
   return [
-    ...paneRects(node.a, x, y, w, ha),
-    ...paneRects(node.b, x, y + ha, w, h - ha),
+    ...paneRects(node.a, a.x, a.y, a.w, a.h),
+    ...paneRects(node.b, b.x, b.y, b.w, b.h),
   ];
 }
 
@@ -274,12 +276,8 @@ export function nodeBox(
 ): PaneRect | undefined {
   if (node.id === id) return { id, x, y, w, h };
   if (node.kind === "leaf") return undefined;
-  if (node.direction === "h") {
-    const wa = w * node.ratio;
-    return nodeBox(node.a, id, x, y, wa, h) ?? nodeBox(node.b, id, x + wa, y, w - wa, h);
-  }
-  const ha = h * node.ratio;
-  return nodeBox(node.a, id, x, y, w, ha) ?? nodeBox(node.b, id, x, y + ha, w, h - ha);
+  const { a, b } = splitChildBoxes(node, { x, y, w, h });
+  return nodeBox(node.a, id, a.x, a.y, a.w, a.h) ?? nodeBox(node.b, id, b.x, b.y, b.w, b.h);
 }
 
 /**

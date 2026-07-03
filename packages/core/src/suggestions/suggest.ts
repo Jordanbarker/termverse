@@ -67,6 +67,26 @@ export function listMatchingEntries(
 }
 
 /**
+ * Split a partial path into the resolved parent directory, the entry-name
+ * prefix to match, and the literal text before the name (for reconstruction).
+ */
+export function splitPartialPath(
+  partial: string,
+  ctx: SuggestionContext,
+): { parentDir: string; prefix: string; pathPrefix: string } {
+  const lastSlash = partial.lastIndexOf("/");
+  if (lastSlash === -1) {
+    return { parentDir: ctx.cwd, prefix: partial, pathPrefix: "" };
+  }
+  const pathPrefix = partial.slice(0, lastSlash + 1);
+  return {
+    parentDir: resolvePath(pathPrefix, ctx.cwd, ctx.homeDir),
+    prefix: partial.slice(lastSlash + 1),
+    pathPrefix,
+  };
+}
+
+/**
  * Find the last unquoted single pipe `|` (not `||`) in input.
  * Returns the index, or -1 if none found.
  */
@@ -221,33 +241,12 @@ function completePath(
 ): string | null {
   if (!partial) return null;
 
-  const lastSlash = partial.lastIndexOf("/");
-  let parentInput: string;
-  let prefix: string;
-
-  if (lastSlash === -1) {
-    parentInput = ctx.cwd;
-    prefix = partial;
-  } else {
-    parentInput = resolvePath(
-      partial.slice(0, lastSlash + 1),
-      ctx.cwd,
-      ctx.homeDir
-    );
-    prefix = partial.slice(lastSlash + 1);
-  }
-
+  const { parentDir, prefix, pathPrefix } = splitPartialPath(partial, ctx);
   if (!prefix) return null;
 
-  const matches = listMatchingEntries(parentInput, prefix, ctx, directoriesOnly, true);
+  const matches = listMatchingEntries(parentDir, prefix, ctx, directoriesOnly, true);
   if (matches.length === 0) return null;
 
   // Return first match (for ghost text, just show the top suggestion)
-  const first = matches[0];
-  const completedName = first.displayName;
-  if (lastSlash === -1) {
-    return completedName;
-  } else {
-    return partial.slice(0, lastSlash + 1) + completedName;
-  }
+  return pathPrefix + matches[0].displayName;
 }

@@ -126,6 +126,27 @@ describe("setSplitRatio", () => {
     const huge = setSplitRatio(split.root, splitId, 5) as Extract<PaneNode, { kind: "split" }>;
     expect(huge.ratio).toBeLessThan(1);
   });
+
+  it("preserves identity when the ratio is unchanged", () => {
+    const w = makeWindow("home", "/a");
+    const split = splitNode(w.root, firstLeaf(w.root).id, "h", () => makeLeaf("home", "/b"))!;
+    const splitId = (split.root as Extract<PaneNode, { kind: "split" }>).id;
+    expect(setSplitRatio(split.root, splitId, 0.5)).toBe(split.root);
+    expect(setSplitRatio(split.root, "nope", 0.7)).toBe(split.root);
+  });
+
+  it("rebuilds only the path to the target split", () => {
+    const w = makeWindow("home", "/a");
+    const first = firstLeaf(w.root).id;
+    const r1 = splitNode(w.root, first, "h", () => makeLeaf("home", "/b"))!;
+    const r2 = splitNode(r1.root, r1.newPaneId, "v", () => makeLeaf("home", "/c"))!;
+    const outer = r2.root as Extract<PaneNode, { kind: "split" }>;
+    const inner = outer.b as Extract<PaneNode, { kind: "split" }>;
+    const updated = setSplitRatio(r2.root, inner.id, 0.7) as Extract<PaneNode, { kind: "split" }>;
+    expect(updated).not.toBe(outer);
+    expect(updated.a).toBe(outer.a); // untouched sibling subtree keeps identity
+    expect((updated.b as Extract<PaneNode, { kind: "split" }>).ratio).toBeCloseTo(0.7);
+  });
 });
 
 describe("nudgeSplitRatio", () => {

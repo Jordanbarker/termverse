@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { PaneNode } from "../terminal/paneTypes";
+import { Box, PaneNode, splitChildBoxes } from "../terminal/paneTypes";
 
 /** Pixel thickness of the draggable seam between two panes. */
 const DIVIDER_THICKNESS = 6;
@@ -24,29 +24,16 @@ interface DividerRect {
 /** Walk the tree, emitting one divider strip per split along its child boundary. */
 function computeDividers(node: PaneNode, x: number, y: number, w: number, h: number): DividerRect[] {
   if (node.kind === "leaf") return [];
-  if (node.direction === "h") {
-    const wa = w * node.ratio;
-    const bx = x + wa;
-    return [
-      { splitId: node.id, direction: "h", x: bx - DIVIDER_THICKNESS / 2, y, w: DIVIDER_THICKNESS, h, boxX: x, boxY: y, boxW: w, boxH: h },
-      ...computeDividers(node.a, x, y, wa, h),
-      ...computeDividers(node.b, bx, y, w - wa, h),
-    ];
-  }
-  const ha = h * node.ratio;
-  const by = y + ha;
+  const { a, b } = splitChildBoxes(node, { x, y, w, h });
+  const divider: DividerRect =
+    node.direction === "h"
+      ? { splitId: node.id, direction: "h", x: b.x - DIVIDER_THICKNESS / 2, y, w: DIVIDER_THICKNESS, h, boxX: x, boxY: y, boxW: w, boxH: h }
+      : { splitId: node.id, direction: "v", x, y: b.y - DIVIDER_THICKNESS / 2, w, h: DIVIDER_THICKNESS, boxX: x, boxY: y, boxW: w, boxH: h };
   return [
-    { splitId: node.id, direction: "v", x, y: by - DIVIDER_THICKNESS / 2, w, h: DIVIDER_THICKNESS, boxX: x, boxY: y, boxW: w, boxH: h },
-    ...computeDividers(node.a, x, y, w, ha),
-    ...computeDividers(node.b, x, by, w, h - ha),
+    divider,
+    ...computeDividers(node.a, a.x, a.y, a.w, a.h),
+    ...computeDividers(node.b, b.x, b.y, b.w, b.h),
   ];
-}
-
-interface PaneRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
 }
 
 /**
@@ -59,7 +46,7 @@ interface PaneRect {
  *   "v" divider (horizontal line): "T" = active pane above, "B" = active pane below.
  */
 type ActiveSide = "L" | "R" | "T" | "B" | null;
-function activeSide(d: DividerRect, active: PaneRect): ActiveSide {
+function activeSide(d: DividerRect, active: Box): ActiveSide {
   if (d.direction === "h") {
     const lineX = d.x + DIVIDER_THICKNESS / 2;
     const overlaps = active.y < d.boxY + d.boxH && active.y + active.h > d.boxY;
@@ -82,7 +69,7 @@ interface PaneDividersProps {
   height: number;
   onResize: (splitId: string, ratio: number) => void;
   /** The active pane's wrapper-relative rect; seams bordering it render gold. */
-  activePaneRect?: PaneRect;
+  activePaneRect?: Box;
 }
 
 /**

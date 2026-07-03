@@ -1,10 +1,10 @@
-import { resolvePath } from "@tt/core/lib/pathUtils";
 import { splitOnChainOperators } from "@tt/core/commands/parser";
 import {
   SuggestionContext,
   PATH_COMMANDS,
   SUBCOMMAND_MAP,
   listMatchingEntries,
+  splitPartialPath,
   findLastUnquotedPipe,
   hasUnquotedRedirect,
   resolveAlias,
@@ -161,26 +161,9 @@ function completePaths(
   ctx: SuggestionContext,
   directoriesOnly: boolean
 ): CompletionResult | null {
-  const lastSlash = partial.lastIndexOf("/");
-  let parentInput: string;
-  let prefix: string;
-  let pathPrefix: string; // The part before the filename to preserve
+  const { parentDir, prefix, pathPrefix } = splitPartialPath(partial, ctx);
 
-  if (lastSlash === -1) {
-    parentInput = ctx.cwd;
-    prefix = partial;
-    pathPrefix = "";
-  } else {
-    parentInput = resolvePath(
-      partial.slice(0, lastSlash + 1),
-      ctx.cwd,
-      ctx.homeDir
-    );
-    prefix = partial.slice(lastSlash + 1);
-    pathPrefix = partial.slice(0, lastSlash + 1);
-  }
-
-  const entries = listMatchingEntries(parentInput, prefix, ctx, directoriesOnly, true);
+  const entries = listMatchingEntries(parentDir, prefix, ctx, directoriesOnly, true);
   if (entries.length === 0) return null;
 
   const matches = entries.map((e) => pathPrefix + e.displayName);
