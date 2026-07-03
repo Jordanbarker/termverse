@@ -24,7 +24,7 @@ State: `activeCategory` + `challengeIndex` (category-relative) + `stepIndex` + `
 
 ## Existing challenges (`src/challenges/registry.ts`)
 
-`CHALLENGES` is an ordered linear array (play order), one file per challenge — each file's comments explain its own seed data and predicate gotchas; **read the file before changing a challenge.** Current set: `panes-split`, `panes-grid`, `panes-cleanup` (prunes a seeded 2×2 grid down to two columns via `prefix x` — the inverse of `panes-grid`, uses `initialWindow`), `windows-create`, `copy-mode-yank` (tmux; `copy-mode-yank` is fs-detected but tracks tmux copy mode); `git-first-commit`, `git-stash`, `git-pull-ff`, `git-rebase` (git; engine support in the `git` skill); `rm-bomb`, `chmod-perms` (fs, destructive — Restart matters).
+`CHALLENGES` is an ordered linear array (play order), one file per challenge — each file's comments explain its own seed data and predicate gotchas; **read the file before changing a challenge.** Current set: `panes-split`, `panes-grid`, `panes-cleanup` (prunes a seeded 2×2 grid down to two columns via `prefix x` — the inverse of `panes-grid`, uses `initialWindow`), `panes-resize` (nudges a seeded 50/50 split until the left pane is ~70% — the only challenge that needs `paneTreeMatchesWithRatio`, since `paneTreeMatches` ignores ratios), `windows-create`, `copy-mode-yank` (tmux; `copy-mode-yank` is fs-detected but tracks tmux copy mode); `git-first-commit`, `git-stash`, `git-pull-ff`, `git-rebase` (git; engine support in the `git` skill); `rm-bomb`, `chmod-perms` (fs, destructive — Restart matters).
 
 ## Adding a challenge
 

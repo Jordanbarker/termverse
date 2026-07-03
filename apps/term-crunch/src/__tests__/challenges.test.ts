@@ -16,6 +16,7 @@ import {
   makeWindow,
   makeLeaf,
   splitNode,
+  setSplitRatio,
   collapsePane,
   allLeaves,
   resetPaneIdCounters,
@@ -24,12 +25,13 @@ import {
 import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue, gitCheckout, gitStashSave, gitStashPop, gitPull } from "@tt/core/git/repo";
 import { buildBaseFs } from "../lib/seed";
 import { readGitState } from "../lib/gitState";
-import { structKey, paneTreeMatches } from "../lib/paneCompare";
+import { structKey, paneTreeMatches, paneTreeMatchesWithRatio } from "../lib/paneCompare";
 import { CRUNCH_MACHINE, HOME_DIR, GIT_AUTHOR } from "../lib/machine";
 import { runLine } from "../hooks/useTerminal";
 import { panesSplit } from "../challenges/panes-split";
 import { panesGrid } from "../challenges/panes-grid";
 import { panesCleanup } from "../challenges/panes-cleanup";
+import { panesResize } from "../challenges/panes-resize";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
 import { gitStashChallenge } from "../challenges/git-stash";
@@ -58,6 +60,21 @@ describe("paneCompare", () => {
     const h = splitNode(w.root, w.activePaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
     const v = splitNode(w.root, w.activePaneId, "v", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
     expect(paneTreeMatches(h.root, v.root)).toBe(false);
+  });
+
+  it("paneTreeMatchesWithRatio gates on structure AND per-split ratio", () => {
+    const w = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+    const h = splitNode(w.root, w.activePaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR))!;
+    if (h.root.kind !== "split") throw new Error("expected a split");
+    const at = (r: number) => setSplitRatio(h.root, h.root.id, r);
+
+    // structure mismatch: split vs single leaf
+    expect(paneTreeMatchesWithRatio(w.root, at(0.7), 0.05)).toBe(false);
+    // same structure, ratio outside the band
+    expect(paneTreeMatchesWithRatio(at(0.6), at(0.7), 0.05)).toBe(false);
+    // same structure, ratio within the band
+    expect(paneTreeMatchesWithRatio(at(0.66), at(0.7), 0.05)).toBe(true);
+    expect(paneTreeMatchesWithRatio(at(0.7), at(0.7), 0.05)).toBe(true);
   });
 });
 
@@ -145,6 +162,31 @@ describe("panes-cleanup challenge", () => {
       const ids = allLeaves(w.root).map((l) => l.id);
       expect(new Set(ids).size).toBe(ids.length); // no dup ids within a tree
     }
+  });
+});
+
+describe("panes-resize challenge", () => {
+  const step = panesResize.steps[0];
+  const splitOf = (win: WindowState) => {
+    if (win.root.kind !== "split") throw new Error("expected a side-by-side split");
+    return win.root;
+  };
+
+  it("seeds a 50/50 side-by-side split that does not yet satisfy the ~70% target", () => {
+    const win = panesResize.initialWindow!();
+    expect(structKey(win.root)).toBe("(h L L)");
+    expect(splitOf(win).ratio).toBe(0.5);
+    // structurally identical to the target, so only the ratio keeps it incomplete
+    expect(step.isComplete(snap(win))).toBe(false);
+  });
+
+  it("completes once the left pane is within ±0.05 of 70%, not before", () => {
+    const win = panesResize.initialWindow!();
+    const at = (r: number): WindowState => ({ ...win, root: setSplitRatio(win.root, splitOf(win).id, r) });
+
+    expect(step.isComplete(snap(at(0.6)))).toBe(false); // outside the band
+    expect(step.isComplete(snap(at(0.66)))).toBe(true); // within the band
+    expect(step.isComplete(snap(at(0.7)))).toBe(true); // dead on
   });
 });
 
@@ -651,6 +693,12 @@ describe("starting cwd", () => {
     useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "panes-cleanup"));
     const win = useGameStore.getState().windows[0];
     expect(structKey(win.root)).toBe("(h (v L L) (v L L))");
+  });
+
+  it("seeds a 50/50 side-by-side split for the resize challenge", () => {
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "panes-resize"));
+    const win = useGameStore.getState().windows[0];
+    expect(structKey(win.root)).toBe("(h L L)");
   });
 });
 

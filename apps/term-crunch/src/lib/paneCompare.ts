@@ -18,3 +18,17 @@ export function structKey(n: PaneNode): string {
 export function paneTreeMatches(a: PaneNode, b: PaneNode): boolean {
   return structKey(a) === structKey(b);
 }
+
+/**
+ * Like paneTreeMatches, but ALSO requires each split's ratio to be within `tol`
+ * of the reference. For resize challenges, where the structure alone can't tell
+ * a moved divider from the starting layout. Tolerance lives at the call site so
+ * each challenge picks its own precision (e.g. ±0.05 for a "~70% wide" goal).
+ */
+export function paneTreeMatchesWithRatio(a: PaneNode, b: PaneNode, tol: number): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "leaf" || b.kind === "leaf") return a.kind === "leaf" && b.kind === "leaf";
+  if (a.direction !== b.direction) return false;
+  if (Math.abs(a.ratio - b.ratio) > tol) return false;
+  return paneTreeMatchesWithRatio(a.a, b.a, tol) && paneTreeMatchesWithRatio(a.b, b.b, tol);
+}
