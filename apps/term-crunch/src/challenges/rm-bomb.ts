@@ -56,7 +56,7 @@ export const rmBomb: Challenge = {
   setup,
   steps: [
     {
-      instruction: "Find BOMB.md, then remove only it.",
+      // The brief states the whole objective — no per-step instruction.
       hint:
         "Search the tree by name to locate it first, then remove that single file. " +
         "Avoid rm -rf on a directory: it would take the surrounding files with it and fail the challenge.",

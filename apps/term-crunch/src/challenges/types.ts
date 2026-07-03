@@ -16,9 +16,11 @@ export interface Step {
   /**
    * The current sub-goal, stated as an objective the player must accomplish —
    * NOT the command that does it. Keep it command-free; the answer lives in
-   * `command`, revealed only on request via the hint control.
+   * `command`, revealed only on request via the hint control. May be omitted on
+   * a single-step challenge whose `brief` already states the whole objective —
+   * the panel then shows just the brief (hint/command still work).
    */
-  instruction: string;
+  instruction?: string;
   /**
    * Progressive hint level 1: a conceptual nudge (which concept/flag matters and
    * why) that stops short of the literal command. Hidden by default.

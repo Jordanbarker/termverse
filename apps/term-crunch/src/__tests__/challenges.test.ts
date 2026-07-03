@@ -459,7 +459,7 @@ describe("chmod-perms challenge", () => {
 describe("copy-mode-yank challenge", () => {
   const TOKEN = "moonlit-cipher-7f3c91a0e5";
   const TARGET_DIR = `/home/player/${TOKEN}`;
-  const LOG = "/home/player/war-and-peace.log";
+  const LOG = "/home/player/passphrase.log";
   const [step] = copyModeYank.steps;
 
   function fsSnap(fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot {
@@ -499,7 +499,20 @@ describe("challenges are objective-first with progressive hints", () => {
       for (const step of c.steps) {
         expect(step.hint, `${c.id} step missing hint`).toBeTruthy();
         expect(step.command, `${c.id} step missing command`).toBeTruthy();
-        expect(step.instruction, `${c.id} step missing instruction`).toBeTruthy();
+      }
+    }
+  });
+
+  // An instruction may be omitted only when the brief alone carries the whole
+  // objective — i.e. a single-step challenge with a brief. Everywhere else the
+  // panel would render an empty goal.
+  it("every step has an instruction unless a single-step brief covers it", () => {
+    for (const c of CHALLENGES) {
+      const briefCovers = Boolean(c.brief) && c.steps.length === 1;
+      for (const step of c.steps) {
+        if (!step.instruction) {
+          expect(briefCovers, `${c.id} step missing instruction without a covering brief`).toBe(true);
+        }
       }
     }
   });

@@ -215,10 +215,12 @@ function StepGoal({ step, hasBrief, resetKey }: { step: Step; hasBrief: boolean;
   return (
     <div className="flex flex-col gap-2">
       {hasBrief ? (
-        <div>
-          <div className="text-xs uppercase tracking-wide text-[#6b7680]">Now</div>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-[#e6e6d9]">{step.instruction}</p>
-        </div>
+        step.instruction && (
+          <div>
+            <div className="text-xs uppercase tracking-wide text-[#6b7680]">Now</div>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-[#e6e6d9]">{step.instruction}</p>
+          </div>
+        )
       ) : (
         <p className="whitespace-pre-line rounded bg-[#11161d] p-3 text-sm leading-relaxed text-[#b3b1ad]">
           {step.instruction}
