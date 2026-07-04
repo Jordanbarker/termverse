@@ -227,6 +227,8 @@ export const useGameStore = create<GameState>()(
           windowCount: s.windows.length,
         })),
       },
+      envVars: state.envVars,
+      aliases: state.aliases,
     };
 
     // Cascade through every consecutive satisfied step: predicates are pure

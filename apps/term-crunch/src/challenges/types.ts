@@ -16,6 +16,11 @@ export interface ChallengeSnapshot {
     attachedSession: string | null;
     detachedSessions: Array<{ name: string; windowCount: number }>;
   };
+  /** Shell environment: exported vars and defined aliases (seeded from ~/.zshrc,
+   * mutated by export/alias/unalias). printenv/env are read-only and can't be
+   * observed — gate on these instead. */
+  envVars: Record<string, string>;
+  aliases: Record<string, string>;
 }
 
 export interface Step {

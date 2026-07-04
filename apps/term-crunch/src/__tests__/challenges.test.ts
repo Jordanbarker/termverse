@@ -42,6 +42,8 @@ import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
 import { mvOrganize } from "../challenges/mv-organize";
+import { envExport, CRUNCH_TOKEN } from "../challenges/env-export";
+import { aliasShortcut } from "../challenges/alias-shortcut";
 import { copyModeYank } from "../challenges/copy-mode-yank";
 import { sessionsDetachAttach } from "../challenges/sessions-detach-attach";
 import { sessionsJuggle } from "../challenges/sessions-juggle";
@@ -53,7 +55,7 @@ function snap(
   cwd = HOME_DIR,
   tmux: ChallengeSnapshot["tmux"] = { attachedSession: "0", detachedSessions: [] },
 ): ChallengeSnapshot {
-  return { activeWindow, windows: [activeWindow], fs, cwd, tmux };
+  return { activeWindow, windows: [activeWindow], fs, cwd, tmux, envVars: {}, aliases: {} };
 }
 
 describe("paneCompare", () => {
@@ -772,6 +774,139 @@ describe("mv-organize challenge", () => {
   });
 });
 
+describe("env-export challenge", () => {
+  const PROJECT = "/home/player/projects/crunchd";
+  const [setMode, setToken] = envExport.steps;
+  const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+  const at = (envVars: Record<string, string>) =>
+    ({ ...snap(win, envExport.setup(buildBaseFs())), envVars });
+
+  // Drives the real export builtin (it reads rawArgs-style VAR=VALUE args and
+  // commits through setEnvVars).
+  function runExport(envVars: Record<string, string>, arg: string): Record<string, string> {
+    resetAvailabilityPolicy();
+    let committed = envVars;
+    const ctx: CommandContext = {
+      fs: buildBaseFs(), cwd: HOME_DIR, homeDir: HOME_DIR, username: "player",
+      activeComputer: CRUNCH_MACHINE,
+      envVars, setEnvVars: (next) => { committed = next; },
+    };
+    const r = execute("export", [arg], {}, ctx);
+    expect(r.exitCode ?? 0).toBe(0);
+    return committed;
+  }
+
+  it("seeds the README and token file with both steps unsatisfied", () => {
+    const fs = envExport.setup(buildBaseFs());
+    expect(fs.readFile(`${PROJECT}/README`).content).toContain("CRUNCH_TOKEN");
+    expect(fs.readFile(`${PROJECT}/token.txt`).content).toContain(CRUNCH_TOKEN);
+    expect(setMode.isComplete(at({}))).toBe(false);
+    expect(setToken.isComplete(at({}))).toBe(false);
+  });
+
+  it("real export commands satisfy each step, quoted or not", () => {
+    let env = runExport({}, "BUILD_MODE=release");
+    expect(setMode.isComplete(at(env))).toBe(true);
+    expect(setToken.isComplete(at(env))).toBe(false);
+    // the builtin strips surrounding quotes, so a quoted token still matches
+    env = runExport(env, `CRUNCH_TOKEN="${CRUNCH_TOKEN}"`);
+    expect(setToken.isComplete(at(env))).toBe(true);
+  });
+
+  it("wrong values do not satisfy the steps", () => {
+    expect(setMode.isComplete(at({ BUILD_MODE: "debug" }))).toBe(false);
+    expect(setToken.isComplete(at({ CRUNCH_TOKEN: "crunch-wrong" }))).toBe(false);
+  });
+});
+
+describe("alias-shortcut challenge", () => {
+  const TARGET = "/home/player/releases/v2";
+  const [define, run, cleanup] = aliasShortcut.steps;
+  const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+  const at = (aliases: Record<string, string>, fs = aliasShortcut.setup(buildBaseFs())) =>
+    ({ ...snap(win, fs), aliases });
+
+  it("seeds an empty ~/releases with step 0 unsatisfied (step 2 vacuously true — cascade-safe)", () => {
+    const fs = aliasShortcut.setup(buildBaseFs());
+    expect(fs.getNode("/home/player/releases")).not.toBeNull();
+    expect(define.isComplete(at({}, fs))).toBe(false);
+    expect(run.isComplete(at({}, fs))).toBe(false);
+    // trivially true at load; the cascade never reaches it before step 0 passes
+    expect(cleanup.isComplete(at({}, fs))).toBe(true);
+  });
+
+  it("walks define → run → unalias against the real alias/unalias builtins", () => {
+    resetAvailabilityPolicy();
+    let aliases: Record<string, string> = {};
+    const ctx = (rawArgs: string[]): CommandContext => ({
+      fs: aliasShortcut.setup(buildBaseFs()), cwd: HOME_DIR, homeDir: HOME_DIR,
+      username: "player", activeComputer: CRUNCH_MACHINE,
+      rawArgs, aliases, setAliases: (next) => { aliases = next; },
+    });
+
+    // alias ship='mkdir -p ~/releases/v2' (quotes already consumed by the parser)
+    execute("alias", ["ship=mkdir -p ~/releases/v2"], {}, ctx(["ship=mkdir -p ~/releases/v2"]));
+    expect(aliases.ship).toBe("mkdir -p ~/releases/v2");
+    expect(define.isComplete(at(aliases))).toBe(true);
+    expect(run.isComplete(at(aliases))).toBe(false);
+
+    // running the alias expands to mkdir -p → the target directory appears
+    const fs = aliasShortcut.setup(buildBaseFs()).makeDirectory(TARGET).fs!;
+    expect(run.isComplete(at(aliases, fs))).toBe(true);
+    expect(cleanup.isComplete(at(aliases, fs))).toBe(false); // ship still defined
+
+    execute("unalias", ["ship"], {}, ctx(["ship"]));
+    expect(aliases.ship).toBeUndefined();
+    expect(cleanup.isComplete(at(aliases, fs))).toBe(true);
+  });
+
+  it("a ship alias without mkdir does not satisfy step 0", () => {
+    expect(define.isComplete(at({ ship: "echo shipped" }))).toBe(false);
+  });
+});
+
+describe("shell env win-detection (store)", () => {
+  // The snapshot must carry envVars/aliases, and the vacuously-true unalias
+  // step must not advance before its predecessors.
+  beforeAll(() => useGameStore.setState({ activeCategory: "all" }));
+  afterAll(() => {
+    useGameStore.setState({ activeCategory: "all" });
+    useGameStore.getState().loadChallenge(0);
+  });
+  const select = (id: string) =>
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === id));
+
+  it("export-driven envVars advance env-export step by step", () => {
+    const state = useGameStore.getState;
+    select("env-export");
+    state().checkCompletion();
+    expect(state().stepIndex).toBe(0);
+    state().setEnvVars({ ...state().envVars, BUILD_MODE: "release" });
+    state().checkCompletion();
+    expect(state().stepIndex).toBe(1);
+    state().setEnvVars({ ...state().envVars, CRUNCH_TOKEN });
+    state().checkCompletion();
+    expect(state().awaitingContinue || state().completed).toBe(true);
+  });
+
+  it("alias-shortcut does not cascade past the vacuous unalias step at load", () => {
+    const state = useGameStore.getState;
+    select("alias-shortcut");
+    state().checkCompletion(); // step 0 unsatisfied → no cascade into step 2
+    expect(state().stepIndex).toBe(0);
+    state().setAliases({ ...state().aliases, ship: "mkdir -p ~/releases/v2" });
+    state().checkCompletion();
+    expect(state().stepIndex).toBe(1);
+    useGameStore.setState({ fs: state().fs.makeDirectory("/home/player/releases/v2").fs! });
+    state().checkCompletion();
+    expect(state().stepIndex).toBe(2); // ship still defined → step 2 waits
+    const { ship: _ship, ...rest } = state().aliases;
+    state().setAliases(rest);
+    state().checkCompletion();
+    expect(state().awaitingContinue || state().completed).toBe(true);
+  });
+});
+
 describe("copy-mode-yank challenge", () => {
   const TOKEN = "moonlit-cipher-7f3c91a0e5";
   const TARGET_DIR = `/home/player/${TOKEN}`;
@@ -806,7 +941,7 @@ describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
   // text — that's the whole point of the rework, so guard it. The pane challenges
   // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
-  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, copyModeYank, sessionsDetachAttach, sessionsJuggle];
+  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, envExport, aliasShortcut, copyModeYank, sessionsDetachAttach, sessionsJuggle];
 
   it("each has a brief and every step has a hint + command", () => {
     for (const c of objectiveFirst) {
