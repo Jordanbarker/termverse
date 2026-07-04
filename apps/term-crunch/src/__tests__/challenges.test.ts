@@ -22,7 +22,7 @@ import {
   resetPaneIdCounters,
   type WindowState,
 } from "@tt/core/terminal/paneTypes";
-import { findRepoRoot, gitAdd, gitCommit, gitRebase, gitRebaseContinue, gitCheckout, gitStashSave, gitStashPop, gitPull } from "@tt/core/git/repo";
+import { findRepoRoot, gitAdd, gitCommit, gitReset, gitRebase, gitRebaseContinue, gitCheckout, gitStashSave, gitStashPop, gitPull } from "@tt/core/git/repo";
 import { buildBaseFs } from "../lib/seed";
 import { readGitState } from "../lib/gitState";
 import { structKey, paneTreeMatches, paneTreeMatchesWithRatio } from "../lib/paneCompare";
@@ -35,6 +35,7 @@ import { panesResizeRows } from "../challenges/panes-resize-rows";
 import { panesResizeCorner } from "../challenges/panes-resize-corner";
 import { windowsCreate } from "../challenges/windows-create";
 import { gitFirstCommit } from "../challenges/git-first-commit";
+import { gitUnstage } from "../challenges/git-unstage";
 import { gitStashChallenge } from "../challenges/git-stash";
 import { gitPullFf } from "../challenges/git-pull-ff";
 import { gitRebaseChallenge } from "../challenges/git-rebase";
@@ -348,6 +349,74 @@ describe("git-first-commit challenge", () => {
     // git commit -m "init"
     fs = gitCommit(fs, repo, "init", GIT_AUTHOR, false, false, 1_700_000_000_000).fs;
     expect(gitFirstCommit.steps[1].isComplete(at(fs))).toBe(true);
+  });
+});
+
+describe("git-unstage challenge", () => {
+  const repo = gitUnstage.gitRepoPath!;
+  const ENV = `${repo}/.env`;
+  const ENV_CONTENT = "API_KEY=sk-live-4f2a9c81d7e3\nDB_PASSWORD=hunter2\n";
+  const [step1, step2] = gitUnstage.steps;
+  const win = makeWindow(CRUNCH_MACHINE, repo);
+  const at = (f: ReturnType<typeof gitUnstage.setup>) => snap(win, f, repo);
+
+  it("seeds one commit with app.js AND the secret .env both staged", () => {
+    const fs = gitUnstage.setup(buildBaseFs());
+    expect(findRepoRoot(fs, repo)).toBe(repo);
+    const g = readGitState(fs, repo);
+    expect(g.commitCount).toBe(1);
+    expect(g.staged.sort()).toEqual([".env", "app.js"]);
+    expect(fs.readFile(ENV).content).toBe(ENV_CONTENT);
+    expect(step1.isComplete(at(fs))).toBe(false);
+    expect(step2.isComplete(at(fs))).toBe(false);
+  });
+
+  it("walks the targeted reset → commit flow (git reset .env)", () => {
+    let fs = gitUnstage.setup(buildBaseFs());
+
+    // git reset .env → out of the index, edits intact, app.js still staged
+    fs = gitReset(fs, repo, repo, [".env"], null).fs;
+    const g = readGitState(fs, repo);
+    expect(g.staged).toEqual(["app.js"]);
+    expect(g.untracked).toContain(".env");
+    expect(step1.isComplete(at(fs))).toBe(true);
+    expect(step2.isComplete(at(fs))).toBe(false);
+
+    // git commit -m "Update app" → only app.js goes in, .env stays behind
+    fs = gitCommit(fs, repo, "Update app", GIT_AUTHOR, false, false, 1_700_000_001_000).fs;
+    expect(step2.isComplete(at(fs))).toBe(true);
+    expect(fs.readFile(ENV).content).toBe(ENV_CONTENT);
+  });
+
+  it("also accepts the `git reset HEAD .env` spelling", () => {
+    let fs = gitUnstage.setup(buildBaseFs());
+    fs = gitReset(fs, repo, repo, ["HEAD", ".env"], null).fs;
+    expect(step1.isComplete(at(fs))).toBe(true);
+  });
+
+  it("a bare `git reset` empties the whole index → step 1 stays incomplete until app.js is re-added", () => {
+    let fs = gitUnstage.setup(buildBaseFs());
+    fs = gitReset(fs, repo, repo, [], null).fs;
+    expect(readGitState(fs, repo).staged).toEqual([]);
+    expect(step1.isComplete(at(fs))).toBe(false); // app.js no longer staged
+
+    // state checkpoint, not an event script: re-staging app.js reaches the target state
+    fs = gitAdd(fs, repo, repo, ["app.js"], false).fs;
+    expect(step1.isComplete(at(fs))).toBe(true);
+  });
+
+  it("does NOT complete via `git reset --hard` — it deletes the staged-new .env", () => {
+    let fs = gitUnstage.setup(buildBaseFs());
+    fs = gitReset(fs, repo, repo, [], "hard").fs;
+    expect(fs.getNode(ENV)).toBeNull(); // secrets file lost
+    expect(step1.isComplete(at(fs))).toBe(false);
+  });
+
+  it("does NOT complete when .env is deleted instead of unstaged", () => {
+    let fs = gitUnstage.setup(buildBaseFs());
+    fs = fs.removeNode(ENV).fs!;
+    fs = gitReset(fs, repo, repo, [".env"], null).fs;
+    expect(step1.isComplete(at(fs))).toBe(false);
   });
 });
 
@@ -669,7 +738,7 @@ describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
   // text — that's the whole point of the rework, so guard it. The pane challenges
   // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
-  const objectiveFirst = [gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];
+  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];
 
   it("each has a brief and every step has a hint + command", () => {
     for (const c of objectiveFirst) {

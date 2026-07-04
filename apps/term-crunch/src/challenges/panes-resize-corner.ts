@@ -4,12 +4,11 @@ import { paneTreeMatchesWithRatio } from "../lib/paneCompare";
 import type { Challenge } from "./types";
 
 /**
- * Two-axis resize skill: a sidebar column on the left (file tree over a build
- * log) next to an editor on the right, everything 50/50. The player first grows
- * the bottom-left build log with `<prefix> K` (resize up shrinks child `a`, the
- * top pane → column ratio 0.5 → ~0.3), then shrinks the whole sidebar with
- * `<prefix> H` (resize left shrinks child `a`, the left column → root ratio
- * 0.5 → ~0.3).
+ * Two-axis resize skill: a two-row column on the left next to a full-height pane
+ * on the right, everything 50/50. The player first grows the bottom-left pane
+ * with `<prefix> K` (resize up shrinks child `a`, the top pane → column ratio
+ * 0.5 → ~0.3), then shrinks the whole left column with `<prefix> H` (resize left
+ * shrinks child `a`, the left column → root ratio 0.5 → ~0.3).
  *
  * Focus starts on the BOTTOM-LEFT pane so `nearestResizableSplit` resolves both
  * dividers from one spot: the column's `v` split for K/J and the root `h` split
@@ -24,19 +23,19 @@ import type { Challenge } from "./types";
  * Both windows are BUILDERS so each load mints fresh ids from the monotonic
  * counters; the target is captured once since it never changes.
  */
-const COLUMN_RATIO = 0.3; // file tree 30% / build log 70% of the left column
-const ROOT_RATIO = 0.3; // left column 30% / editor 70% of the window
+const COLUMN_RATIO = 0.3; // top pane 30% / bottom pane 70% of the left column
+const ROOT_RATIO = 0.3; // left column 30% / right pane 70% of the window
 const RATIO_TOLERANCE = 0.05;
 
 function buildInitialWindow(): WindowState {
   const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
-  // Root h-split: original pane becomes the left column (child `a`), editor right.
+  // Root h-split: original pane becomes the left column (child `a`).
   const cols = splitNode(win.root, win.activePaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR));
   if (!cols) throw new Error("panes-resize-corner: column split failed");
-  // Left column v-split: original pane on top (file tree), build log below.
+  // Left column v-split: original pane on top, new pane below.
   const rows = splitNode(cols.root, win.activePaneId, "v", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR));
   if (!rows) throw new Error("panes-resize-corner: row split failed");
-  // Start focused on the bottom-left build log (see focus note above).
+  // Start focused on the bottom-left pane (see focus note above).
   return { ...win, root: rows.root, activePaneId: rows.newPaneId };
 }
 
@@ -65,29 +64,25 @@ export const panesResizeCorner: Challenge = {
   initialWindow: buildInitialWindow,
   // Pure keyboard-chord challenge — resize keys come from ~/.tmux.conf.
   commands: [],
-  brief:
-    "Editor on the right, sidebar column on the left: a file tree over a build " +
-    "log, everything split 50/50. The build log is cramped and the sidebar is " +
-    "hogging half the screen.",
   setup: (base) => base,
   steps: [
     {
-      instruction: "Grow the bottom-left (build log) pane to about 70% of the left column.",
+      instruction: "Grow the bottom-left pane to about 70% of the left column.",
       hint:
         "The repeatable resize keys from ~/.tmux.conf are the capital vim keys " +
         "H/J/K/L under your prefix (Ctrl+Space). Resizing up pulls the horizontal " +
         "divider toward the top, growing the bottom pane.",
-      command: "prefix K (repeat until the build log is ~70% of the column)",
+      command: "prefix K (repeat until the bottom-left pane is ~70% of the column)",
       isComplete: (s) => {
         const col = columnSplit(s.activeWindow.root);
         return col !== undefined && Math.abs(col.ratio - COLUMN_RATIO) <= RATIO_TOLERANCE;
       },
     },
     {
-      instruction: "Now shrink the whole left column to about 30% of the window width.",
+      instruction: "Now shrink the left column to about 30% of the window width.",
       hint:
         "Resizing left pushes the vertical divider toward the left edge, shrinking " +
-        "the sidebar. It works from either left pane — the nearest side-by-side " +
+        "the column. It works from either left pane — the nearest side-by-side " +
         "divider is the one that moves.",
       command: "prefix H (repeat until the left column is ~30% wide)",
       isComplete: (s) => paneTreeMatchesWithRatio(s.activeWindow.root, targetWindow.root, RATIO_TOLERANCE),

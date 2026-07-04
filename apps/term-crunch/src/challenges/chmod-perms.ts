@@ -35,12 +35,12 @@ export const chmodPerms: Challenge = {
   fsWatchPath: VAULT_DIR,
   commands: ["chmod", "cat", "ls", "cd", "pwd"],
   brief:
-    'secrets.env is locked: `cat secrets.env` fails with "Permission denied". Its permission ' +
-    "string in the panel (rw-------) shows only the owner can read it. Grant read access so it can be opened.",
+    'secrets.env is locked: `cat secrets.env` fails with "Permission denied". ' +
+    "Grant read access so it can be opened.",
   setup,
   steps: [
     {
-      instruction: "Turn on the read bit so secrets.env can be read, then watch the panel's permission string change.",
+      instruction: "Turn on the read bit so secrets.env can be read.",
       hint:
         "chmod sets who can read (r), write (w), execute (x) a file.\n" +
         "• Symbolic (letters): a target (u=owner, g=group, o=other, a=all), then +/- a bit.\n" +

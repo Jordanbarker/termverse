@@ -4,9 +4,9 @@ import { paneTreeMatchesWithRatio } from "../lib/paneCompare";
 import type { Challenge } from "./types";
 
 /**
- * Vertical-resize skill: the player starts from a 50/50 stacked split (log
- * viewer on top, shell below) and nudges the divider down until the top pane is
- * ~70% tall — the row-wise counterpart of `panes-resize`.
+ * Vertical-resize skill: the player starts from a 50/50 stacked split and nudges
+ * the divider down until the top pane is ~70% tall — the row-wise counterpart of
+ * `panes-resize`.
  *
  * Same trap as `panes-resize`: start and target are structurally identical
  * `(v L L)` trees, so `paneTreeMatches` would auto-complete on load — the
@@ -28,7 +28,7 @@ function buildInitialWindow(): WindowState {
   // as child `b` (bottom), at the default ratio 0.5.
   const rows = splitNode(win.root, win.activePaneId, "v", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR));
   if (!rows) throw new Error("panes-resize-rows: row split failed");
-  // Start focused on the top (original) pane — the "log viewer" the player grows.
+  // Start focused on the top (original) pane — the one the player grows.
   return { ...win, root: rows.root, activePaneId: win.activePaneId };
 }
 
@@ -48,13 +48,10 @@ export const panesResizeRows: Challenge = {
   initialWindow: buildInitialWindow,
   // Pure keyboard-chord challenge — resize keys come from ~/.tmux.conf.
   commands: [],
-  brief:
-    "You're tailing a noisy log up top with a shell below, split 50/50. " +
-    "Lines are scrolling off the log — give it more height.",
   setup: (base) => base,
   steps: [
     {
-      instruction: "Grow the top (log) pane to about 70% of the window.",
+      instruction: "Grow the top pane to about 70% of the window.",
       hint:
         "tmux moves a divider in whole cells, so nudge it a few times. The default " +
         "~/.tmux.conf binds repeatable resize keys under your prefix (Ctrl+Space): " +

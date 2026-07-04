@@ -6,6 +6,7 @@ import { panesResizeRows } from "./panes-resize-rows";
 import { panesResizeCorner } from "./panes-resize-corner";
 import { windowsCreate } from "./windows-create";
 import { gitFirstCommit } from "./git-first-commit";
+import { gitUnstage } from "./git-unstage";
 import { gitStashChallenge } from "./git-stash";
 import { gitPullFf } from "./git-pull-ff";
 import { gitRebaseChallenge } from "./git-rebase";
@@ -15,4 +16,4 @@ import { copyModeYank } from "./copy-mode-yank";
 import type { Challenge } from "./types";
 
 /** Ordered, linear progression. The player advances one challenge at a time. */
-export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, panesCleanup, panesResize, panesResizeRows, panesResizeCorner, windowsCreate, gitFirstCommit, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];
+export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, panesCleanup, panesResize, panesResizeRows, panesResizeCorner, windowsCreate, gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];

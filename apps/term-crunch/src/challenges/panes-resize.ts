@@ -4,9 +4,8 @@ import { paneTreeMatchesWithRatio } from "../lib/paneCompare";
 import type { Challenge } from "./types";
 
 /**
- * Resize skill: the player starts from a 50/50 side-by-side split (editor on the
- * left, a small pane on the right) and nudges the divider until the left pane is
- * ~70% wide.
+ * Resize skill: the player starts from a 50/50 side-by-side split and nudges the
+ * divider until the left pane is ~70% wide.
  *
  * Structure alone can't detect this — `paneTreeMatches` ignores ratios, so the
  * starting `(h L L)` and the target `(h L L)` are structurally identical and the
@@ -27,7 +26,7 @@ function buildInitialWindow(): WindowState {
   // as child `b` (right), at the default ratio 0.5.
   const cols = splitNode(win.root, win.activePaneId, "h", () => makeLeaf(CRUNCH_MACHINE, HOME_DIR));
   if (!cols) throw new Error("panes-resize: column split failed");
-  // Start focused on the left (original) pane — the "editor" the player widens.
+  // Start focused on the left (original) pane — the one the player widens.
   return { ...win, root: cols.root, activePaneId: win.activePaneId };
 }
 
@@ -47,13 +46,10 @@ export const panesResize: Challenge = {
   initialWindow: buildInitialWindow,
   // Pure keyboard-chord challenge — resize keys come from ~/.tmux.conf.
   commands: [],
-  brief:
-    "You're pairing: the editor's on the left, a REPL on the right, split 50/50. " +
-    "The editor's cramped — give it more room.",
   setup: (base) => base,
   steps: [
     {
-      instruction: "Widen the left (editor) pane to about 70% of the window.",
+      instruction: "Widen the left pane to about 70% of the window.",
       hint:
         "tmux moves a divider in whole cells, so nudge it a few times. The default " +
         "~/.tmux.conf binds repeatable resize keys under your prefix (Ctrl+Space): " +

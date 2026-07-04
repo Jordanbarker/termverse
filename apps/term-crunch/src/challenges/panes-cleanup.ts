@@ -50,9 +50,7 @@ export const panesCleanup: Challenge = {
   setup: (base) => base,
   steps: [
     {
-      instruction:
-        "You inherited a cluttered 2×2 grid. Prune it down to the TARGET: two " +
-        "side-by-side panes (prefix = Ctrl+Space).",
+      instruction: "Prune down to the TARGET: two side-by-side panes (prefix = Ctrl+Space).",
       hint:
         "Kill the focused pane with prefix x. Killing one pane of a stacked pair " +
         "collapses that column back into a single pane, so drop a bottom pane in each column.",
