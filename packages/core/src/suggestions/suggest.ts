@@ -30,7 +30,7 @@ export const SUBCOMMAND_MAP: Record<string, string[]> = {
   apt: ["install"],
   bash: ["-c"],
   sh: ["-c"],
-  git: ["init", "clone", "add", "rm", "commit", "status", "log", "branch", "checkout", "switch", "diff", "stash", "push", "pull", "help"],
+  git: ["init", "clone", "add", "rm", "commit", "status", "log", "branch", "checkout", "switch", "rebase", "reset", "diff", "stash", "push", "pull", "help"],
 };
 
 /**

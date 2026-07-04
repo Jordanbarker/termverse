@@ -685,6 +685,143 @@ export function gitCheckout(
   return { fs, output: `Switched to branch '${target}'` };
 }
 
+// ── git reset ────────────────────────────────────────────────────────
+
+export type GitResetMode = "soft" | "mixed" | "hard";
+
+/**
+ * Resolve a revision to a commit hash: branch name, full object hash, HEAD,
+ * or any of those with a `~N` suffix (bare `~` = `~1`). Returns null when the
+ * revision doesn't exist or `~N` walks past the root commit.
+ */
+export function resolveRef(fs: VirtualFS, root: string, ref: string): string | null {
+  const m = ref.match(/^([^~]+)(~(\d*))?$/);
+  if (!m) return null;
+  const [, base, tilde, count] = m;
+
+  let hash: string | null;
+  if (base === "HEAD") {
+    hash = resolveHead(fs, root);
+  } else {
+    const refFile = fs.readFile(`${root}/.git/refs/heads/${base}`);
+    hash = refFile.content?.trim() ?? (readCommit(fs, root, base) ? base : null);
+  }
+
+  if (tilde !== undefined) {
+    let n = count === "" ? 1 : parseInt(count, 10);
+    while (hash && n-- > 0) {
+      hash = readCommit(fs, root, hash)?.parent ?? null;
+    }
+  }
+  return hash;
+}
+
+/** Remove pathspecs (files or directory prefixes) from the index. */
+function unstagePaths(
+  fs: VirtualFS, root: string, cwd: string, index: GitIndex, headTree: Record<string, string>, paths: string[]
+): { index: GitIndex; error?: string } {
+  for (const p of paths) {
+    const absPath = p.startsWith("/") ? normalizePath(p) : normalizePath(`${cwd}/${p}`);
+    const rel = absPath.startsWith(root + "/") ? absPath.slice(root.length + 1) : absPath;
+    const matches = (key: string) => key === rel || key.startsWith(rel + "/");
+    const hadEntry = Object.keys(index.staged).some(matches) || index.deleted.some(matches);
+    if (!hadEntry && !fs.getNode(absPath) && !(rel in headTree)) {
+      return { index, error: `fatal: pathspec '${p}' did not match any files` };
+    }
+    for (const key of Object.keys(index.staged)) {
+      if (matches(key)) delete index.staged[key];
+    }
+    index.deleted = index.deleted.filter((key) => !matches(key));
+  }
+  return { index };
+}
+
+export function gitReset(
+  fs: VirtualFS, root: string, cwd: string, args: string[], mode: GitResetMode | null
+): { fs: VirtualFS; output: string; error?: string } {
+  if (readRebaseState(fs, root)) {
+    return { fs, output: "", error: "fatal: cannot reset during a rebase; finish it or run 'git rebase --abort' first" };
+  }
+
+  const headHash = resolveHead(fs, root);
+  const headTree = headHash ? (readCommit(fs, root, headHash)?.tree ?? {}) : {};
+
+  // Split args into an optional leading revision and trailing pathspecs.
+  // With an explicit mode flag, the sole arg is always a revision. Without
+  // one, a lone arg that resolves as a revision is one; anything else (or
+  // args after a revision, e.g. `git reset HEAD file`) are pathspecs.
+  let target = "HEAD";
+  let paths: string[] = [];
+  if (mode !== null) {
+    if (args.length > 1) {
+      return { fs, output: "", error: `fatal: Cannot do ${mode} reset with paths.` };
+    }
+    target = args[0] ?? "HEAD";
+  } else if (args.length > 0) {
+    if (resolveRef(fs, root, args[0]) !== null) {
+      target = args[0];
+      paths = args.slice(1);
+    } else {
+      paths = args;
+    }
+  }
+
+  // Path form: reset index entries only.
+  if (paths.length > 0) {
+    const index = readIndex(fs, root);
+    const result = unstagePaths(fs, root, cwd, index, headTree, paths);
+    if (result.error) return { fs, output: "", error: result.error };
+    fs = writeOrFail(fs, `${root}/.git/index.json`, JSON.stringify(result.index));
+    return { fs, output: "" };
+  }
+
+  const targetHash = resolveRef(fs, root, target);
+  if (!targetHash) {
+    return { fs, output: "", error: `fatal: ambiguous argument '${target}': unknown revision or path not in the working tree.` };
+  }
+  const targetCommit = readCommit(fs, root, targetHash);
+  if (!targetCommit) {
+    return { fs, output: "", error: `fatal: Could not parse object '${target}'.` };
+  }
+
+  const effectiveMode: GitResetMode = mode ?? "mixed";
+  const index = readIndex(fs, root);
+
+  // Move HEAD (branch ref, or raw hash when detached).
+  const branch = getCurrentBranch(readHead(fs, root));
+  if (branch) {
+    fs = writeRefOrFail(fs, `${root}/.git/refs/heads/${branch}`, targetHash);
+  } else {
+    fs = writeOrFail(fs, `${root}/.git/HEAD`, targetHash);
+  }
+
+  if (effectiveMode === "soft") {
+    return { fs, output: "" };
+  }
+
+  // mixed and hard both reset the index.
+  fs = writeOrFail(fs, `${root}/.git/index.json`, JSON.stringify({ staged: {}, deleted: [] }));
+
+  if (effectiveMode === "hard") {
+    // Tracked files (HEAD or staged-new) absent from the target get removed;
+    // untracked files survive, as in real git.
+    const removable = [...Object.keys(headTree), ...Object.keys(index.staged)];
+    fs = writeTreeToWorkingDir(fs, root, targetCommit.tree, removable);
+    const subject = targetCommit.message.split("\n")[0];
+    return { fs, output: `HEAD is now at ${targetHash.slice(0, 7)} ${subject}` };
+  }
+
+  // mixed: report tracked files whose working-tree content now differs from the target.
+  const workingTree = collectFiles(fs, root, root);
+  const unstagedLines: string[] = [];
+  for (const [path, content] of Object.entries(targetCommit.tree)) {
+    if (!(path in workingTree)) unstagedLines.push(`D\t${path}`);
+    else if (workingTree[path] !== content) unstagedLines.push(`M\t${path}`);
+  }
+  if (unstagedLines.length === 0) return { fs, output: "" };
+  return { fs, output: `Unstaged changes after reset:\n${unstagedLines.sort().join("\n")}` };
+}
+
 // ── git diff ─────────────────────────────────────────────────────────
 
 export interface DiffFile {

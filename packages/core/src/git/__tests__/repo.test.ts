@@ -6,7 +6,7 @@ import {
   gitInit, gitAdd, gitCommit, gitStatus, getCommitLog,
   listBranches, createBranch, deleteBranch, gitCheckout, gitDiffFiles,
   gitStashSave, gitStashPop, gitStashList,
-  gitRm, gitClone, gitPush, gitPull,
+  gitRm, gitClone, gitPush, gitPull, gitReset, resolveRef,
   resolveHead, readIndex,
 } from "../repo";
 import { formatStatus, formatLog } from "../output";
@@ -1399,5 +1399,177 @@ describe("git diff --staged (focused)", () => {
     // Should show v1→v2 (staged), NOT v1→v3 (working tree)
     expect(diffs[0].oldContent).toBe("v1");
     expect(diffs[0].newContent).toBe("v2");
+  });
+});
+
+// ── git reset ────────────────────────────────────────────────────────
+
+describe("resolveRef", () => {
+  const root = "/home/player";
+
+  it("resolves HEAD, branch names, hashes, and ~N suffixes", () => {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile(`${root}/a.txt`, "v1").fs!;
+    fs = addAndCommit(fs, root, "first");
+    const first = resolveHead(fs, root)!;
+    fs = fs.writeFile(`${root}/a.txt`, "v2").fs!;
+    fs = addAndCommit(fs, root, "second");
+    const second = resolveHead(fs, root)!;
+
+    expect(resolveRef(fs, root, "HEAD")).toBe(second);
+    expect(resolveRef(fs, root, "main")).toBe(second);
+    expect(resolveRef(fs, root, first)).toBe(first);
+    expect(resolveRef(fs, root, "HEAD~")).toBe(first);
+    expect(resolveRef(fs, root, "HEAD~1")).toBe(first);
+    expect(resolveRef(fs, root, "main~1")).toBe(first);
+    expect(resolveRef(fs, root, "HEAD~0")).toBe(second);
+  });
+
+  it("returns null for unknown refs and walks past root", () => {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile("/home/player/a.txt", "v1").fs!;
+    fs = addAndCommit(fs, root, "first");
+    expect(resolveRef(fs, root, "nope")).toBeNull();
+    expect(resolveRef(fs, root, "HEAD~99")).toBeNull();
+  });
+});
+
+describe("git reset", () => {
+  const root = "/home/player";
+
+  function twoCommits(): { fs: VirtualFS; first: string; second: string } {
+    let fs = initRepo(makeFs());
+    fs = fs.writeFile(`${root}/a.txt`, "v1").fs!;
+    fs = addAndCommit(fs, root, "first");
+    const first = resolveHead(fs, root)!;
+    fs = fs.writeFile(`${root}/a.txt`, "v2").fs!;
+    fs = fs.writeFile(`${root}/b.txt`, "new").fs!;
+    fs = addAndCommit(fs, root, "second");
+    const second = resolveHead(fs, root)!;
+    return { fs, first, second };
+  }
+
+  it("unstages everything with no args", () => {
+    let { fs } = twoCommits();
+    fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
+    fs = gitAdd(fs, root, root, ["a.txt"], false).fs;
+    const result = gitReset(fs, root, root, [], null);
+    expect(result.error).toBeUndefined();
+    expect(readIndex(result.fs, root).staged).toEqual({});
+    // Working tree untouched
+    expect(result.fs.readFile(`${root}/a.txt`).content).toBe("v3");
+  });
+
+  it("unstages a single path, leaving other entries staged", () => {
+    let { fs } = twoCommits();
+    fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
+    fs = fs.writeFile(`${root}/b.txt`, "changed").fs!;
+    fs = gitAdd(fs, root, root, ["a.txt", "b.txt"], false).fs;
+    const result = gitReset(fs, root, root, ["a.txt"], null);
+    expect(result.error).toBeUndefined();
+    const index = readIndex(result.fs, root);
+    expect(index.staged["a.txt"]).toBeUndefined();
+    expect(index.staged["b.txt"]).toBe("changed");
+  });
+
+  it("unstages via 'git reset HEAD <path>'", () => {
+    let { fs } = twoCommits();
+    fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
+    fs = gitAdd(fs, root, root, ["a.txt"], false).fs;
+    const result = gitReset(fs, root, root, ["HEAD", "a.txt"], null);
+    expect(result.error).toBeUndefined();
+    expect(readIndex(result.fs, root).staged).toEqual({});
+  });
+
+  it("clears a staged deletion for the given path", () => {
+    let { fs } = twoCommits();
+    fs = fs.removeNode(`${root}/b.txt`).fs!;
+    fs = gitAdd(fs, root, root, ["b.txt"], false).fs;
+    expect(readIndex(fs, root).deleted).toContain("b.txt");
+    const result = gitReset(fs, root, root, ["b.txt"], null);
+    expect(readIndex(result.fs, root).deleted).toEqual([]);
+  });
+
+  it("errors on a pathspec matching nothing", () => {
+    const { fs } = twoCommits();
+    const result = gitReset(fs, root, root, ["missing.txt"], null);
+    expect(result.error).toContain("did not match any files");
+  });
+
+  it("--soft moves the branch but keeps index and working tree", () => {
+    let { fs, first } = twoCommits();
+    fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
+    fs = gitAdd(fs, root, root, ["a.txt"], false).fs;
+    const result = gitReset(fs, root, root, ["HEAD~1"], "soft");
+    expect(result.error).toBeUndefined();
+    expect(result.output).toBe("");
+    expect(resolveHead(result.fs, root)).toBe(first);
+    expect(readIndex(result.fs, root).staged["a.txt"]).toBe("v3");
+    expect(result.fs.readFile(`${root}/a.txt`).content).toBe("v3");
+  });
+
+  it("mixed (default) moves the branch and clears the index, keeping the working tree", () => {
+    let { fs, first } = twoCommits();
+    fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
+    fs = gitAdd(fs, root, root, ["a.txt"], false).fs;
+    const result = gitReset(fs, root, root, ["HEAD~1"], null);
+    expect(result.error).toBeUndefined();
+    expect(resolveHead(result.fs, root)).toBe(first);
+    expect(readIndex(result.fs, root).staged).toEqual({});
+    expect(result.fs.readFile(`${root}/a.txt`).content).toBe("v3");
+    expect(result.output).toContain("Unstaged changes after reset:");
+    expect(result.output).toContain("M\ta.txt");
+  });
+
+  it("--hard restores the working tree and removes files from undone commits", () => {
+    let { fs, first } = twoCommits();
+    fs = fs.writeFile(`${root}/untracked.txt`, "keep me").fs!;
+    const result = gitReset(fs, root, root, ["HEAD~1"], "hard");
+    expect(result.error).toBeUndefined();
+    expect(result.output).toBe(`HEAD is now at ${first.slice(0, 7)} first`);
+    expect(resolveHead(result.fs, root)).toBe(first);
+    expect(result.fs.readFile(`${root}/a.txt`).content).toBe("v1");
+    // b.txt was added by the undone commit
+    expect(result.fs.getNode(`${root}/b.txt`)).toBeNull();
+    // untracked survives
+    expect(result.fs.readFile(`${root}/untracked.txt`).content).toBe("keep me");
+    expect(readIndex(result.fs, root).staged).toEqual({});
+  });
+
+  it("--hard removes staged-new files", () => {
+    let { fs } = twoCommits();
+    fs = fs.writeFile(`${root}/staged-new.txt`, "x").fs!;
+    fs = gitAdd(fs, root, root, ["staged-new.txt"], false).fs;
+    const result = gitReset(fs, root, root, ["HEAD"], "hard");
+    expect(result.fs.getNode(`${root}/staged-new.txt`)).toBeNull();
+  });
+
+  it("resets to a raw commit hash and to a branch name", () => {
+    const { fs, first } = twoCommits();
+    const byHash = gitReset(fs, root, root, [first], "hard");
+    expect(resolveHead(byHash.fs, root)).toBe(first);
+    const byBranch = gitReset(fs, root, root, ["main"], "hard");
+    expect(byBranch.error).toBeUndefined();
+  });
+
+  it("errors on unknown revision", () => {
+    const { fs } = twoCommits();
+    const result = gitReset(fs, root, root, ["deadbee"], "hard");
+    expect(result.error).toContain("ambiguous argument 'deadbee'");
+  });
+
+  it("rejects mode flags combined with paths", () => {
+    const { fs } = twoCommits();
+    const result = gitReset(fs, root, root, ["HEAD", "a.txt"], "hard");
+    expect(result.error).toContain("Cannot do hard reset with paths");
+  });
+
+  it("refuses to reset during a rebase", () => {
+    let { fs } = twoCommits();
+    fs = fs.writeFile(`${root}/.git/rebase-state.json`, JSON.stringify({
+      onto: "x", originalBranch: "main", originalHead: "y", todo: [], current: null, conflictFiles: [],
+    })).fs!;
+    const result = gitReset(fs, root, root, [], "hard");
+    expect(result.error).toContain("rebase");
   });
 });

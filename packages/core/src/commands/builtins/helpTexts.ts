@@ -401,6 +401,8 @@ export const HELP_TEXTS: Record<string, string> = {
     "  git checkout [-b] <branch>  Switch or create branches (legacy)",
     "  git rebase <branch>         Reapply commits on top of another branch",
     "  git rebase --continue|--abort  Resume or cancel an in-progress rebase",
+    "  git reset [<paths>]         Unstage changes",
+    "  git reset [--soft|--mixed|--hard] <commit>  Move HEAD to a commit (e.g. HEAD~1)",
     "  git diff [--staged|--cached]  Show changes",
     "  git push [-u] [-f] [origin br]  Update remote refs",
     "  git pull [--ff-only] [origin branch]  Fetch and merge from remote (--ff-only: refuse non-fast-forward)",

@@ -7,9 +7,9 @@ import {
   gitInit, gitAdd, gitRm, gitCommit, gitStatus, getCommitLog,
   listBranches, createBranch, deleteBranch, gitCheckout, gitDiffFiles,
   gitStashSave, gitStashPop, gitStashList,
-  gitClone, gitPush, gitPull,
+  gitClone, gitPush, gitPull, gitReset,
   gitRebase, gitRebaseContinue, gitRebaseAbort,
-  type BranchListMode,
+  type BranchListMode, type GitResetMode,
 } from "@tt/core/git/repo";
 import { formatStatus, formatLog, formatDiff, formatBranches } from "@tt/core/git/output";
 
@@ -75,6 +75,7 @@ const GIT_SUBCOMMAND_FLAGS: Record<string, KnownFlags> = {
   checkout: { short: ["b"] },
   switch: { short: ["c"] },
   rebase: { long: ["continue", "abort"] },
+  reset: { long: ["soft", "mixed", "hard"] },
   diff: { long: ["staged", "cached"] },
   stash: { short: ["u"], long: ["include-untracked"] },
   push: { short: ["u", "f"] },
@@ -230,6 +231,17 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
       }
       const result = gitRebase(ctx.fs, root, subArgs[0]);
       if (result.error) return { output: result.error, exitCode: result.error.startsWith("fatal:") ? 128 : 1 };
+      return { output: result.output, newFs: result.fs };
+    }
+
+    case "reset": {
+      const modes = (["soft", "mixed", "hard"] as const).filter((m) => flags[m]);
+      if (modes.length > 1) {
+        return { output: `fatal: options '--${modes[0]}' and '--${modes[1]}' cannot be used together`, exitCode: 128 };
+      }
+      const mode: GitResetMode | null = modes[0] ?? null;
+      const result = gitReset(ctx.fs, root, ctx.cwd, subArgs, mode);
+      if (result.error) return { output: result.error, exitCode: 128 };
       return { output: result.output, newFs: result.fs };
     }
 
