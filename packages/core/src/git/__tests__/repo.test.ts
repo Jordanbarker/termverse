@@ -1497,7 +1497,9 @@ describe("git reset", () => {
   });
 
   it("--soft moves the branch but keeps index and working tree", () => {
-    let { fs, first } = twoCommits();
+    const two = twoCommits();
+    const { first } = two;
+    let fs = two.fs;
     fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
     fs = gitAdd(fs, root, root, ["a.txt"], false).fs;
     const result = gitReset(fs, root, root, ["HEAD~1"], "soft");
@@ -1509,7 +1511,9 @@ describe("git reset", () => {
   });
 
   it("mixed (default) moves the branch and clears the index, keeping the working tree", () => {
-    let { fs, first } = twoCommits();
+    const two = twoCommits();
+    const { first } = two;
+    let fs = two.fs;
     fs = fs.writeFile(`${root}/a.txt`, "v3").fs!;
     fs = gitAdd(fs, root, root, ["a.txt"], false).fs;
     const result = gitReset(fs, root, root, ["HEAD~1"], null);
@@ -1522,7 +1526,9 @@ describe("git reset", () => {
   });
 
   it("--hard restores the working tree and removes files from undone commits", () => {
-    let { fs, first } = twoCommits();
+    const two = twoCommits();
+    const { first } = two;
+    let fs = two.fs;
     fs = fs.writeFile(`${root}/untracked.txt`, "keep me").fs!;
     const result = gitReset(fs, root, root, ["HEAD~1"], "hard");
     expect(result.error).toBeUndefined();

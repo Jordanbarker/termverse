@@ -148,6 +148,7 @@ export default function TabManager() {
   // window with fresh (never-reset) pane ids, so the hook's [windows] mount
   // effect disposes the old panes and creates+prompts the new ones.
   const tm = useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext });
+  const { wrapperRef } = tm;
 
   const activeWindow = windows.find((w) => w.id === activeWindowId) ?? windows[0];
   const activeRect = useMemo(
@@ -171,7 +172,7 @@ export default function TabManager() {
       {/* The ResizeObserver watches wrapperRef inside this flex-1 region, so the
           measured size already excludes the status bar. */}
       <div className="relative flex-1">
-        <div ref={tm.wrapperRef} className="absolute inset-0 isolate" />
+        <div ref={wrapperRef} className="absolute inset-0 isolate" />
         {tm.copyModeActive && (
           <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
             <span className="font-bold text-[#e6b450]">COPY MODE</span>

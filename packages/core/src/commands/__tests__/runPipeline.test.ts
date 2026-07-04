@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { runPipeline, isChainEarlyReturn, RunPipelineOptions } from "../runPipeline";
 import { parseChainedPipeline } from "../parser";
-import { CommandContext, CommandResult, ParsedCommand } from "../types";
+import { CommandContext, CommandResult } from "../types";
 import { VirtualFS } from "../../filesystem/VirtualFS";
 import { file, dir } from "../../filesystem/builders";
 import { stripAnsi } from "../../lib/ansi";
