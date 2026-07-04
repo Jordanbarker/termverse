@@ -10,6 +10,7 @@ import {
   collapsePane,
   prunePanesByComputer,
   setSplitRatio,
+  MAX_NUDGE_RATIO,
   nudgeSplitRatio,
   nearestResizableSplit,
   nodeBox,
@@ -150,14 +151,14 @@ describe("setSplitRatio", () => {
 });
 
 describe("nudgeSplitRatio", () => {
-  it("adds a delta to the split's ratio, clamped", () => {
+  it("adds a delta to the split's ratio, capped per nudge at MAX_NUDGE_RATIO", () => {
     const w = makeWindow("home", "/a");
     const split = splitNode(w.root, firstLeaf(w.root).id, "h", () => makeLeaf("home", "/b"))!;
     const splitId = (split.root as Extract<PaneNode, { kind: "split" }>).id;
-    const bigger = nudgeSplitRatio(split.root, splitId, 0.2) as Extract<PaneNode, { kind: "split" }>;
-    expect(bigger.ratio).toBeCloseTo(0.7);
-    const clamped = nudgeSplitRatio(split.root, splitId, 1) as Extract<PaneNode, { kind: "split" }>;
-    expect(clamped.ratio).toBeCloseTo(0.9);
+    const bigger = nudgeSplitRatio(split.root, splitId, 0.03) as Extract<PaneNode, { kind: "split" }>;
+    expect(bigger.ratio).toBeCloseTo(0.53);
+    const capped = nudgeSplitRatio(split.root, splitId, 1) as Extract<PaneNode, { kind: "split" }>;
+    expect(capped.ratio).toBeCloseTo(0.5 + MAX_NUDGE_RATIO);
   });
 
   it("leaves the tree unchanged for an unknown / non-split id", () => {

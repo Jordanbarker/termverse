@@ -17,8 +17,9 @@ import type { Challenge } from "./types";
  *
  * Step 1 can't use the full-tree ratio compare — the root ratio is still 0.5
  * then — so it walks to the column split and checks only its ratio. Step 2
- * compares the whole tree against the target. Per-nudge delta is ~0.05–0.07,
- * so ±0.05 contains a reachable stopping point and overshoot is reversible.
+ * compares the whole tree against the target. The per-nudge delta is capped at
+ * MAX_NUDGE_RATIO (0.05) ≤ the ±0.05 tolerance, so a reachable stopping point
+ * always exists and overshoot is reversible.
  *
  * Both windows are BUILDERS so each load mints fresh ids from the monotonic
  * counters; the target is captured once since it never changes.

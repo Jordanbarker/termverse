@@ -12,9 +12,10 @@ import type { Challenge } from "./types";
  * `(v L L)` trees, so `paneTreeMatches` would auto-complete on load — the
  * ratio-aware compare with a tolerance band is required. `ratio` is child `a`'s
  * (the TOP pane's) fraction, so "top = 70%" is `ratio ≈ 0.70`; `<prefix> J`
- * (resize down) grows child `a`, so J is the solution key. Per-nudge delta is
- * ~0.05–0.07 → ±0.05 always contains a reachable stopping point, and
- * overshooting is reversible via K.
+ * (resize down) grows child `a`, so J is the solution key. The per-nudge delta
+ * is geometry-dependent but capped at MAX_NUDGE_RATIO (0.05) ≤ the ±0.05
+ * tolerance, so a reachable stopping point always exists, and overshooting is
+ * reversible via K.
  *
  * Both windows are BUILDERS so each load mints fresh ids from the monotonic
  * counters; the target is captured once since it never changes.

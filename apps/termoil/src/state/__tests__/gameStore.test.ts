@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useGameStore, getActiveLeaf, getActivePaneId, getActiveWindow } from "../gameStore";
-import { allLeaves, findSplit, PaneNode } from "@tt/core/terminal/paneTypes";
+import { allLeaves, findSplit, MAX_NUDGE_RATIO, PaneNode } from "@tt/core/terminal/paneTypes";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
 
@@ -300,14 +300,14 @@ describe("pane actions", () => {
     expect(getActivePaneId(useGameStore.getState())).toBe(second);
   });
 
-  it("nudgeSplitRatio adjusts the split ratio and clamps it", () => {
+  it("nudgeSplitRatio adjusts the split ratio, capping each nudge at MAX_NUDGE_RATIO", () => {
     const left = getActivePaneId(useGameStore.getState())!;
     useGameStore.getState().splitPane(left, "h");
     const splitId = (getActiveWindow(useGameStore.getState())!.root as Extract<PaneNode, { kind: "split" }>).id;
-    useGameStore.getState().nudgeSplitRatio(splitId, -0.2);
-    expect(findSplit(getActiveWindow(useGameStore.getState())!.root, splitId)!.ratio).toBeCloseTo(0.3);
-    useGameStore.getState().nudgeSplitRatio(splitId, -1);
-    expect(findSplit(getActiveWindow(useGameStore.getState())!.root, splitId)!.ratio).toBeCloseTo(0.1);
+    useGameStore.getState().nudgeSplitRatio(splitId, -0.03);
+    expect(findSplit(getActiveWindow(useGameStore.getState())!.root, splitId)!.ratio).toBeCloseTo(0.47);
+    useGameStore.getState().nudgeSplitRatio(splitId, -1); // huge delta → one capped step
+    expect(findSplit(getActiveWindow(useGameStore.getState())!.root, splitId)!.ratio).toBeCloseTo(0.47 - MAX_NUDGE_RATIO);
   });
 });
 

@@ -11,8 +11,9 @@ import type { Challenge } from "./types";
  * starting `(h L L)` and the target `(h L L)` are structurally identical and the
  * challenge would auto-complete on load. Hence the ratio-aware compare with a
  * tolerance band: `ratio` is child `a`'s (the LEFT pane's) fraction, so "left =
- * 70%" is `ratio ≈ 0.70`. Per-nudge delta is ~0.05–0.07, so ±0.05 reliably
- * contains a reachable stopping point (and overshooting is reversible — no lock).
+ * 70%" is `ratio ≈ 0.70`. The per-nudge delta is capped at MAX_NUDGE_RATIO
+ * (0.05) ≤ the ±0.05 tolerance, so a reachable stopping point always exists
+ * (and overshooting is reversible — no lock).
  *
  * Both windows are BUILDERS so each load mints fresh ids from the monotonic
  * counters; the target is captured once since it never changes.

@@ -215,11 +215,19 @@ export function setSplitRatio(root: PaneNode, splitId: string, ratio: number): P
   return update(root);
 }
 
-/** Return a copy of the tree with `delta` added to split `splitId`'s ratio (clamped). */
+/**
+ * Cap on a single nudge's ratio change. A cell-based resize (e.g. `resize-pane
+ * -D 5`) on a short pane can otherwise move the divider by 0.1–0.2 in one
+ * press, stepping over any ratio target with a ±0.05 tolerance band.
+ */
+export const MAX_NUDGE_RATIO = 0.05;
+
+/** Return a copy of the tree with `delta` added to split `splitId`'s ratio (clamped, |delta| capped at MAX_NUDGE_RATIO). */
 export function nudgeSplitRatio(root: PaneNode, splitId: string, delta: number): PaneNode {
   const split = findSplit(root, splitId);
   if (!split) return root;
-  return setSplitRatio(root, splitId, split.ratio + delta);
+  const capped = Math.sign(delta) * Math.min(Math.abs(delta), MAX_NUDGE_RATIO);
+  return setSplitRatio(root, splitId, split.ratio + capped);
 }
 
 /**
