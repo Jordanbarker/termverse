@@ -42,10 +42,17 @@ import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
 import { copyModeYank } from "../challenges/copy-mode-yank";
+import { sessionsDetachAttach } from "../challenges/sessions-detach-attach";
+import { sessionsJuggle } from "../challenges/sessions-juggle";
 import type { ChallengeSnapshot } from "../challenges/types";
 
-function snap(activeWindow: WindowState, fs = buildBaseFs(), cwd = HOME_DIR): ChallengeSnapshot {
-  return { activeWindow, windows: [activeWindow], fs, cwd };
+function snap(
+  activeWindow: WindowState,
+  fs = buildBaseFs(),
+  cwd = HOME_DIR,
+  tmux: ChallengeSnapshot["tmux"] = { attachedSession: "0", detachedSessions: [] },
+): ChallengeSnapshot {
+  return { activeWindow, windows: [activeWindow], fs, cwd, tmux };
 }
 
 describe("paneCompare", () => {
@@ -297,7 +304,7 @@ describe("windows-create challenge", () => {
   }
 
   function winSnap(windows: WindowState[]): ChallengeSnapshot {
-    return { activeWindow: windows[0], windows, fs: buildBaseFs(), cwd: HOME_DIR };
+    return { ...snap(windows[0]), windows };
   }
 
   it("advances as windows are opened, then on rename", () => {
@@ -636,8 +643,7 @@ describe("rm-bomb challenge", () => {
   const step = rmBomb.steps[0];
 
   function fsSnap(fs = rmBomb.setup(buildBaseFs())): ChallengeSnapshot {
-    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
-    return { activeWindow: win, windows: [win], fs, cwd: HOME_DIR };
+    return snap(makeWindow(CRUNCH_MACHINE, HOME_DIR), fs);
   }
 
   it("seeds BOMB.md alongside survivors", () => {
@@ -673,8 +679,7 @@ describe("chmod-perms challenge", () => {
   const [unlock] = chmodPerms.steps;
 
   function fsSnap(fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot {
-    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
-    return { activeWindow: win, windows: [win], fs, cwd: HOME_DIR };
+    return snap(makeWindow(CRUNCH_MACHINE, HOME_DIR), fs);
   }
 
   it("seeds secrets.env locked to 600 (unreadable) with the step unsatisfied", () => {
@@ -710,8 +715,7 @@ describe("copy-mode-yank challenge", () => {
   const [step] = copyModeYank.steps;
 
   function fsSnap(fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot {
-    const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
-    return { activeWindow: win, windows: [win], fs, cwd: HOME_DIR };
+    return snap(makeWindow(CRUNCH_MACHINE, HOME_DIR), fs);
   }
 
   it("seeds the log with the passphrase buried in it, step unsatisfied", () => {
@@ -738,7 +742,7 @@ describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
   // text — that's the whole point of the rework, so guard it. The pane challenges
   // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
-  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank];
+  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank, sessionsDetachAttach, sessionsJuggle];
 
   it("each has a brief and every step has a hint + command", () => {
     for (const c of objectiveFirst) {
@@ -943,5 +947,132 @@ describe("per-challenge command allowlist", () => {
     const listed = getAvailableCommands(CRUNCH_MACHINE).map((c) => c.name);
     expect(listed).not.toContain("python3");
     expect(listed.sort()).toEqual(["cat", "cd", "clear", "git", "help", "ls", "man", "pwd", "shortcuts", "tmux"]);
+  });
+});
+
+describe("sessions-detach-attach predicates", () => {
+  const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+  const at = (tmux: ChallengeSnapshot["tmux"]) => snap(win, buildBaseFs(), HOME_DIR, tmux);
+  const [detach, reattach] = sessionsDetachAttach.steps;
+
+  it("step 0: detached with session 0 on the server", () => {
+    expect(detach.isComplete(at({ attachedSession: "0", detachedSessions: [] }))).toBe(false);
+    expect(detach.isComplete(at({ attachedSession: null, detachedSessions: [{ name: "0", windowCount: 1 }] }))).toBe(true);
+    // kill-server leaves no session to reattach to — must not count as a detach
+    expect(detach.isComplete(at({ attachedSession: null, detachedSessions: [] }))).toBe(false);
+  });
+
+  it("step 1: reattached to 0 with nothing left detached", () => {
+    expect(reattach.isComplete(at({ attachedSession: null, detachedSessions: [{ name: "0", windowCount: 1 }] }))).toBe(false);
+    expect(reattach.isComplete(at({ attachedSession: "0", detachedSessions: [] }))).toBe(true);
+  });
+});
+
+describe("sessions-juggle predicates", () => {
+  const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
+  const at = (attachedSession: string | null, detachedNames: string[]) =>
+    snap(win, buildBaseFs(), HOME_DIR, {
+      attachedSession,
+      detachedSessions: detachedNames.map((name) => ({ name, windowCount: 1 })),
+    });
+  const steps = sessionsJuggle.steps;
+
+  it("walks the intended sequence: each state satisfies its step (and only later-cascade-safe ones)", () => {
+    // [state, indices of steps satisfied by that state]. The load and final
+    // states also satisfy steps 3/4 — safe because the cascade starts at
+    // step 0, which the load state never satisfies.
+    const sequence: Array<[ReturnType<typeof at>, number[]]> = [
+      [at("0", []), [3, 4]], // load state (and post-kill final state)
+      [at(null, ["0"]), [0]],
+      [at("scratch", ["0"]), [1]],
+      // the second detach also re-satisfies step 0 (already consumed by then)
+      [at(null, ["0", "scratch"]), [0, 2]],
+      [at("0", ["scratch"]), [3]],
+    ];
+    for (const [idx, [s, satisfied]] of sequence.entries()) {
+      steps.forEach((step, i) => {
+        expect(step.isComplete(s), `state ${idx}, step ${i}`).toBe(satisfied.includes(i));
+      });
+    }
+  });
+
+  it("out-of-order: killing scratch while detached lets attach cascade steps 3+4", () => {
+    // After kill-session -t scratch from the detached shell, then attach -t 0,
+    // both remaining steps hold at once — no predicate strands the player.
+    const s = at("0", []);
+    expect(steps[3].isComplete(s)).toBe(true);
+    expect(steps[4].isComplete(s)).toBe(true);
+  });
+});
+
+describe("tmux lifecycle win-detection (store)", () => {
+  // checkWhileDetached challenges must have predicates evaluated from the bare
+  // shell, and applyTmuxAction must trigger checkCompletion on every action.
+  beforeAll(() => useGameStore.setState({ activeCategory: "all" }));
+  afterAll(() => {
+    useGameStore.setState({ activeCategory: "all" });
+    useGameStore.getState().loadChallenge(0);
+  });
+  const select = (id: string) =>
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === id));
+
+  it("detach then attach completes sessions-detach-attach", () => {
+    const state = useGameStore.getState;
+    select("sessions-detach-attach");
+    state().applyTmuxAction({ type: "detach" });
+    expect(state().stepIndex).toBe(1);
+    state().applyTmuxAction({ type: "attach", name: "0" });
+    expect(state().awaitingContinue || state().completed).toBe(true);
+  });
+
+  it("full juggle sequence completes sessions-juggle", () => {
+    const state = useGameStore.getState;
+    select("sessions-juggle");
+    state().applyTmuxAction({ type: "detach" });
+    expect(state().stepIndex).toBe(1);
+    state().applyTmuxAction({ type: "new-session", name: "scratch" });
+    expect(state().stepIndex).toBe(2);
+    state().applyTmuxAction({ type: "detach" });
+    expect(state().stepIndex).toBe(3);
+    state().applyTmuxAction({ type: "attach", name: "0" });
+    expect(state().stepIndex).toBe(4);
+    state().applyTmuxAction({ type: "kill-session", name: "scratch" });
+    expect(state().awaitingContinue || state().completed).toBe(true);
+  });
+
+  it("out-of-order: kill scratch while detached, then attach, cascades to done", () => {
+    const state = useGameStore.getState;
+    select("sessions-juggle");
+    state().applyTmuxAction({ type: "detach" });
+    state().applyTmuxAction({ type: "new-session", name: "scratch" });
+    state().applyTmuxAction({ type: "detach" });
+    expect(state().stepIndex).toBe(3);
+    state().applyTmuxAction({ type: "kill-session", name: "scratch" });
+    expect(state().stepIndex).toBe(3); // detached, step 3 not yet satisfied
+    state().applyTmuxAction({ type: "attach", name: "0" });
+    expect(state().awaitingContinue || state().completed).toBe(true);
+  });
+
+  it("kill-server soft-lock recovers via restartChallenge", () => {
+    const state = useGameStore.getState;
+    select("sessions-juggle");
+    state().applyTmuxAction({ type: "detach" });
+    state().applyTmuxAction({ type: "kill-server" });
+    expect(state().tmuxAttachedSession).toBeNull();
+    expect(state().tmuxDetachedSessions).toEqual([]);
+    state().restartChallenge();
+    expect(state().tmuxAttachedSession?.name).toBe("0");
+    expect(state().stepIndex).toBe(0);
+  });
+
+  it("pane challenges (no checkWhileDetached) still skip checks while detached", () => {
+    const state = useGameStore.getState;
+    select("panes-split");
+    state().applyTmuxAction({ type: "detach" });
+    // The bare single shell must not advance panes-split (its target is a
+    // multi-pane layout, but guard the mechanism, not the predicate).
+    expect(state().stepIndex).toBe(0);
+    state().applyTmuxAction({ type: "attach", name: "0" });
+    expect(state().stepIndex).toBe(0);
   });
 });

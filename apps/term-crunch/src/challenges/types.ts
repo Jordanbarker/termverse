@@ -10,6 +10,12 @@ export interface ChallengeSnapshot {
   windows: WindowState[];
   fs: VirtualFS;
   cwd: string;
+  /** tmux session lifecycle: attached session name (null = detached bare shell)
+   * and the detached snapshots living on the server. */
+  tmux: {
+    attachedSession: string | null;
+    detachedSessions: Array<{ name: string; windowCount: number }>;
+  };
 }
 
 export interface Step {
@@ -67,4 +73,11 @@ export interface Challenge {
    * `clear` are always available regardless of this list.
    */
   commands?: string[];
+  /**
+   * Session-lifecycle challenges: evaluate predicates even while detached
+   * (checkCompletion normally skips the bare shell so layout predicates can't
+   * falsely advance). Only safe for challenges with no pane-layout predicates,
+   * i.e. no targetWindow/targetWindows.
+   */
+  checkWhileDetached?: boolean;
 }

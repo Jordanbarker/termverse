@@ -202,13 +202,15 @@ export const useGameStore = create<GameState>()(
   checkCompletion: () => {
     const state = get();
     if (state.completed || state.awaitingContinue) return;
-    // While detached, windows[] is the bare single shell — a layout predicate
-    // like "exactly N panes" could falsely advance. Challenges always start
-    // attached, so skipping here can never strand progress.
-    if (state.tmuxAttachedSession === null) return;
     const group = getCategory(state.activeCategory);
     const challenge = group.challenges[state.challengeIndex];
     if (!challenge) return;
+    // While detached, windows[] is the bare single shell — a layout predicate
+    // like "exactly N panes" could falsely advance. Challenges always start
+    // attached, so skipping here can never strand progress. Lifecycle
+    // challenges (checkWhileDetached) opt out: their predicates read snap.tmux,
+    // not the pane tree.
+    if (state.tmuxAttachedSession === null && !challenge.checkWhileDetached) return;
 
     const activeWindow = state.windows.find((w) => w.id === state.activeWindowId) ?? state.windows[0];
     if (!activeWindow) return;
@@ -218,6 +220,13 @@ export const useGameStore = create<GameState>()(
       windows: state.windows,
       fs: state.fs,
       cwd: activeCwd(state.windows, state.activeWindowId),
+      tmux: {
+        attachedSession: state.tmuxAttachedSession?.name ?? null,
+        detachedSessions: state.tmuxDetachedSessions.map((s) => ({
+          name: s.name,
+          windowCount: s.windows.length,
+        })),
+      },
     };
 
     // Cascade through every consecutive satisfied step: predicates are pure
@@ -450,6 +459,7 @@ export const useGameStore = create<GameState>()(
           activeWindowId: win.id,
           tmuxAttachedSession: { name: action.name, createdAt: Date.now() },
         });
+        get().checkCompletion();
         return true;
       }
       case "attach": {
@@ -473,22 +483,27 @@ export const useGameStore = create<GameState>()(
           ...killToBareShell(state, `[detached (from session ${att.name})]`),
           tmuxDetachedSessions: [...state.tmuxDetachedSessions, snap],
         });
+        get().checkCompletion();
         return true;
       }
       case "kill-session": {
         if (state.tmuxAttachedSession?.name === action.name) {
           set(killToBareShell(state, "[exited]"));
+          get().checkCompletion();
           return true;
         }
         set({ tmuxDetachedSessions: state.tmuxDetachedSessions.filter((s) => s.name !== action.name) });
+        get().checkCompletion();
         return false;
       }
       case "kill-server": {
         if (state.tmuxAttachedSession) {
           set({ ...killToBareShell(state, "[server exited]"), tmuxDetachedSessions: [] });
+          get().checkCompletion();
           return true;
         }
         set({ tmuxDetachedSessions: [] });
+        get().checkCompletion();
         return false;
       }
     }
