@@ -41,6 +41,7 @@ import { gitPullFf } from "../challenges/git-pull-ff";
 import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
+import { mvOrganize } from "../challenges/mv-organize";
 import { copyModeYank } from "../challenges/copy-mode-yank";
 import { sessionsDetachAttach } from "../challenges/sessions-detach-attach";
 import { sessionsJuggle } from "../challenges/sessions-juggle";
@@ -708,6 +709,69 @@ describe("chmod-perms challenge", () => {
   });
 });
 
+describe("mv-organize challenge", () => {
+  const DIR = "/home/player/downloads";
+  const NAMES = ["notes.md", "ideas.md", "todo.txt", "draft.txt", "build.log", "error.log"];
+  const ext = (name: string) => name.slice(name.lastIndexOf(".") + 1);
+  const [mkDirs, moveFiles] = mvOrganize.steps;
+
+  function fsSnap(fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot {
+    return snap(makeWindow(CRUNCH_MACHINE, HOME_DIR), fs);
+  }
+
+  function ctx(fs: ReturnType<typeof buildBaseFs>): CommandContext {
+    return { fs, cwd: DIR, homeDir: HOME_DIR, username: "player", activeComputer: CRUNCH_MACHINE };
+  }
+
+  // Drives the real mkdir/mv builtins the player would use.
+  function run(fs: ReturnType<typeof buildBaseFs>, cmd: string, args: string[]) {
+    const r = execute(cmd, args, {}, ctx(fs));
+    expect(r.exitCode ?? 0, `${cmd} ${args.join(" ")}: ${r.output}`).toBe(0);
+    return r.newFs ?? fs;
+  }
+
+  it("seeds a flat mess with no extension subdirs, both steps unsatisfied", () => {
+    resetAvailabilityPolicy();
+    const fs = mvOrganize.setup(buildBaseFs());
+    for (const name of NAMES) expect(fs.getNode(`${DIR}/${name}`)).not.toBeNull();
+    for (const e of ["md", "txt", "log"]) expect(fs.getNode(`${DIR}/${e}`)).toBeNull();
+    expect(mkDirs.isComplete(fsSnap(fs))).toBe(false);
+    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("mkdir of all three subdirs completes step 1 only", () => {
+    resetAvailabilityPolicy();
+    let fs = mvOrganize.setup(buildBaseFs());
+    fs = run(fs, "mkdir", ["md", "txt", "log"]);
+    expect(mkDirs.isComplete(fsSnap(fs))).toBe(true);
+    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("a flat FILE named like an extension does not satisfy step 1", () => {
+    const fs = mvOrganize.setup(buildBaseFs()).writeFile(`${DIR}/md`, "").fs!;
+    expect(mkDirs.isComplete(fsSnap(fs))).toBe(false);
+  });
+
+  it("mv-ing all but one file leaves step 2 incomplete; the last mv completes it", () => {
+    resetAvailabilityPolicy();
+    let fs = mvOrganize.setup(buildBaseFs());
+    fs = run(fs, "mkdir", ["md", "txt", "log"]);
+    const [last, ...rest] = NAMES;
+    for (const name of rest) fs = run(fs, "mv", [name, `${ext(name)}/`]);
+    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+    fs = run(fs, "mv", [last, `${ext(last)}/`]);
+    expect(moveFiles.isComplete(fsSnap(fs))).toBe(true);
+  });
+
+  it("a copy-like state (file in subdir AND still flat) does not satisfy step 2", () => {
+    let fs = mvOrganize.setup(buildBaseFs());
+    for (const e of ["md", "txt", "log"]) fs = fs.makeDirectory(`${DIR}/${e}`).fs!;
+    // Write every file at its sorted path but leave the flat originals in place.
+    for (const name of NAMES) fs = fs.writeFile(`${DIR}/${ext(name)}/${name}`, "copy").fs!;
+    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+  });
+});
+
 describe("copy-mode-yank challenge", () => {
   const TOKEN = "moonlit-cipher-7f3c91a0e5";
   const TARGET_DIR = `/home/player/${TOKEN}`;
@@ -742,7 +806,7 @@ describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
   // text — that's the whole point of the rework, so guard it. The pane challenges
   // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
-  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank, sessionsDetachAttach, sessionsJuggle];
+  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, copyModeYank, sessionsDetachAttach, sessionsJuggle];
 
   it("each has a brief and every step has a hint + command", () => {
     for (const c of objectiveFirst) {

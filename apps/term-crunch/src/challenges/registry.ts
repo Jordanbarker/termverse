@@ -12,10 +12,11 @@ import { gitPullFf } from "./git-pull-ff";
 import { gitRebaseChallenge } from "./git-rebase";
 import { rmBomb } from "./rm-bomb";
 import { chmodPerms } from "./chmod-perms";
+import { mvOrganize } from "./mv-organize";
 import { copyModeYank } from "./copy-mode-yank";
 import { sessionsDetachAttach } from "./sessions-detach-attach";
 import { sessionsJuggle } from "./sessions-juggle";
 import type { Challenge } from "./types";
 
 /** Ordered, linear progression. The player advances one challenge at a time. */
-export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, panesCleanup, panesResize, panesResizeRows, panesResizeCorner, windowsCreate, gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, copyModeYank, sessionsDetachAttach, sessionsJuggle];
+export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, panesCleanup, panesResize, panesResizeRows, panesResizeCorner, windowsCreate, gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, copyModeYank, sessionsDetachAttach, sessionsJuggle];
