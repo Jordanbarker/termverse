@@ -20,7 +20,7 @@ All quote-aware scanning (tokenize, pipe/chain splitting, alias expansion, conti
 ## Flag validation (`flagValidation.ts`)
 
 The dispatcher rejects unknown flags by default (coreutils-style `<cmd>: invalid option -- 'z'`, exit 2). Each command declares known flags via `setKnownFlags(name, {short, long})` after `register(...)` (`{}` for none). `--help` always short-circuits before validation. Three opt-out cases (call `skipFlagValidation(name)` and validate in-handler):
-- **rawArgs-driven** (`find`, `head`, `tail`, `tree`) — the parser shatters `-name`/`-5`/`-L N`, so the handler re-parses `ctx.rawArgs`.
+- **rawArgs-driven** (`find`, `head`, `tail`, `tree`, `tmux`) — the parser shatters `-name`/`-5`/`-L N`/`-s name`, so the handler re-parses `ctx.rawArgs`.
 - **Per-subcommand** (`git`) — each subcommand has its own set; validated with `rejectUnknownFlags(..., {style: "git"})` (exit 129).
 - **Custom prefix** (`snow`) — `rejectUnknownFlags("snow sql", ...)` so the error reads `snow sql:`.
 

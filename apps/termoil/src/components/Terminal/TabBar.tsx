@@ -20,6 +20,8 @@ interface TabBarProps {
   renamePrompt?: string | null;
   /** Bar colors parsed from `~/.tmux.conf` (drives the inline styles). */
   theme: TabBarTheme;
+  /** Attached tmux session name, rendered `[name]` at status-left. */
+  sessionName?: string;
 }
 
 export default function TabBar({
@@ -30,6 +32,7 @@ export default function TabBar({
   closeConfirm,
   renamePrompt,
   theme,
+  sessionName,
 }: TabBarProps) {
   const windows = useGameStore((s) => s.windows);
   const activeWindowId = useGameStore((s) => s.activeWindowId);
@@ -87,6 +90,7 @@ export default function TabBar({
       prefixActive={prefixActive}
       modalText={closeConfirm ?? renamePrompt}
       theme={theme}
+      sessionName={sessionName}
       trailing={
         // Multi-computer new-window dropdown — the one piece beyond the shared bar.
         <div className="relative" ref={dropdownRef}>

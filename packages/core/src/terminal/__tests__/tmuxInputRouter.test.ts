@@ -13,6 +13,7 @@ const BINDINGS: Record<string, PaneBinding> = {
 
 function makeRouter(overrides: {
   chordsEnabled?: () => boolean;
+  muxEnabled?: () => boolean;
   onPrefixStateChange?: (active: boolean) => void;
   bindings?: Record<string, PaneBinding>;
 } = {}): { router: TmuxInputRouter; states: boolean[] } {
@@ -20,6 +21,7 @@ function makeRouter(overrides: {
   const router = createTmuxInputRouter({
     getPrefixChar: () => PREFIX,
     getBindings: () => overrides.bindings ?? BINDINGS,
+    muxEnabled: overrides.muxEnabled,
     chordsEnabled: overrides.chordsEnabled ?? (() => true),
     onPrefixStateChange: overrides.onPrefixStateChange ?? ((a) => states.push(a)),
   });
@@ -106,6 +108,51 @@ describe("armed-prefix dispatch", () => {
     expect(router.route("O")).toEqual({ type: "chord", key: "o" });
     router.route(PREFIX);
     expect(router.route("|")).toEqual({ type: "chord", key: "|" });
+  });
+});
+
+describe("muxEnabled gate (detached client)", () => {
+  it("passes the prefix char straight to the shell without arming", () => {
+    const { router, states } = makeRouter({ muxEnabled: () => false });
+    expect(router.route(PREFIX)).toEqual({ type: "shell", data: PREFIX });
+    expect(router.isPrefixArmed()).toBe(false);
+    expect(states).toEqual([]);
+  });
+
+  it("makes copy mode unreachable", () => {
+    const { router } = makeRouter({ muxEnabled: () => false });
+    router.route(PREFIX);
+    expect(router.route("[")).toEqual({ type: "shell", data: "[" });
+  });
+
+  it("drops an armed prefix when the mux is disabled mid-chord", () => {
+    let enabled = true;
+    const { router, states } = makeRouter({ muxEnabled: () => enabled });
+    router.route(PREFIX);
+    enabled = false; // detach happened between keys
+    expect(router.route("c")).toEqual({ type: "shell", data: "c" });
+    expect(router.isPrefixArmed()).toBe(false);
+    expect(states).toEqual([true, false]);
+    // Still inert afterwards.
+    expect(router.route(PREFIX)).toEqual({ type: "shell", data: PREFIX });
+  });
+
+  it("clears an open repeat window and cancels its timer", () => {
+    vi.useFakeTimers();
+    let enabled = true;
+    const { router } = makeRouter({ muxEnabled: () => enabled });
+    router.route(PREFIX);
+    router.route("H"); // opens the repeat window
+    enabled = false;
+    expect(router.route("H")).toEqual({ type: "shell", data: "H" });
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("behaves identically to no gate when enabled", () => {
+    const { router } = makeRouter({ muxEnabled: () => true });
+    router.route(PREFIX);
+    expect(router.route("c")).toEqual({ type: "chord", key: "c" });
   });
 });
 

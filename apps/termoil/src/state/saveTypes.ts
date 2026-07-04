@@ -2,9 +2,10 @@ import { SerializedFS } from "@tt/core/filesystem/serialization";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { GamePhase, ComputerId, StoryFlags } from "./types";
 import { SavedWindowState } from "@tt/core/terminal/paneTypes";
+import { TmuxSessionSnapshot } from "@tt/core/terminal/tmuxSessions";
 import { SerializedSnowflake } from "@tt/core/snowflake/serialization";
 
-export const SAVE_FORMAT_VERSION = 18;
+export const SAVE_FORMAT_VERSION = 19;
 
 export type SaveSlotId = "slot-1" | "slot-2" | "slot-3";
 
@@ -28,6 +29,10 @@ export interface SavePayload {
   // Each window is a tmux-style tab holding a binary pane tree.
   windows: SavedWindowState[];
   activeWindowIndex: number;
+  // tmux session lifecycle: windows[] above belongs to the attached session
+  // (or is the bare shell when detached); detached sessions ride alongside.
+  tmuxAttachedSession: { name: string; createdAt: number } | null;
+  tmuxDetachedSessions: TmuxSessionSnapshot[];
   notifiedChipTopicIds: string[];
   serializedSnowflake: SerializedSnowflake;
   // UI preference: hide the copy-mode key-hint overlay.

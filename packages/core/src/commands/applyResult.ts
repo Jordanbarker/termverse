@@ -1,4 +1,4 @@
-import { CommandResult, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo } from "@tt/core/commands/types";
+import { CommandResult, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo, TmuxAction } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { resolvePath } from "@tt/core/lib/pathUtils";
@@ -70,6 +70,8 @@ export interface AppliedEffects {
   closeTabsForComputer?: MachineId;
   newMounts?: Mounts;
   terminationReason?: SecurityViolation;
+  /** Resolved tmux lifecycle action — the app store applies it (and decides prompt suppression by whether the client view swapped). */
+  tmuxAction?: TmuxAction;
 }
 
 export interface ApplyContext {
@@ -173,6 +175,10 @@ export function computeEffects(
   } else if (result.lessSession) {
     effects.startSession = { type: "less", info: result.lessSession };
     effects.suppressPrompt = true;
+  }
+
+  if (result.tmuxAction) {
+    effects.tmuxAction = result.tmuxAction;
   }
 
   // Game actions

@@ -10,7 +10,7 @@ import {
   SaveableState,
 } from "../saveManager";
 import { SAVE_FORMAT_VERSION } from "../saveTypes";
-import { makeWindow, SavedPaneNode } from "@tt/core/terminal/paneTypes";
+import { allLeaves, makeWindow, SavedPaneNode } from "@tt/core/terminal/paneTypes";
 import { ComputerId } from "../types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
@@ -103,6 +103,8 @@ function createState(): SaveableState {
     zshHistory: { nexacorp: "ls\ncd docs\ncat readme.md\n" },
     windows,
     activeWindowId: windows[0].id,
+    tmuxAttachedSession: { name: "0", createdAt: 0 },
+    tmuxDetachedSessions: [],
     notifiedChipTopicIds: [],
     snowflakeState: emptySnowflake(),
     copyModeHelpHidden: true,
@@ -220,6 +222,19 @@ describe("serializeGameState / restoreGameState round-trip", () => {
       restored.computerState.nexacorp!.fs.readFile("/home/player/test.txt").content
     ).toBe("test content");
   });
+
+  it("does not reuse pane ids from before the load (mid-session load keeps ids fresh)", () => {
+    const state = createState();
+    const preLoadIds = new Set(
+      state.windows.flatMap((w) => allLeaves(w.root).map((l) => l.id))
+    );
+    const restored = restoreGameState(serializeGameState(state));
+    for (const w of restored.windows) {
+      for (const leaf of allLeaves(w.root)) {
+        expect(preLoadIds.has(leaf.id)).toBe(false);
+      }
+    }
+  });
 });
 
 describe("saveToSlot / loadFromSlot", () => {
@@ -311,6 +326,8 @@ describe("multi-tab round-trip", () => {
       },
       windows,
       activeWindowId: windows[1].id,
+      tmuxAttachedSession: { name: "0", createdAt: 0 },
+      tmuxDetachedSessions: [],
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
       copyModeHelpHidden: false,
@@ -352,6 +369,8 @@ describe("multi-tab round-trip", () => {
       },
       windows,
       activeWindowId: windows[0].id,
+      tmuxAttachedSession: { name: "0", createdAt: 0 },
+      tmuxDetachedSessions: [],
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
       copyModeHelpHidden: false,
@@ -386,6 +405,8 @@ describe("multi-tab round-trip", () => {
       computerState: { nexacorp: { fs: createMinimalFS(), envVars: {}, aliases: {}, mounts: {} }},
       windows,
       activeWindowId: windows[0].id,
+      tmuxAttachedSession: { name: "0", createdAt: 0 },
+      tmuxDetachedSessions: [],
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
       copyModeHelpHidden: false,
@@ -425,6 +446,8 @@ describe("multi-tab round-trip", () => {
       },
       windows,
       activeWindowId: windows[2].id,
+      tmuxAttachedSession: { name: "0", createdAt: 0 },
+      tmuxDetachedSessions: [],
       notifiedChipTopicIds: [],
       snowflakeState: emptySnowflake(),
       copyModeHelpHidden: false,

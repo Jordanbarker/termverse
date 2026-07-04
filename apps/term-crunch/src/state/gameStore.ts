@@ -18,6 +18,12 @@ import {
   mapLeaf,
 } from "@tt/core/terminal/paneTypes";
 import { parseEnvAssignments, parseAliases } from "@tt/core/terminal/envParse";
+import {
+  type TmuxSessionSnapshot,
+  snapshotSession,
+  restoreSession,
+} from "@tt/core/terminal/tmuxSessions";
+import type { TmuxAction } from "@tt/core/commands/types";
 import { CRUNCH_MACHINE, HOME_DIR, MAX_PANES_PER_WINDOW, MAX_WINDOWS } from "../lib/machine";
 import { buildBaseFs, applyConfigs } from "../lib/seed";
 import { DEFAULT_ZSHRC, DEFAULT_TMUX_CONF } from "../lib/defaultConfigs";
@@ -35,6 +41,23 @@ function windowOfPane(windows: WindowState[], paneId: string): WindowState | und
   return windows.find((w) => findLeaf(w.root, paneId));
 }
 
+/**
+ * Real-tmux session teardown: drop the client to a fresh bare shell (inheriting
+ * the active pane's cwd) with a one-shot exit banner.
+ */
+function killToBareShell(
+  state: { windows: WindowState[]; activeWindowId: string },
+  notice: string,
+) {
+  const win = makeWindow(CRUNCH_MACHINE, activeCwd(state.windows, state.activeWindowId));
+  return {
+    windows: [win],
+    activeWindowId: win.id,
+    tmuxAttachedSession: null,
+    pendingMuxNotice: notice,
+  };
+}
+
 export interface GameState {
   // shell state (single machine, fs shared across panes; cwd lives per-pane on the leaf)
   fs: VirtualFS;
@@ -50,6 +73,14 @@ export interface GameState {
   // terminal layout
   windows: WindowState[];
   activeWindowId: string;
+
+  // tmux session lifecycle: windows[] renders the attached session (or a bare
+  // single shell when detached). Transient — reseeded by loadChallenge, never
+  // persisted. "Server running" is derived (attached or any detached snapshot).
+  tmuxAttachedSession: { name: string; createdAt: number } | null;
+  tmuxDetachedSessions: TmuxSessionSnapshot[];
+  // One-shot real-tmux exit banner printed by the next bare-shell pane.
+  pendingMuxNotice: string | null;
 
   // challenge progress
   activeCategory: string; // selected track id; challengeIndex is relative to its challenge list
@@ -98,6 +129,11 @@ export interface GameState {
   cycleWindow: (dir: "next" | "prev") => void;
   closeWindow: (windowId: string) => void;
   renameWindow: (windowId: string, name: string) => void;
+
+  // tmux lifecycle: apply a resolved TmuxAction. Returns whether the client
+  // view swapped (caller suppresses the prompt when it did).
+  applyTmuxAction: (action: TmuxAction) => boolean;
+  consumePendingMuxNotice: () => string | null;
 }
 
 export const useGameStore = create<GameState>()(
@@ -110,6 +146,9 @@ export const useGameStore = create<GameState>()(
   tmuxConf: DEFAULT_TMUX_CONF,
   windows: [],
   activeWindowId: "",
+  tmuxAttachedSession: null,
+  tmuxDetachedSessions: [],
+  pendingMuxNotice: null,
   activeCategory: DEFAULT_CATEGORY,
   challengeIndex: 0,
   stepIndex: 0,
@@ -145,6 +184,11 @@ export const useGameStore = create<GameState>()(
       aliases: parseAliases(zshrc),
       windows: [win],
       activeWindowId: win.id,
+      // Every challenge starts attached to a fresh session "0" so the pane/
+      // window/copy-mode challenges work unchanged.
+      tmuxAttachedSession: { name: "0", createdAt: Date.now() },
+      tmuxDetachedSessions: [],
+      pendingMuxNotice: null,
       challengeIndex: index,
       stepIndex: 0,
       completed: false,
@@ -158,6 +202,10 @@ export const useGameStore = create<GameState>()(
   checkCompletion: () => {
     const state = get();
     if (state.completed || state.awaitingContinue) return;
+    // While detached, windows[] is the bare single shell — a layout predicate
+    // like "exactly N panes" could falsely advance. Challenges always start
+    // attached, so skipping here can never strand progress.
+    if (state.tmuxAttachedSession === null) return;
     const group = getCategory(state.activeCategory);
     const challenge = group.challenges[state.challengeIndex];
     if (!challenge) return;
@@ -273,8 +321,18 @@ export const useGameStore = create<GameState>()(
       if (!win) return {};
       const collapsed = collapsePane(win.root, paneId);
       if (collapsed === null) {
-        // Last pane of the only window — keep it (single-window challenge).
-        return {};
+        if (state.windows.length === 1) {
+          // tmux: killing the last pane of the last window kills the session
+          // and drops to a bare shell. A no-op on the bare shell itself.
+          return state.tmuxAttachedSession ? killToBareShell(state, "[exited]") : {};
+        }
+        const newWindows = state.windows.filter((w) => w.id !== win.id);
+        const updates: Partial<GameState> = { windows: newWindows };
+        if (state.activeWindowId === win.id) {
+          const idx = state.windows.findIndex((w) => w.id === win.id);
+          updates.activeWindowId = newWindows[Math.min(idx, newWindows.length - 1)].id;
+        }
+        return updates;
       }
       const newActive = win.activePaneId === paneId ? firstLeaf(collapsed).id : win.activePaneId;
       return {
@@ -353,7 +411,10 @@ export const useGameStore = create<GameState>()(
   closeWindow: (windowId) => {
     set((state) => {
       const newWindows = state.windows.filter((w) => w.id !== windowId);
-      if (newWindows.length === 0) return {}; // keep the last window
+      if (newWindows.length === 0) {
+        // tmux: removing the last window kills the session.
+        return state.tmuxAttachedSession ? killToBareShell(state, "[exited]") : {};
+      }
       const updates: Partial<GameState> = { windows: newWindows };
       if (state.activeWindowId === windowId) {
         const idx = state.windows.findIndex((w) => w.id === windowId);
@@ -375,6 +436,68 @@ export const useGameStore = create<GameState>()(
       };
     });
     get().checkCompletion();
+  },
+
+  applyTmuxAction: (action) => {
+    const state = get();
+    switch (action.type) {
+      case "new-session": {
+        // Fresh window inheriting the bare shell's cwd. Do NOT reset pane-id
+        // counters (only loadChallenge does).
+        const win = makeWindow(CRUNCH_MACHINE, activeCwd(state.windows, state.activeWindowId));
+        set({
+          windows: [win],
+          activeWindowId: win.id,
+          tmuxAttachedSession: { name: action.name, createdAt: Date.now() },
+        });
+        return true;
+      }
+      case "attach": {
+        const snap = state.tmuxDetachedSessions.find((s) => s.name === action.name);
+        if (!snap || state.tmuxAttachedSession) return false;
+        const restored = restoreSession(snap);
+        set({
+          windows: restored.windows,
+          activeWindowId: restored.activeWindowId,
+          tmuxAttachedSession: { name: snap.name, createdAt: snap.createdAt },
+          tmuxDetachedSessions: state.tmuxDetachedSessions.filter((s) => s !== snap),
+        });
+        get().checkCompletion();
+        return true;
+      }
+      case "detach": {
+        const att = state.tmuxAttachedSession;
+        if (!att) return false;
+        const snap = snapshotSession(att.name, state.windows, state.activeWindowId, att.createdAt);
+        set({
+          ...killToBareShell(state, `[detached (from session ${att.name})]`),
+          tmuxDetachedSessions: [...state.tmuxDetachedSessions, snap],
+        });
+        return true;
+      }
+      case "kill-session": {
+        if (state.tmuxAttachedSession?.name === action.name) {
+          set(killToBareShell(state, "[exited]"));
+          return true;
+        }
+        set({ tmuxDetachedSessions: state.tmuxDetachedSessions.filter((s) => s.name !== action.name) });
+        return false;
+      }
+      case "kill-server": {
+        if (state.tmuxAttachedSession) {
+          set({ ...killToBareShell(state, "[server exited]"), tmuxDetachedSessions: [] });
+          return true;
+        }
+        set({ tmuxDetachedSessions: [] });
+        return false;
+      }
+    }
+  },
+
+  consumePendingMuxNotice: () => {
+    const notice = get().pendingMuxNotice;
+    if (notice !== null) set({ pendingMuxNotice: null });
+    return notice;
   },
     }),
     {

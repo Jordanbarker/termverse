@@ -15,8 +15,8 @@ import {
   rebuildWindow,
   makeWindow,
   allLeaves,
-  resetPaneIdCounters,
 } from "@tt/core/terminal/paneTypes";
+import { TmuxSessionSnapshot } from "@tt/core/terminal/tmuxSessions";
 import { SnowflakeState } from "@tt/core/snowflake/state";
 import { serializeSnowflake, deserializeSnowflake } from "@tt/core/snowflake/serialization";
 import { syncToVirtualFS } from "@tt/core/snowflake/bridge/fs_bridge";
@@ -79,6 +79,8 @@ export interface SaveableState {
   zshHistory: Partial<Record<ComputerId, string>>;
   windows: WindowState[];
   activeWindowId: string;
+  tmuxAttachedSession: { name: string; createdAt: number } | null;
+  tmuxDetachedSessions: TmuxSessionSnapshot[];
   notifiedChipTopicIds: string[];
   snowflakeState: SnowflakeState;
   copyModeHelpHidden: boolean;
@@ -106,6 +108,8 @@ export function serializeGameState(state: SaveableState): SavePayload {
     zshHistory: { ...state.zshHistory },
     windows: state.windows.map(serializeWindow),
     activeWindowIndex: activeWindowIndex >= 0 ? activeWindowIndex : 0,
+    tmuxAttachedSession: state.tmuxAttachedSession ? { ...state.tmuxAttachedSession } : null,
+    tmuxDetachedSessions: state.tmuxDetachedSessions.map((s) => ({ ...s })),
     notifiedChipTopicIds: [...state.notifiedChipTopicIds],
     serializedSnowflake: serializeSnowflake(state.snowflakeState),
     copyModeHelpHidden: state.copyModeHelpHidden,
@@ -127,6 +131,9 @@ export interface RestoredGameState {
   zshHistory: Partial<Record<ComputerId, string>>;
   windows: WindowState[];
   activeWindowId: string;
+  tmuxAttachedSession: { name: string; createdAt: number } | null;
+  tmuxDetachedSessions: TmuxSessionSnapshot[];
+  pendingMuxNotice: null;
   notifiedChipTopicIds: string[];
   copyModeHelpHidden: boolean;
   activeSnowSession: null;
@@ -163,7 +170,6 @@ export function restoreGameState(data: SavePayload): RestoredGameState {
     computerState.nexacorp = { ...computerState.nexacorp, fs: syncToVirtualFS(sfState, computerState.nexacorp.fs) };
   }
 
-  resetPaneIdCounters();
   const windows = data.windows && data.windows.length > 0
     ? data.windows.map(rebuildWindow)
     : [makeWindow("home", `/home/${data.username}`)];
@@ -208,6 +214,9 @@ export function restoreGameState(data: SavePayload): RestoredGameState {
     zshHistory,
     windows,
     activeWindowId: windows[activeIdx].id,
+    tmuxAttachedSession: data.tmuxAttachedSession ?? null,
+    tmuxDetachedSessions: data.tmuxDetachedSessions ?? [],
+    pendingMuxNotice: null,
     notifiedChipTopicIds: data.notifiedChipTopicIds ?? [],
     copyModeHelpHidden: data.copyModeHelpHidden ?? false,
     activeSnowSession: null,

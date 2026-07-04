@@ -22,7 +22,7 @@ import { useGameStore } from "../state/gameStore";
  * Mirrors termoil's src/story/availabilityPolicy.ts seam usage; the
  * current challenge is read lazily from the store so import order doesn't matter.
  */
-const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "challenges", "goto", "next", "prev", "track"]);
+const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "tmux", "challenges", "goto", "next", "prev", "track"]);
 
 function isAvailable(commandName: string): boolean {
   const { activeCategory, challengeIndex } = useGameStore.getState();

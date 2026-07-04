@@ -19,6 +19,7 @@ export default function TabManager() {
   const activeWindowId = useGameStore((s) => s.activeWindowId);
   const gamePhase = useGameStore((s) => s.gamePhase);
   const storyFlags = useGameStore((s) => s.storyFlags);
+  const attachedSession = useGameStore((s) => s.tmuxAttachedSession);
   const copyModeHelpHidden = useGameStore((s) => s.copyModeHelpHidden);
   // Tab/pane prefix is read from the home PC's ~/.tmux.conf (your local terminal's
   // tmux config governs the multiplexer, regardless of which box a pane connects to).
@@ -65,10 +66,13 @@ export default function TabManager() {
     renameWindow: (id, name) => useGameStore.getState().renameWindow(id, name),
     nudgeSplitRatio: (splitId, delta) => useGameStore.getState().nudgeSplitRatio(splitId, delta),
     resizeSplit: (splitId, ratio) => useGameStore.getState().resizePane(splitId, ratio),
+    // <prefix> d — same path as the `tmux detach` command.
+    detachClient: () => useGameStore.getState().applyTmuxAction({ type: "detach" }),
   };
 
   const ext: TabManagerExtensions = {
     isInputEnabled: () => useGameStore.getState().gamePhase === "playing",
+    muxActive: () => !!useGameStore.getState().tmuxAttachedSession,
     chordsEnabled: () => !!useGameStore.getState().storyFlags.tabs_unlocked,
     // tmux confirm-before-kill: the next key answers the close prompt.
     interceptEarly: (_paneId, _term, data) => {
@@ -83,18 +87,14 @@ export default function TabManager() {
       return true;
     },
     // Kill the focused pane — tmux confirm-before-kill (rendered in the bar)
-    // instead of the hook's direct closePane. Allowed unless it's the only
-    // pane of the only window.
+    // instead of the hook's direct closePane. Killing the last pane of the last
+    // window kills the session (closePane's kill rule drops to the bare shell).
     interceptPrefixKey: (paneId, key) => {
       if (key !== "x") return false;
-      const store = useGameStore.getState();
-      const totalPanes = store.windows.reduce((n, w) => n + allLeaves(w.root).length, 0);
-      if (totalPanes > 1) {
-        paneToCloseRef.current = paneId;
-        const note = canCloseCurrentSession() ? "" : " Unsaved changes will be lost.";
-        setCloseConfirm(`kill-pane?${note} (y/n)`);
-        closeConfirmRef.current = true;
-      }
+      paneToCloseRef.current = paneId;
+      const note = canCloseCurrentSession() ? "" : " Unsaved changes will be lost.";
+      setCloseConfirm(`kill-pane?${note} (y/n)`);
+      closeConfirmRef.current = true;
       return true;
     },
     onShellData: (_paneId, term, data) => handleInput(term, data),
@@ -148,7 +148,10 @@ export default function TabManager() {
         // Pane from initial state (e.g. restore from save) — show prompt once playing.
         if (store.gamePhase === "playing") rt.term.write(getPrompt());
       } else {
-        // New pane created by user (split / new window) — straight to prompt.
+        // New pane created by user (split / new window / tmux swap). A swap
+        // leaves a one-shot exit banner ([detached ...]/[exited]/[server exited]).
+        const notice = store.consumePendingMuxNotice();
+        if (notice) rt.term.writeln(notice);
         rt.term.write(getPrompt());
       }
     },
@@ -214,7 +217,7 @@ export default function TabManager() {
   };
 
   const tabsUnlocked = !!storyFlags.tabs_unlocked;
-  const showTabBar = tabsUnlocked && gamePhase === "playing";
+  const showTabBar = !!attachedSession && tabsUnlocked && gamePhase === "playing";
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -227,6 +230,7 @@ export default function TabManager() {
           closeConfirm={closeConfirm}
           renamePrompt={tm.renamePrompt}
           theme={tm.tabTheme}
+          sessionName={attachedSession?.name}
         />
       )}
       <div className="flex-1 relative min-h-0">

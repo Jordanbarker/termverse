@@ -924,7 +924,7 @@ describe("per-challenge command allowlist", () => {
     expect(isCommandAvailable("rm", CRUNCH_MACHINE)).toBe(false);
 
     const listed = getAvailableCommands(CRUNCH_MACHINE).map((c) => c.name).sort();
-    expect(listed).toEqual(["cat", "cd", "chmod", "clear", "help", "ls", "man", "pwd", "shortcuts"]);
+    expect(listed).toEqual(["cat", "cd", "chmod", "clear", "help", "ls", "man", "pwd", "shortcuts", "tmux"]);
   });
 
   it("blocks off-list commands with a friendly hint message", () => {
@@ -942,6 +942,6 @@ describe("per-challenge command allowlist", () => {
     // getAvailableCommands lists primaries only (no aliases leak in).
     const listed = getAvailableCommands(CRUNCH_MACHINE).map((c) => c.name);
     expect(listed).not.toContain("python3");
-    expect(listed.sort()).toEqual(["cat", "cd", "clear", "git", "help", "ls", "man", "pwd", "shortcuts"]);
+    expect(listed.sort()).toEqual(["cat", "cd", "clear", "git", "help", "ls", "man", "pwd", "shortcuts", "tmux"]);
   });
 });

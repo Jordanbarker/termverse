@@ -25,6 +25,7 @@ export default function TabManager() {
   // tmux config is read from the player's ~/.tmux.conf (Settings modal): the
   // prefix key, status-bar theme, and vim pane focus/resize keybindings.
   const tmuxConf = useGameStore((s) => s.tmuxConf);
+  const attachedSession = useGameStore((s) => s.tmuxAttachedSession);
 
   // Per-pane line editors and active editor/pager sessions. Keyed by pane id
   // alongside the hook's runtime map; entries die with their pane.
@@ -102,9 +103,13 @@ export default function TabManager() {
     renameWindow: (id, name) => useGameStore.getState().renameWindow(id, name),
     nudgeSplitRatio: (splitId, delta) => useGameStore.getState().nudgePaneRatio(splitId, delta),
     resizeSplit: (splitId, ratio) => useGameStore.getState().resizePane(splitId, ratio),
+    // <prefix> d — same path as the `tmux detach` command.
+    detachClient: () => useGameStore.getState().applyTmuxAction({ type: "detach" }),
   };
 
   const ext: TabManagerExtensions = {
+    // The multiplexer only exists while a tmux client is attached.
+    muxActive: () => !!useGameStore.getState().tmuxAttachedSession,
     // Challenge-complete gate: freeze terminal input until the player presses
     // Enter to advance to the next challenge.
     interceptEarly: (_paneId, _term, data) => {
@@ -135,6 +140,9 @@ export default function TabManager() {
         getHistory: historyEntries,
         getPrompt: () => getPrompt(paneId),
       }));
+      // A tmux swap (detach/kill) leaves a one-shot exit banner for the bare shell.
+      const notice = useGameStore.getState().consumePendingMuxNotice();
+      if (notice) rt.term.writeln(notice);
       rt.term.write(getPrompt(paneId));
     },
     onPaneDisposed: (paneId) => {
@@ -161,14 +169,17 @@ export default function TabManager() {
 
   return (
     <div className="flex h-full w-full flex-col bg-[#0a0e14]">
-      <TabBar
-        theme={tm.tabTheme}
-        prefixActive={tm.prefixActive}
-        renamePrompt={tm.renamePrompt}
-        onNewWindow={() => useGameStore.getState().newWindow()}
-        onSelectWindow={(id) => useGameStore.getState().selectWindow(id)}
-        onCloseWindow={(id) => useGameStore.getState().closeWindow(id)}
-      />
+      {attachedSession && (
+        <TabBar
+          theme={tm.tabTheme}
+          prefixActive={tm.prefixActive}
+          renamePrompt={tm.renamePrompt}
+          sessionName={attachedSession.name}
+          onNewWindow={() => useGameStore.getState().newWindow()}
+          onSelectWindow={(id) => useGameStore.getState().selectWindow(id)}
+          onCloseWindow={(id) => useGameStore.getState().closeWindow(id)}
+        />
+      )}
       {/* The ResizeObserver watches wrapperRef inside this flex-1 region, so the
           measured size already excludes the status bar. */}
       <div className="relative flex-1">
@@ -181,7 +192,7 @@ export default function TabManager() {
             </span>
           </div>
         )}
-        {activeWindow && tm.wrapperSize.w > 0 && (
+        {attachedSession && activeWindow && tm.wrapperSize.w > 0 && (
           <PaneDividers
             root={activeWindow.root}
             width={tm.wrapperSize.w}

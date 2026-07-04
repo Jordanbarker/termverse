@@ -99,6 +99,27 @@ function buildCommandContext(
       const conf = homeFs ? homeFs.readFile(`${homeFs.homeDir}/.tmux.conf`).content : undefined;
       return parseTmuxPrefix(conf).label;
     })(),
+    tmux: {
+      attachedSession: store.tmuxAttachedSession?.name ?? null,
+      sessions: [
+        ...(store.tmuxAttachedSession
+          ? [{
+              name: store.tmuxAttachedSession.name,
+              windowCount: store.windows.length,
+              createdAt: store.tmuxAttachedSession.createdAt,
+              attached: true,
+            }]
+          : []),
+        // Detached sessions in detach order (most recent last) — bare
+        // attach/kill-session target the last one.
+        ...store.tmuxDetachedSessions.map((s) => ({
+          name: s.name,
+          windowCount: s.windows.length,
+          createdAt: s.createdAt,
+          attached: false,
+        })),
+      ],
+    },
   };
 }
 
@@ -376,6 +397,20 @@ export function useTerminal() {
         }
       }
 
+      // tmux lifecycle (new/attach/detach/kill). When the client view swapped,
+      // this pane is about to be disposed — suppress the prompt; the fresh pane
+      // prints its own (plus the exit banner) via onPaneCreated.
+      if (effects.tmuxAction) {
+        const swapped = useGameStore.getState().applyTmuxAction(effects.tmuxAction);
+        if (swapped) {
+          const state = useGameStore.getState();
+          const leaf = getActiveLeaf(state);
+          cwdRef.current = leaf?.cwd ?? `/home/${state.username}`;
+          activeComputerRef.current = (leaf?.computerId ?? "home") as ComputerId;
+          return true;
+        }
+      }
+
       // Write notifications (state already applied by applyStateEffects above)
       writeNotifications(term, effects);
 
@@ -510,8 +545,8 @@ export function useTerminal() {
             if (effects.output) {
               term.write(effects.output.replace(/\n/g, "\r\n"));
             }
-            // Check if segment triggers session/incremental/transition — must stop chain
-            if (effects.startSession || effects.incrementalLines || effects.transitionTo) {
+            // Check if segment triggers session/incremental/transition/tmux swap — must stop chain
+            if (effects.startSession || effects.incrementalLines || effects.transitionTo || effects.tmuxAction) {
               const suppress = executeEffects(term, effects, submittingPaneId);
               return { newCwd: effects.newCwd, stopChain: true, earlyReturn: suppress };
             }

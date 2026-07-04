@@ -3,6 +3,7 @@ import { expandAliases, parseChainedPipeline } from "@tt/core/commands/parser";
 import { getAvailableCommands } from "@tt/core/commands/registry";
 import { runPipeline } from "@tt/core/commands/runPipeline";
 import { computeEffects, type ApplyContext, type SessionToStart } from "@tt/core/commands/applyResult";
+import type { TmuxAction } from "@tt/core/commands/types";
 import { parseZshHistory, appendZshHistory } from "@tt/core/terminal/zshHistory";
 import { findLeaf } from "@tt/core/terminal/paneTypes";
 import type { SuggestionContext } from "@tt/core/suggestions/suggest";
@@ -93,6 +94,7 @@ export async function runLine(
   let runningFs = store.fs;
   let runningCwd = startCwd;
   let startSession: SessionToStart | undefined;
+  let tmuxAction: TmuxAction | undefined;
 
   if (!empty) {
     const run = await runPipeline({
@@ -115,6 +117,29 @@ export async function runLine(
         aliases,
         setAliases: (a) => { aliases = a; },
         gitAuthor: GIT_AUTHOR,
+        tmux: (() => {
+          const s = useGameStore.getState();
+          return {
+            attachedSession: s.tmuxAttachedSession?.name ?? null,
+            sessions: [
+              ...(s.tmuxAttachedSession
+                ? [{
+                    name: s.tmuxAttachedSession.name,
+                    windowCount: s.windows.length,
+                    createdAt: s.tmuxAttachedSession.createdAt,
+                    attached: true,
+                  }]
+                : []),
+              // Detach order (most recent last) — bare attach targets the last.
+              ...s.tmuxDetachedSessions.map((d) => ({
+                name: d.name,
+                windowCount: d.windows.length,
+                createdAt: d.createdAt,
+                attached: false,
+              })),
+            ],
+          };
+        })(),
       }),
       write: (t) => term.write(t),
       applySegment: (lastResult, lastParsed, state) => {
@@ -139,6 +164,12 @@ export async function runLine(
         if (effects.startSession?.type === "editor" || effects.startSession?.type === "less") {
           startSession = effects.startSession;
           return { newCwd: effects.newCwd, stopChain: true }; // session takes over the screen
+        }
+        if (effects.tmuxAction) {
+          // Applied after the shell-state commit below (same timing shape as
+          // the queued challenge navigation) — the swap replaces the panes.
+          tmuxAction = effects.tmuxAction;
+          return { newCwd: effects.newCwd, stopChain: true };
         }
         return { newCwd: effects.newCwd };
       },
@@ -169,6 +200,9 @@ export async function runLine(
   const nav = consumePendingNavigation();
   if (nav?.type === "load") store.loadChallenge(nav.index);
   else if (nav?.type === "category") store.selectCategory(nav.id);
+
+  // tmux lifecycle swap — after the shell-state commit for the same reason.
+  if (tmuxAction) store.applyTmuxAction(tmuxAction);
 
   return { startSession };
 }

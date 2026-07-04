@@ -43,6 +43,112 @@ beforeEach(() => {
   useGameStore.getState().resetGame();
 });
 
+describe("tmux session lifecycle", () => {
+  const store = () => useGameStore.getState();
+
+  it("starts attached to session 0 with no detached sessions", () => {
+    expect(store().tmuxAttachedSession?.name).toBe("0");
+    expect(store().tmuxDetachedSessions).toEqual([]);
+    expect(store().pendingMuxNotice).toBeNull();
+  });
+
+  it("detach snapshots the session and drops to a bare shell with a banner", () => {
+    store().splitPane(getActivePaneId(store())!, "h");
+    store().addWindow("home", "/tmp");
+    const swapped = store().applyTmuxAction({ type: "detach" });
+    expect(swapped).toBe(true);
+    const s = store();
+    expect(s.tmuxAttachedSession).toBeNull();
+    expect(s.tmuxDetachedSessions).toHaveLength(1);
+    expect(s.tmuxDetachedSessions[0].name).toBe("0");
+    expect(s.tmuxDetachedSessions[0].windows).toHaveLength(2);
+    expect(s.windows).toHaveLength(1);
+    expect(allLeaves(s.windows[0].root)).toHaveLength(1);
+    expect(s.pendingMuxNotice).toBe("[detached (from session 0)]");
+    expect(s.consumePendingMuxNotice()).toBe("[detached (from session 0)]");
+    expect(s.consumePendingMuxNotice()).toBeNull();
+  });
+
+  it("attach restores layout with fresh pane ids and removes the snapshot", () => {
+    const originalPane = getActivePaneId(store())!;
+    store().splitPane(originalPane, "h");
+    store().applyTmuxAction({ type: "detach" });
+    const swapped = store().applyTmuxAction({ type: "attach", name: "0" });
+    expect(swapped).toBe(true);
+    const s = store();
+    expect(s.tmuxAttachedSession?.name).toBe("0");
+    expect(s.tmuxDetachedSessions).toEqual([]);
+    expect(s.windows).toHaveLength(1);
+    const leaves = allLeaves(s.windows[0].root);
+    expect(leaves).toHaveLength(2);
+    expect(leaves.every((l) => l.id !== originalPane)).toBe(true);
+  });
+
+  it("attach prunes panes on machines with no computerState entry", () => {
+    const fs = createMinimalFS();
+    store().initComputer("nexacorp", fs);
+    store().splitPane(getActivePaneId(store())!, "h");
+    const paneId = getActivePaneId(store())!;
+    store().setPaneComputer(paneId, "nexacorp", "/home/player");
+    store().applyTmuxAction({ type: "detach" });
+    store().removeComputer("nexacorp");
+    store().applyTmuxAction({ type: "attach", name: "0" });
+    const leaves = store().windows.flatMap((w) => allLeaves(w.root));
+    expect(leaves).toHaveLength(1);
+    expect(leaves[0].computerId).toBe("home");
+  });
+
+  it("new-session launches a fresh window inheriting the bare shell's computer/cwd", () => {
+    store().applyTmuxAction({ type: "detach" });
+    const swapped = store().applyTmuxAction({ type: "new-session", name: "1" });
+    expect(swapped).toBe(true);
+    const s = store();
+    expect(s.tmuxAttachedSession?.name).toBe("1");
+    expect(s.tmuxDetachedSessions.map((d) => d.name)).toEqual(["0"]);
+    expect(s.windows).toHaveLength(1);
+  });
+
+  it("kill-session on the attached session drops to a bare shell with [exited]", () => {
+    expect(store().applyTmuxAction({ type: "kill-session", name: "0" })).toBe(true);
+    expect(store().tmuxAttachedSession).toBeNull();
+    expect(store().pendingMuxNotice).toBe("[exited]");
+  });
+
+  it("kill-session on a detached session removes it without swapping", () => {
+    store().applyTmuxAction({ type: "detach" });
+    store().applyTmuxAction({ type: "new-session", name: "1" });
+    expect(store().applyTmuxAction({ type: "kill-session", name: "0" })).toBe(false);
+    expect(store().tmuxDetachedSessions).toEqual([]);
+    expect(store().tmuxAttachedSession?.name).toBe("1");
+  });
+
+  it("kill-server clears everything, with [server exited] when attached", () => {
+    store().applyTmuxAction({ type: "detach" });
+    store().applyTmuxAction({ type: "new-session", name: "1" });
+    expect(store().applyTmuxAction({ type: "kill-server" })).toBe(true);
+    expect(store().tmuxAttachedSession).toBeNull();
+    expect(store().tmuxDetachedSessions).toEqual([]);
+    expect(store().pendingMuxNotice).toBe("[server exited]");
+  });
+
+  it("closePane on the last pane of the last window kills the session (real tmux)", () => {
+    const paneId = getActivePaneId(store())!;
+    store().closePane(paneId);
+    const s = store();
+    expect(s.tmuxAttachedSession).toBeNull();
+    expect(s.pendingMuxNotice).toBe("[exited]");
+    expect(s.windows).toHaveLength(1);
+    expect(getActivePaneId(s)).not.toBe(paneId);
+  });
+
+  it("closePane on the bare shell's only pane stays a no-op", () => {
+    store().applyTmuxAction({ type: "detach" });
+    const paneId = getActivePaneId(store())!;
+    store().closePane(paneId);
+    expect(getActivePaneId(store())).toBe(paneId);
+  });
+});
+
 describe("computerState actions", () => {
   it("initComputer creates a new entry", () => {
     const fs = createMinimalFS();
@@ -168,11 +274,13 @@ describe("pane actions", () => {
     expect(useGameStore.getState().windows).toHaveLength(1);
   });
 
-  it("closePane never removes the only pane of the only window", () => {
+  it("closePane on the only pane of the only window kills the session to a bare shell", () => {
     const only = getActivePaneId(useGameStore.getState())!;
     useGameStore.getState().closePane(only);
-    expect(useGameStore.getState().windows).toHaveLength(1);
-    expect(getActivePaneId(useGameStore.getState())).toBe(only);
+    const state = useGameStore.getState();
+    expect(state.windows).toHaveLength(1);
+    expect(getActivePaneId(state)).not.toBe(only);
+    expect(state.tmuxAttachedSession).toBeNull();
   });
 
   it("focusDirection moves focus to the adjacent pane", () => {

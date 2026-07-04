@@ -38,6 +38,8 @@ export interface TmuxStatusBarProps {
   theme: StatusBarTheme;
   /** App-specific new-window control rendered after the tabs (a `+` or a dropdown). */
   trailing?: ReactNode;
+  /** tmux session name, rendered `[name]` before the tabs (real status-left). */
+  sessionName?: string;
 }
 
 /**
@@ -56,6 +58,7 @@ export default function TmuxStatusBar({
   modalText,
   theme,
   trailing,
+  sessionName,
 }: TmuxStatusBarProps) {
   return (
     <div
@@ -69,6 +72,11 @@ export default function TmuxStatusBar({
         </span>
       ) : (
         <>
+          {sessionName !== undefined && (
+            <span className="pl-2 py-0.5" style={{ color: theme.statusFg }}>
+              [{sessionName}]
+            </span>
+          )}
           {/* tmux status-left: prefix-state indicator. Blank (space reserved) at
               rest; "PREFIX" in blue when armed. */}
           <span

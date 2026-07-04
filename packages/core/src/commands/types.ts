@@ -41,6 +41,11 @@ export interface CommandContext {
   /** Current terminal-tab prefix label (e.g. "Ctrl+Space"), from ~/.tmux.conf. */
   tabPrefixLabel?: string;
   /**
+   * tmux server snapshot for the `tmux` builtin + `shortcuts` gating. Injected
+   * by the app; absent => the mux is treated as permanently attached.
+   */
+  tmux?: TmuxContext;
+  /**
    * Per-game security rules (protected paths / tripwires). Injected by the app;
    * absent => no operation is ever flagged as a violation.
    */
@@ -75,6 +80,28 @@ export interface EditorSessionInfo {
   triggerRow?: number;
   triggerEvents?: GameEvent[];
   requireSave?: boolean;
+}
+
+/**
+ * Fully resolved tmux lifecycle action. The `tmux` builtin validates against
+ * `ctx.tmux` and pre-resolves names, so the store can apply these blindly.
+ */
+export type TmuxAction =
+  | { type: "new-session"; name: string }
+  | { type: "attach"; name: string }
+  | { type: "detach" }
+  | { type: "kill-session"; name: string }
+  | { type: "kill-server" };
+
+/** Read-only tmux server snapshot injected by the app for the `tmux` builtin. */
+export interface TmuxContext {
+  /** Session this client is attached to, or null when on the bare shell. */
+  attachedSession: string | null;
+  /**
+   * Every session on the server. Detached sessions must appear in detach order
+   * (most recent last) — bare `attach`/`kill-session` target the last one.
+   */
+  sessions: Array<{ name: string; windowCount: number; createdAt: number; attached: boolean }>;
 }
 
 export type GameAction =
@@ -122,6 +149,8 @@ export interface CommandResult {
   closeTabsForComputer?: MachineId;
   newMounts?: Mounts;
   securityViolation?: SecurityViolation;
+  /** Resolved tmux lifecycle action from the `tmux` builtin (applied by the app store). */
+  tmuxAction?: TmuxAction;
 }
 
 // IncrementalLine now lives in @tt/core. Re-exported so existing call sites that

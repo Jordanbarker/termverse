@@ -12,6 +12,7 @@ describe("isCommandAvailable", () => {
         // Gated commands — handled by their own dedicated tests below.
         if (cmd === "pdftotext" || cmd === "tree") continue;
         if (cmd === "lsblk" || cmd === "mount" || cmd === "umount") continue;
+        if (cmd === "tmux") continue; // gated on tabs_unlocked (true from game start)
         expect(isCommandAvailable(cmd, "home")).toBe(true);
         expect(isCommandAvailable(cmd, "home", {})).toBe(true);
       }

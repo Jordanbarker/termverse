@@ -31,6 +31,9 @@ import {
   nextLeafId,
   resetPaneIdCounters,
 } from "@tt/core/terminal/paneTypes";
+import { TmuxSessionSnapshot, snapshotSession, restoreSession } from "@tt/core/terminal/tmuxSessions";
+import { TmuxAction } from "@tt/core/commands/types";
+import { createGameClock } from "../story/clock";
 
 export { buildFs };
 
@@ -66,6 +69,27 @@ function normalizeFocus(w: WindowState): WindowState {
   return { ...w, activePaneId: firstLeaf(w.root).id };
 }
 
+/**
+ * Real-tmux session teardown: drop the client to a fresh bare shell (inheriting
+ * the active pane's computer/cwd) with a one-shot exit banner.
+ */
+function killToBareShell(
+  state: WindowSlice & { computerState: Partial<Record<ComputerId, { fs: VirtualFS }>> },
+  notice: string,
+) {
+  const leaf = getActiveLeaf(state);
+  const computerId = (leaf?.computerId ?? "home") as ComputerId;
+  const cwd = leaf?.cwd ?? state.computerState.home?.fs.homeDir ?? "/";
+  const win = makeWindow(computerId, cwd);
+  return {
+    windows: [win],
+    activeWindowId: win.id,
+    tmuxAttachedSession: null,
+    pendingMuxNotice: notice,
+    activeSnowSession: null,
+  };
+}
+
 interface GameStore {
   username: string;
   currentChapter: string;
@@ -84,6 +108,14 @@ interface GameStore {
   zshHistory: Partial<Record<ComputerId, string>>;
   windows: WindowState[];
   activeWindowId: string;
+  // tmux session lifecycle: windows[] renders the attached session's live
+  // windows, or a single bare-shell window when detached. "Server running" is
+  // derived (attached or any detached snapshot) — never stored.
+  tmuxAttachedSession: { name: string; createdAt: number } | null;
+  tmuxDetachedSessions: TmuxSessionSnapshot[];
+  // One-shot real-tmux exit banner ([detached ...]/[exited]/[server exited])
+  // printed by the next bare-shell pane before its prompt. Transient (unsaved).
+  pendingMuxNotice: string | null;
   // Pane id of the snow REPL's pane (null when no session). Pane-scoped.
   activeSnowSession: string | null;
   pendingPiperNotification: boolean;
@@ -131,6 +163,10 @@ interface GameStore {
   // Teardown: prune panes on downed computers (active pane preserved); collapse to one pane.
   closePanesForComputers: (computerIds: ComputerId[]) => void;
   closeOtherPanes: () => void;
+  // tmux lifecycle: apply a resolved TmuxAction. Returns whether the client
+  // view swapped (caller suppresses the prompt when it did).
+  applyTmuxAction: (action: TmuxAction) => boolean;
+  consumePendingMuxNotice: () => string | null;
   setActiveSnowSession: (paneId: string | null) => void;
   setComputerEnv: (computer: ComputerId, envVars: Record<string, string>) => void;
   setComputerAliases: (computer: ComputerId, aliases: Record<string, string>) => void;
@@ -160,6 +196,13 @@ function createInitialState(username = PLAYER.username) {
     zshHistory: {} as Partial<Record<ComputerId, string>>,
     windows: [initialWindow] as WindowState[],
     activeWindowId: initialWindow.id,
+    // A new game starts attached to tmux session "0" (onboarding unchanged).
+    tmuxAttachedSession: {
+      name: "0",
+      createdAt: createGameClock([], username, "home").now().getTime(),
+    } as { name: string; createdAt: number } | null,
+    tmuxDetachedSessions: [] as TmuxSessionSnapshot[],
+    pendingMuxNotice: null as string | null,
     activeSnowSession: null as string | null,
     pendingPiperNotification: false,
     notifiedChipTopicIds: [] as string[],
@@ -276,7 +319,11 @@ export const useGameStore = create<GameStore>()(
       removeWindow: (windowId) =>
         set((state) => {
           const newWindows = state.windows.filter((w) => w.id !== windowId);
-          if (newWindows.length === 0) return {}; // Can't remove the last window
+          if (newWindows.length === 0) {
+            // tmux: removing the last window kills the session (bare shell when
+            // attached; no-op if we're somehow already on the bare shell).
+            return state.tmuxAttachedSession ? killToBareShell(state, "[exited]") : {};
+          }
           const updates: Partial<typeof state> = { windows: newWindows };
           // Clear a snow session whose pane lived in the closed window.
           const closed = state.windows.find((w) => w.id === windowId);
@@ -325,8 +372,12 @@ export const useGameStore = create<GameStore>()(
           const updates: Partial<typeof state> = {};
           if (state.activeSnowSession === paneId) updates.activeSnowSession = null;
           if (collapsed === null) {
-            // Last pane in the window — drop the window unless it's the only one.
-            if (state.windows.length === 1) return updates;
+            // Last pane in the window — drop the window. If it was the last
+            // window too, this kills the session (real tmux) and drops the
+            // client to a fresh bare shell.
+            if (state.windows.length === 1) {
+              return state.tmuxAttachedSession ? killToBareShell(state, "[exited]") : updates;
+            }
             const newWindows = state.windows.filter((w) => w.id !== win.id);
             updates.windows = newWindows;
             if (state.activeWindowId === win.id) {
@@ -427,6 +478,93 @@ export const useGameStore = create<GameStore>()(
           }
           return updates;
         }),
+      applyTmuxAction: (action) => {
+        const state = get();
+        switch (action.type) {
+          case "new-session": {
+            const leaf = getActiveLeaf(state);
+            const computerId = (leaf?.computerId ?? "home") as ComputerId;
+            const cwd = leaf?.cwd ?? state.computerState.home?.fs.homeDir ?? "/";
+            const win = makeWindow(computerId, cwd);
+            const createdAt = createGameClock(state.deliveredPiperIds, state.username, computerId)
+              .now()
+              .getTime();
+            set({
+              windows: [win],
+              activeWindowId: win.id,
+              tmuxAttachedSession: { name: action.name, createdAt },
+              activeSnowSession: null,
+            });
+            return true;
+          }
+          case "attach": {
+            const snap = state.tmuxDetachedSessions.find((s) => s.name === action.name);
+            if (!snap || state.tmuxAttachedSession) return false;
+            const restored = restoreSession(snap);
+            // Attach sanitization: a machine can be shut down while a session
+            // referencing it sits detached — prune those panes, drop emptied
+            // windows, and fall back to a home window if the session emptied.
+            const downed = new Set<ComputerId>();
+            for (const w of restored.windows) {
+              for (const l of allLeaves(w.root)) {
+                const id = l.computerId as ComputerId;
+                if (!state.computerState[id]) downed.add(id);
+              }
+            }
+            let windows = restored.windows;
+            if (downed.size > 0) {
+              windows = [];
+              for (const w of restored.windows) {
+                const pruned = prunePanesByComputer(w.root, downed);
+                if (pruned) windows.push(normalizeFocus({ ...w, root: pruned }));
+              }
+              if (windows.length === 0) {
+                windows = [makeWindow("home", state.computerState.home?.fs.homeDir ?? "/")];
+              }
+            }
+            const activeStillThere = windows.some((w) => w.id === restored.activeWindowId);
+            set({
+              windows,
+              activeWindowId: activeStillThere ? restored.activeWindowId : windows[0].id,
+              tmuxAttachedSession: { name: snap.name, createdAt: snap.createdAt },
+              tmuxDetachedSessions: state.tmuxDetachedSessions.filter((s) => s !== snap),
+              activeSnowSession: null,
+            });
+            return true;
+          }
+          case "detach": {
+            const att = state.tmuxAttachedSession;
+            if (!att) return false;
+            const snap = snapshotSession(att.name, state.windows, state.activeWindowId, att.createdAt);
+            set({
+              ...killToBareShell(state, `[detached (from session ${att.name})]`),
+              tmuxDetachedSessions: [...state.tmuxDetachedSessions, snap],
+            });
+            return true;
+          }
+          case "kill-session": {
+            if (state.tmuxAttachedSession?.name === action.name) {
+              set(killToBareShell(state, "[exited]"));
+              return true;
+            }
+            set({ tmuxDetachedSessions: state.tmuxDetachedSessions.filter((s) => s.name !== action.name) });
+            return false;
+          }
+          case "kill-server": {
+            if (state.tmuxAttachedSession) {
+              set({ ...killToBareShell(state, "[server exited]"), tmuxDetachedSessions: [] });
+              return true;
+            }
+            set({ tmuxDetachedSessions: [] });
+            return false;
+          }
+        }
+      },
+      consumePendingMuxNotice: () => {
+        const notice = get().pendingMuxNotice;
+        if (notice !== null) set({ pendingMuxNotice: null });
+        return notice;
+      },
       setActiveSnowSession: (paneId) => set({ activeSnowSession: paneId }),
       setComputerEnv: (computer, envVars) =>
         set((state) => ({
@@ -486,7 +624,6 @@ export const useGameStore = create<GameStore>()(
           };
         }
 
-        resetPaneIdCounters();
         const win = makeWindow(data.activeComputer, homeDir);
 
         set({
@@ -504,6 +641,12 @@ export const useGameStore = create<GameStore>()(
           zshHistory: {},
           windows: [win],
           activeWindowId: win.id,
+          tmuxAttachedSession: {
+            name: "0",
+            createdAt: createGameClock(data.deliveredPiperIds, username, data.activeComputer).now().getTime(),
+          },
+          tmuxDetachedSessions: [],
+          pendingMuxNotice: null,
           activeSnowSession: null,
           notifiedChipTopicIds: [],
         });

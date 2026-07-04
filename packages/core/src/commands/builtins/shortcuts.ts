@@ -5,6 +5,11 @@ import { colorize, ansi } from "@tt/core/lib/ansi";
 const shortcuts: CommandHandler = (_args, _flags, ctx) => {
   const PAD = 21;
   const prefixLabel = ctx.tabPrefixLabel ?? "Ctrl+Space";
+  // The mux (chords, copy mode, status bar) only exists while a tmux client is
+  // attached; apps without a session lifecycle (no ctx.tmux) count as attached.
+  const attached = ctx.tmux ? ctx.tmux.attachedSession !== null : true;
+  // Apps without story flags (term-crunch) always count as unlocked.
+  const tabsUnlocked = ctx.storyFlags ? !!ctx.storyFlags.tabs_unlocked : true;
   const lines = [
     colorize("Keyboard shortcuts:", ansi.bold, ansi.yellow),
     "",
@@ -27,19 +32,38 @@ const shortcuts: CommandHandler = (_args, _flags, ctx) => {
     `    ${colorize("(Fn+Shift+Up/Down)", ansi.dim)}`,
     `    ${colorize("Cmd+Home/End".padEnd(PAD), ansi.green)}Scroll to top/bottom`,
     `    ${colorize("(Fn+Cmd+Left/Right)", ansi.dim)}`,
-    `    ${colorize(`${prefixLabel}, [`.padEnd(PAD), ansi.green)}Copy mode`,
   ];
 
-  if (ctx.storyFlags?.tabs_unlocked) {
+  // Copy mode is part of the mux (needs a client) but is reachable even while
+  // the tab chords are still story-locked.
+  if (attached) {
+    lines.push(`    ${colorize(`${prefixLabel}, [`.padEnd(PAD), ansi.green)}Copy mode`);
+  }
+
+  if (attached && tabsUnlocked) {
     lines.push(
       "",
-      colorize("  Terminal tabs:", ansi.dim),
+      colorize("  Terminal tabs (tmux):", ansi.dim),
       `    ${colorize(`${prefixLabel}, C`.padEnd(PAD), ansi.green)}New tab`,
       `    ${colorize(`${prefixLabel}, X`.padEnd(PAD), ansi.green)}Close tab`,
       `    ${colorize(`${prefixLabel}, N/P`.padEnd(PAD), ansi.green)}Next/prev tab`,
       `    ${colorize(`${prefixLabel}, 1-5`.padEnd(PAD), ansi.green)}Jump to tab`,
+      `    ${colorize(`${prefixLabel}, D`.padEnd(PAD), ansi.green)}Detach session`,
       `    ${colorize("Change the prefix in ~/.tmux.conf on your home PC.", ansi.dim)}`,
+      `    ${colorize("Manage sessions with tmux ls / attach / kill-session.", ansi.dim)}`,
     );
+  } else if (ctx.tmux && !attached) {
+    lines.push(
+      "",
+      colorize("  tmux:", ansi.dim),
+      `    ${colorize("tmux".padEnd(PAD), ansi.green)}Start a new session`,
+    );
+    if (ctx.tmux.sessions.length > 0) {
+      lines.push(
+        `    ${colorize("tmux attach".padEnd(PAD), ansi.green)}Reattach to your detached session`,
+        `    ${colorize("tmux ls".padEnd(PAD), ansi.green)}List sessions`,
+      );
+    }
   }
 
   lines.push(

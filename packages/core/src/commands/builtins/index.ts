@@ -45,6 +45,8 @@ import "./df";
 import "./lsblk";
 import "./mount";
 import "./umount";
+// Terminal multiplexer
+import "./tmux";
 // Network
 import "./ssh-add";
 // Remote environments

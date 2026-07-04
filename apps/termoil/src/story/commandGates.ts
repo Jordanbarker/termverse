@@ -49,6 +49,9 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   // Always available: a non-questline shutdown is consequence-free (cosmetic
   // reboot at home, SSH disconnect on remote boxes) — see builtins/shutdown.ts.
   "shutdown",
+  // Session lifecycle (launch/detach/attach/kill). Gated on tabs_unlocked
+  // below so the command tracks the chords/status bar being live.
+  "tmux",
 ]);
 
 /** NexaCorp commands gated behind colleague emails. */
@@ -72,6 +75,7 @@ export const NEXACORP_GATED: Record<string, StoryFlagName> = {
   apt: "apt_unlocked",
   mount: "accepted_usb_drive",
   umount: "accepted_usb_drive",
+  tmux: "tabs_unlocked",
 };
 
 /** Commands that should never be available on the home PC. */
@@ -101,6 +105,7 @@ export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
   "lsblk", "mount", "umount",
   "true", "false",
   "shutdown",
+  "tmux",
 ]);
 
 /** Home PC commands gated behind story flags. */
@@ -133,4 +138,5 @@ export const HOME_GATED: Record<string, StoryFlagName> = {
   lsblk: "accepted_usb_drive",
   mount: "accepted_usb_drive",
   umount: "accepted_usb_drive",
+  tmux: "tabs_unlocked",
 };

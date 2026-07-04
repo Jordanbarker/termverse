@@ -25,6 +25,7 @@ Terminal commands: `save`/`load` list slots; `save 1|2|3` saves; `load 1|2|3` lo
 - `zshHistory` — durable per-computer `.zsh_history` mirror that **survives `removeComputer`/FS rebuilds**, so shell history (the single source of truth — the `.zsh_history` file) continues across day/computer transitions even for boxes that get torn down and rebuilt.
 - `serializedSnowflake` — via `serializeSnowflake()`; on restore, a deserialize failure falls back to `createInitialSnowflakeState()` rather than crashing the load; the nexacorp FS is re-bridged via `syncToVirtualFS`.
 - `windows`/`activeWindowIndex` — window/pane tree + active window (panes rebuilt with fresh ids via `rebuildWindow`; see the tmux skill). `restoreGameState` also rebuilds an FS (via `buildFs`, which lives in saveManager and is re-exported from gameStore) for any pane whose computer entry failed to deserialize.
+- `tmuxAttachedSession`/`tmuxDetachedSessions` — tmux session lifecycle (attached `{name, createdAt}` or null when the save was made on the bare shell; detached sessions as `TmuxSessionSnapshot[]`, already serialization-shaped). `pendingMuxNotice` is transient (restored as null). See the tmux skill.
 - `notifiedChipTopicIds`, `copyModeHelpHidden` — dedup + UI preference.
 
 Plus plain narrative/identity fields (`username`, `gamePhase`, `currentChapter`, `completedObjectives`, `deliveredEmailIds`, `deliveredPiperIds`, `storyFlags`, `hasSeenIntro`).

@@ -474,6 +474,22 @@ export const HELP_TEXTS: Record<string, string> = {
     "Requires sudo.",
   ].join("\n"),
 
+  tmux: [
+    "Usage: tmux [command [flags]]",
+    "",
+    "Terminal multiplexer. With no command, starts a new session.",
+    "",
+    "  new [-s name]           Start a new session (default name: lowest unused number)",
+    "  ls                      List sessions",
+    "  attach [-t name]        Attach to a session (default: most recently detached)",
+    "  detach                  Detach from the current session (also <prefix> d)",
+    "  kill-session [-t name]  Destroy a session",
+    "  kill-server             Destroy all sessions and stop the server",
+    "",
+    "Detached sessions keep their windows and panes; reattaching restores the",
+    "layout with fresh shells.",
+  ].join("\n"),
+
   ssh: [
     "Usage: ssh [user@]hostname",
     "",

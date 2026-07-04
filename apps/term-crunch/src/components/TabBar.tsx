@@ -12,6 +12,8 @@ interface TabBarProps {
   prefixActive: boolean;
   /** tmux rename-window inline prompt text; takes over the bar when non-null. */
   renamePrompt?: string | null;
+  /** Attached tmux session name, rendered `[name]` at status-left. */
+  sessionName?: string;
   onNewWindow: () => void;
   onSelectWindow: (windowId: string) => void;
   onCloseWindow: (windowId: string) => void;
@@ -21,6 +23,7 @@ export default function TabBar({
   theme,
   prefixActive,
   renamePrompt,
+  sessionName,
   onNewWindow,
   onSelectWindow,
   onCloseWindow,
@@ -38,6 +41,7 @@ export default function TabBar({
       prefixActive={prefixActive}
       modalText={renamePrompt}
       theme={theme}
+      sessionName={sessionName}
       trailing={
         <button
           onClick={onNewWindow}

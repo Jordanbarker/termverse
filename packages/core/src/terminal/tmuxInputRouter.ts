@@ -27,6 +27,12 @@ export type RouteResult =
 export interface TmuxInputRouterOptions {
   getPrefixChar(): string;
   getBindings(): Record<string, PaneBinding>;
+  /**
+   * Master gate: is a tmux client attached at all? When false the router is
+   * fully inert — the prefix char never arms (it passes through to the shell),
+   * copy mode is unreachable, and any armed/repeat state is dropped.
+   */
+  muxEnabled?(): boolean;
   /** Gate for chords + conf binds. When false, armed-prefix keys (except `[` and the literal) fall through to the shell. */
   chordsEnabled(): boolean;
   /** Fired when the prefix/repeat "armed" indicator should light up or clear. */
@@ -92,6 +98,14 @@ export function createTmuxInputRouter(opts: TmuxInputRouterOptions): TmuxInputRo
   };
 
   const route = (data: string): RouteResult => {
+    // Detached (bare shell): the multiplexer does not exist. Drop any armed
+    // or repeat state and pass every key — including the prefix char — through.
+    if (opts.muxEnabled && !opts.muxEnabled()) {
+      if (prefixArmed) disarm();
+      if (repeatArmed || repeatTimer != null) clearRepeat();
+      return { type: "shell", data };
+    }
+
     // tmux `-r` repeat: while the window is open, a repeatable resize key
     // re-fires (and re-arms) without the prefix. Any other key ends repeat
     // mode and is processed normally below.

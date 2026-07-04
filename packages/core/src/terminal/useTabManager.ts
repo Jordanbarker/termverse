@@ -57,6 +57,8 @@ export interface TabManagerAdapter {
   nudgeSplitRatio(splitId: string, delta: number): void;
   /** Absolute divider ratio from a PaneDividers drag. */
   resizeSplit(splitId: string, ratio: number): void;
+  /** `<prefix> d` — detach the client from its tmux session (drop to the bare shell). */
+  detachClient(): void;
 }
 
 export interface PaneCreatedInfo {
@@ -73,6 +75,8 @@ export interface PaneCreatedInfo {
 export interface TabManagerExtensions {
   /** Absolute-first input gate (termoil: gamePhase === "playing"). Default: always enabled. */
   isInputEnabled?(): boolean;
+  /** Master gate: is a tmux client attached? When false the whole mux is inert — no prefix, no chords, no copy mode. Default: attached. */
+  muxActive?(): boolean;
   /** Gate for tab/pane chords + conf binds (termoil: tabs_unlocked). Copy mode stays reachable. Default: enabled. */
   chordsEnabled?(): boolean;
   /** Runs before the rename prompt (close-confirm y/n, challenge continue gate). Return true to consume. */
@@ -172,6 +176,7 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     routerRef.current = createTmuxInputRouter({
       getPrefixChar: () => prefixCharRef.current,
       getBindings: () => bindingsRef.current,
+      muxEnabled: () => extRef.current.muxActive?.() ?? true,
       chordsEnabled: () => extRef.current.chordsEnabled?.() ?? true,
       onPrefixStateChange: setPrefixActive,
     });
@@ -219,6 +224,7 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
       case "o": a.cyclePane(); break;
       case "x": a.closePane(paneId); break;
       case "c": a.newWindow(); break;
+      case "d": a.detachClient(); break;
       case "n": case ".": a.cycleWindow("next"); break;
       case "p": case ",": a.cycleWindow("prev"); break;
       case "r": {

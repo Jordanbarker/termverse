@@ -58,7 +58,11 @@ export const MIN_PANE_RATIO = 0.1;
 
 // --- id generation -------------------------------------------------------
 // Module-scope counters mirror the store's old `tabCounter`. resetPaneIdCounters()
-// is called from resetGame/loadGame/merge so ids stay deterministic per session.
+// is called from resetGame/merge (before a TabManager mounts) so ids stay
+// deterministic per session. Never reset while a TabManager is mounted:
+// useTabManager tells restored panes from new ones by id freshness
+// (knownPaneIdsRef), and a mid-session reset makes new panes collide with
+// already-seen ids.
 
 let paneCounter = 0;
 let splitCounter = 0;
