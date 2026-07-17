@@ -14,7 +14,8 @@ import type { SessionToStart } from "@tt/core/commands/applyResult";
 import { LineEditor } from "@tt/core/terminal/lineEditor";
 import { useTabManager, type PaneRuntime, type TabManagerAdapter, type TabManagerExtensions } from "@tt/core/terminal/useTabManager";
 
-import { useGameStore } from "../state/gameStore";
+import { useGameStore, isGradeGateUp } from "../state/gameStore";
+import { gradeForKey } from "../challenges/scheduler";
 import { runLine, getPrompt, buildSuggestionContext } from "../hooks/useTerminal";
 import { HOME_DIR } from "../lib/machine";
 import TabBar from "./TabBar";
@@ -110,12 +111,19 @@ export default function TabManager() {
   const ext: TabManagerExtensions = {
     // The multiplexer only exists while a tmux client is attached.
     muxActive: () => !!useGameStore.getState().tmuxAttachedSession,
-    // Challenge-complete gate: freeze terminal input until the player presses
-    // Enter to advance to the next challenge.
+    // Challenge-complete gate: freeze terminal input until the player grades
+    // the completion (1-4, or Enter for Good). Covers the mid-track gate
+    // (awaitingContinue) and the end-of-track banner's single pending grade.
+    // Runs before the rename prompt, sessions, and the prefix/chord router, so
+    // grade digits can't arm chords. Copy mode swallows keys at the DOM layer
+    // before this, but a gate can never rise while copy mode is active
+    // (completions only fire from commands and store mutations).
     interceptEarly: (_paneId, _term, data) => {
-      if (!useGameStore.getState().awaitingContinue) return false;
-      if (data === "\r" || data === "\n") useGameStore.getState().continueToNext();
-      return true;
+      const s = useGameStore.getState();
+      if (!isGradeGateUp(s)) return false;
+      const grade = data === "\r" || data === "\n" ? "good" : gradeForKey(data);
+      if (grade) s.continueToNext(grade);
+      return true; // everything else stays frozen while a gate is up
     },
     // Active editor/pager session owns the pane's input until it exits.
     interceptAfterRename: (paneId, _term, data) => {

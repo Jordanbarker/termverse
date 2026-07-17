@@ -194,12 +194,17 @@ export async function runLine(
   store.setPaneCwd(paneId, runningCwd);
   store.checkCompletion();
 
-  // Apply any navigation queued by challenges/goto/next/prev/track AFTER the
+  // Apply any navigation queued by goto/next/prev/track/review AFTER the
   // shell-state commit above, so loadChallenge's freshly seeded fs/windows
   // aren't clobbered by this pipeline's accumulated state.
   const nav = consumePendingNavigation();
-  if (nav?.type === "load") store.loadChallenge(nav.index);
-  else if (nav?.type === "category") store.selectCategory(nav.id);
+  if (nav?.type === "load") {
+    store.jumpToChallenge(nav.index); // cancels review internally
+  } else if (nav?.type === "category") {
+    store.selectCategory(nav.id); // cancels review internally
+  } else if (nav?.type === "review") {
+    store.startReviewSession(nav.queue);
+  }
 
   // tmux lifecycle swap — after the shell-state commit for the same reason.
   if (tmuxAction) store.applyTmuxAction(tmuxAction);

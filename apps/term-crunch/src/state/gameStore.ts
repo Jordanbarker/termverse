@@ -27,8 +27,9 @@ import type { TmuxAction } from "@tt/core/commands/types";
 import { CRUNCH_MACHINE, HOME_DIR, MAX_PANES_PER_WINDOW, MAX_WINDOWS } from "../lib/machine";
 import { buildBaseFs, applyConfigs } from "../lib/seed";
 import { DEFAULT_ZSHRC, DEFAULT_TMUX_CONF } from "../lib/defaultConfigs";
-import { getCategory, DEFAULT_CATEGORY } from "../challenges/categories";
+import { getCategory, registryIndex, DEFAULT_CATEGORY } from "../challenges/categories";
 import type { ChallengeSnapshot } from "../challenges/types";
+import { applyGrade, type Grade, type ReviewStat } from "../challenges/scheduler";
 
 /** cwd of the focused pane (single window in v1, but written defensively). */
 function activeCwd(windows: WindowState[], activeWindowId: string): string {
@@ -39,6 +40,17 @@ function activeCwd(windows: WindowState[], activeWindowId: string): string {
 
 function windowOfPane(windows: WindowState[], paneId: string): WindowState | undefined {
   return windows.find((w) => findLeaf(w.root, paneId));
+}
+
+/**
+ * A completion gate is up: terminal input is frozen and a grade key (1-4 /
+ * Enter) is expected. Covers the mid-track gate (awaitingContinue) and the
+ * end-of-track banner's single pending grade.
+ */
+export function isGradeGateUp(
+  s: Pick<GameState, "awaitingContinue" | "completed" | "pendingGradeId">
+): boolean {
+  return s.awaitingContinue || (s.completed && s.pendingGradeId !== null);
 }
 
 /**
@@ -92,16 +104,28 @@ export interface GameState {
 
   // timing
   challengeStartTime: number; // Date.now() when the current challenge loaded
-  bestTimes: Record<string, number>; // challengeId -> best completion time (ms); the only persisted field
+  bestTimes: Record<string, number>; // challengeId -> best completion time (ms); persisted
   lastElapsedMs: number | null; // finish time of the just-completed challenge (drives the gate display)
   lastWasBest: boolean; // whether lastElapsedMs set a new record
+
+  // spaced-repetition review (challenges/scheduler.ts). reviewStats persists;
+  // the rest is a transient in-flight review session, dropped on refresh.
+  reviewStats: Record<string, ReviewStat>; // challengeId -> SM-2-lite stat
+  pendingGradeId: string | null; // just-completed, not-yet-graded challenge id
+  reviewQueue: string[]; // ids remaining AFTER the currently loaded review challenge
+  reviewTotal: number; // queue length at session start (progress display)
+  reviewReturn: { category: string; index: number } | null; // non-null == review mode; where to return
 
   // lifecycle
   selectCategory: (id: string) => void;
   loadChallenge: (index: number) => void;
   restartChallenge: () => void;
   checkCompletion: () => void;
-  continueToNext: () => void;
+  continueToNext: (grade?: Grade) => void;
+  recordGrade: (grade: Grade) => void;
+  startReviewSession: (queue: string[]) => void;
+  jumpToChallenge: (index: number) => void;
+  cancelReview: () => void;
   clearFlash: () => void;
 
   // shell config mutations (Settings modal)
@@ -159,8 +183,14 @@ export const useGameStore = create<GameState>()(
   bestTimes: {},
   lastElapsedMs: null,
   lastWasBest: false,
+  reviewStats: {},
+  pendingGradeId: null,
+  reviewQueue: [],
+  reviewTotal: 0,
+  reviewReturn: null,
 
   selectCategory: (id) => {
+    get().cancelReview(); // switching tracks abandons any in-flight review session
     set({ activeCategory: id });
     get().loadChallenge(0); // start the newly selected track from its first challenge
   },
@@ -193,6 +223,8 @@ export const useGameStore = create<GameState>()(
       stepIndex: 0,
       completed: false,
       awaitingContinue: false,
+      // An ungraded completion abandoned via goto/dropdowns must not linger.
+      pendingGradeId: null,
       challengeStartTime: Date.now(),
       lastElapsedMs: null,
       lastWasBest: false,
@@ -254,14 +286,24 @@ export const useGameStore = create<GameState>()(
     const bestTimes = isBest ? { ...state.bestTimes, [challenge.id]: elapsed } : state.bestTimes;
 
     const nextIndex = state.challengeIndex + 1;
-    if (nextIndex < group.challenges.length) {
+    // In review mode the gate always rises (even on the last registry
+    // challenge) so grading can chain through the rest of the queue.
+    if (state.reviewReturn !== null || nextIndex < group.challenges.length) {
       // Pause on a completion gate; the next challenge loads on continueToNext()
-      // (Enter), so the player gets a beat to register the win before the fs +
-      // panes reset for the next sandbox. Clear flash so it doesn't compete.
-      set({ awaitingContinue: true, flash: null, lastElapsedMs: elapsed, lastWasBest: isBest, bestTimes });
+      // (a grade key), so the player gets a beat to register the win before the
+      // fs + panes reset for the next sandbox. Clear flash so it doesn't compete.
+      set({
+        awaitingContinue: true,
+        pendingGradeId: challenge.id,
+        flash: null,
+        lastElapsedMs: elapsed,
+        lastWasBest: isBest,
+        bestTimes,
+      });
     } else {
       set({
         completed: true,
+        pendingGradeId: challenge.id,
         flash: "✓ All challenges complete",
         lastElapsedMs: elapsed,
         lastWasBest: isBest,
@@ -274,11 +316,81 @@ export const useGameStore = create<GameState>()(
   // destructive dead-end like `rm -rf` wiping a challenge's survivors.
   restartChallenge: () => get().loadChallenge(get().challengeIndex),
 
-  continueToNext: () => {
+  continueToNext: (grade = "good") => {
     const state = get();
-    if (!state.awaitingContinue) return;
-    // loadChallenge resets awaitingContinue (and fs/panes) for the next sandbox.
-    get().loadChallenge(state.challengeIndex + 1);
+    if (!isGradeGateUp(state)) return;
+    // Record before loadChallenge clears pendingGradeId. On the end-of-track
+    // banner this is the whole action: grade once, stay on the banner (input
+    // unfreezes once pendingGradeId clears; see TabManager's interceptEarly).
+    get().recordGrade(grade);
+    if (state.awaitingContinue) {
+      if (state.reviewReturn !== null) {
+        const [nextId, ...rest] = state.reviewQueue;
+        if (nextId !== undefined) {
+          set({ reviewQueue: rest });
+          get().loadChallenge(registryIndex(nextId));
+        } else {
+          // Queue exhausted: back to the pre-review spot. Restore the category
+          // BEFORE loadChallenge (it resolves the index via activeCategory);
+          // flash can ride along since loadChallenge never touches it.
+          set({
+            activeCategory: state.reviewReturn.category,
+            reviewReturn: null,
+            reviewTotal: 0,
+            flash: "✓ Review session complete",
+          });
+          get().loadChallenge(state.reviewReturn.index);
+        }
+      } else {
+        // loadChallenge resets awaitingContinue (and fs/panes) for the next sandbox.
+        get().loadChallenge(state.challengeIndex + 1);
+      }
+    }
+  },
+
+  // Feed the SM-2-lite scheduler. Every graded completion goes through here,
+  // sequential play and review mode alike.
+  recordGrade: (grade) => {
+    const { pendingGradeId, reviewStats } = get();
+    if (pendingGradeId === null) return;
+    set({
+      reviewStats: {
+        ...reviewStats,
+        [pendingGradeId]: applyGrade(reviewStats[pendingGradeId], grade, Date.now()),
+      },
+      pendingGradeId: null,
+    });
+  },
+
+  startReviewSession: (queue) => {
+    if (queue.length === 0) return;
+    const state = get();
+    // Queue ids are registry ids; the "all" category mirrors the registry, so
+    // indices are only safe there (the category-relative-index trap). Set the
+    // category BEFORE loadChallenge, which resolves via activeCategory.
+    // Re-running `review` mid-session keeps the original return point.
+    set({
+      reviewReturn: state.reviewReturn ?? { category: state.activeCategory, index: state.challengeIndex },
+      activeCategory: "all",
+      reviewQueue: queue.slice(1),
+      reviewTotal: queue.length,
+    });
+    get().loadChallenge(registryIndex(queue[0]));
+  },
+
+  // Player-initiated jump (goto/next/prev, challenge dropdown): abandons any
+  // in-flight review session. Deliberately a separate action rather than a
+  // cancelReview inside loadChallenge: review chaining and restartChallenge go
+  // through loadChallenge, and neither must abort the session.
+  jumpToChallenge: (index) => {
+    get().cancelReview();
+    get().loadChallenge(index);
+  },
+
+  // Abandon an in-flight review session (jumpToChallenge, selectCategory).
+  cancelReview: () => {
+    if (get().reviewReturn === null) return;
+    set({ reviewReturn: null, reviewQueue: [], reviewTotal: 0 });
   },
 
   clearFlash: () => set({ flash: null }),
@@ -519,11 +631,15 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: "term-crunch-progress",
-      // Only personal bests survive a refresh; fs/windows/challenge index reseed
-      // on mount (GameShell calls loadChallenge(0) when windows.length === 0).
+      // Personal bests + review scheduling survive a refresh; fs/windows/
+      // challenge index reseed on mount (GameShell calls loadChallenge(0) when
+      // windows.length === 0). Mid-review, activeCategory is temporarily "all",
+      // so persist the pre-review track instead: a refresh drops the transient
+      // review session and must not strand the player on "all".
       partialize: (s) => ({
         bestTimes: s.bestTimes,
-        activeCategory: s.activeCategory,
+        reviewStats: s.reviewStats,
+        activeCategory: s.reviewReturn?.category ?? s.activeCategory,
         zshrc: s.zshrc,
         tmuxConf: s.tmuxConf,
       }),

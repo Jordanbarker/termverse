@@ -77,12 +77,12 @@ export const gitUnstage: Challenge = {
       },
     },
     {
-      instruction: 'Commit the staged app.js change with the message "Update app".',
+      instruction: "Commit the staged app.js change (any message works).",
       hint: "Commit what's staged; the unstaged secrets file stays behind in your working tree.",
-      command: 'git commit -m "Update app"',
+      command: 'git commit -m "update"',
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);
-        return g.commitCount === 2 && g.latestMessage === "Update app" && g.untracked.includes(".env") && envIntact(s.fs);
+        return g.commitCount === 2 && g.untracked.includes(".env") && envIntact(s.fs);
       },
     },
   ],

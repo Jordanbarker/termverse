@@ -31,3 +31,11 @@ export const SELECTABLE_CATEGORIES = CATEGORIES.filter((c) => c.challenges.lengt
 export function getCategory(id: string): Category {
   return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0];
 }
+
+/**
+ * Challenge id -> index in the full registry (== the "all" category's index;
+ * that's the only category where id-derived indices are safe). -1 if unknown.
+ */
+export function registryIndex(id: string): number {
+  return CHALLENGES.findIndex((c) => c.id === id);
+}

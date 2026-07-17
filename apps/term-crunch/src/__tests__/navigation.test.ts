@@ -81,7 +81,7 @@ describe("challenge navigation commands", () => {
 
   it("help lists the navigation commands as cyan meta commands", () => {
     const out = run("help").output;
-    for (const name of ["challenges", "goto", "next", "prev", "track"]) {
+    for (const name of ["challenges", "goto", "next", "prev", "track", "review"]) {
       // meta commands render cyan (36m), unlike the green in-world commands
       expect(out).toMatch(new RegExp(`\\x1b\\[36m${name}\\b`));
     }
