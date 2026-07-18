@@ -72,7 +72,7 @@ describe("git commit message errors", () => {
 });
 
 function setupCommittedRepo(): CommandContext {
-  let ctx = setupRepoWithStagedFile();
+  const ctx = setupRepoWithStagedFile();
   const result = git(ctx, ["commit", "-m", "init"]);
   expect(result.newFs).toBeDefined();
   return { ...ctx, fs: result.newFs! };
