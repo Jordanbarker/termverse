@@ -150,10 +150,21 @@ const git: CommandHandler = (_args, _parserFlags, ctx) => {
 
     case "commit": {
       const message = typeof flags["m"] === "string" ? flags["m"] : null;
-      if (!message && !flags["amend"]) {
-        return { output: "error: switch `m' requires a value" };
-      }
       const amend = !!flags["amend"];
+      if (message === null && !amend) {
+        if (flags["m"] === true) {
+          // -m given with no value
+          return { output: "error: switch `m' requires a value", exitCode: 129 };
+        }
+        // No -m at all: real git would open an editor; we have none.
+        return {
+          output: "error: Terminal is dumb, but EDITOR unset\nPlease supply the message using either -m or -F option.",
+          exitCode: 1,
+        };
+      }
+      if (message === "" && !amend) {
+        return { output: "Aborting commit due to empty commit message.", exitCode: 1 };
+      }
       const autoStage = !!flags["a"];
       const timestamp = (ctx.clock?.now() ?? new Date()).getTime();
       const result = gitCommit(ctx.fs, root, message ?? "", author, amend, autoStage, timestamp);
