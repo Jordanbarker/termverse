@@ -97,3 +97,27 @@ describe("missing-operand exit codes", () => {
     expect(result.exitCode).toBe(1);
   });
 });
+
+describe("unset", () => {
+  it("removes only the named variables", () => {
+    const ctx = createContext();
+    let committed: Record<string, string> | null = null;
+    ctx.envVars = { SAFEGUARDS: "on", ENV: "prod" };
+    ctx.setEnvVars = (next) => { committed = next; };
+    const result = execute("unset", ["SAFEGUARDS"], {}, ctx);
+    expect(result.exitCode ?? 0).toBe(0);
+    expect(committed).toEqual({ ENV: "prod" });
+  });
+
+  it("unsetting a variable that is not set succeeds silently (zsh)", () => {
+    const result = run("unset", ["NOPE"]);
+    expect(result.output).toBe("");
+    expect(result.exitCode ?? 0).toBe(0);
+  });
+
+  it("with no args exits 1", () => {
+    const result = run("unset", []);
+    expect(result.output).toBe("unset: not enough arguments");
+    expect(result.exitCode).toBe(1);
+  });
+});

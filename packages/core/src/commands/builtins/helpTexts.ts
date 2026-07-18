@@ -584,6 +584,12 @@ export const HELP_TEXTS: Record<string, string> = {
     "With no arguments, list all exported variables.",
   ].join("\n"),
 
+  unset: [
+    "Usage: unset NAME...",
+    "",
+    "Remove environment variables from the current shell.",
+  ].join("\n"),
+
   alias: [
     "Usage: alias [name[=value] ...]",
     "",

@@ -51,4 +51,18 @@ const exportCmd: CommandHandler = (args, _flags, ctx) => {
   return { output: "", triggerEvents: events.length ? events : undefined };
 };
 
+const unsetCmd: CommandHandler = (args, _flags, ctx) => {
+  if (args.length === 0) {
+    return { output: "unset: not enough arguments", exitCode: 1 };
+  }
+  // zsh: unsetting a variable that isn't set is not an error.
+  if (ctx.envVars && ctx.setEnvVars) {
+    const next = { ...ctx.envVars };
+    for (const name of args) delete next[name];
+    ctx.setEnvVars(next);
+  }
+  return { output: "" };
+};
+
 register("export", exportCmd, "Set environment variables", HELP_TEXTS.export);
+register("unset", unsetCmd, "Remove environment variables", HELP_TEXTS.unset);

@@ -70,6 +70,17 @@ export interface Challenge {
   targetWindows?: WindowState[];
   /** Git challenges: the repo path validators + the panel readout point at. */
   gitRepoPath?: string;
+  /**
+   * Starting cwd for the initial window (ignored when `initialWindow` is set;
+   * `gitRepoPath` already implies its own starting cwd). Omitted = ~.
+   */
+  startCwd?: string;
+  /**
+   * Env vars seeded into the session at load, on top of the player's ~/.zshrc
+   * exports (challenge wins on collision). For challenges about mutating a
+   * pre-existing environment (e.g. unset).
+   */
+  initialEnv?: Record<string, string>;
   /** Filesystem challenges: the directory the panel readout renders as a tree. */
   fsWatchPath?: string;
   /**

@@ -42,7 +42,7 @@ import { gitRebaseChallenge } from "../challenges/git-rebase";
 import { rmBomb } from "../challenges/rm-bomb";
 import { chmodPerms } from "../challenges/chmod-perms";
 import { mvOrganize } from "../challenges/mv-organize";
-import { envExport, CRUNCH_TOKEN } from "../challenges/env-export";
+import { envExport } from "../challenges/env-export";
 import { aliasShortcut } from "../challenges/alias-shortcut";
 import { copyModeYank } from "../challenges/copy-mode-yank";
 import { sessionsDetachAttach } from "../challenges/sessions-detach-attach";
@@ -775,15 +775,16 @@ describe("mv-organize challenge", () => {
 });
 
 describe("env-export challenge", () => {
-  const PROJECT = "/home/player/projects/crunchd";
-  const [setMode, setToken] = envExport.steps;
+  const PROJECT = "/home/player/projects/world-domination";
+  const [setEnv, dropSafeguards] = envExport.steps;
   const win = makeWindow(CRUNCH_MACHINE, HOME_DIR);
   const at = (envVars: Record<string, string>) =>
     ({ ...snap(win, envExport.setup(buildBaseFs())), envVars });
+  // The seeded starting environment (loadChallenge merges initialEnv in).
+  const seeded = () => ({ ...envExport.initialEnv });
 
-  // Drives the real export builtin (it reads rawArgs-style VAR=VALUE args and
-  // commits through setEnvVars).
-  function runExport(envVars: Record<string, string>, arg: string): Record<string, string> {
+  // Drives the real export/unset builtins (they commit through setEnvVars).
+  function run(cmd: string, envVars: Record<string, string>, arg: string): Record<string, string> {
     resetAvailabilityPolicy();
     let committed = envVars;
     const ctx: CommandContext = {
@@ -791,31 +792,31 @@ describe("env-export challenge", () => {
       activeComputer: CRUNCH_MACHINE,
       envVars, setEnvVars: (next) => { committed = next; },
     };
-    const r = execute("export", [arg], {}, ctx);
+    const r = execute(cmd, [arg], {}, ctx);
     expect(r.exitCode ?? 0).toBe(0);
     return committed;
   }
 
-  it("seeds the README and token file with both steps unsatisfied", () => {
-    const fs = envExport.setup(buildBaseFs());
-    expect(fs.readFile(`${PROJECT}/README`).content).toContain("CRUNCH_TOKEN");
-    expect(fs.readFile(`${PROJECT}/token.txt`).content).toContain(CRUNCH_TOKEN);
-    expect(setMode.isComplete(at({}))).toBe(false);
-    expect(setToken.isComplete(at({}))).toBe(false);
+  it("starts in the project dir with SAFEGUARDS seeded, both steps unsatisfied", () => {
+    expect(envExport.startCwd).toBe(PROJECT);
+    expect(envExport.setup(buildBaseFs()).getNode(PROJECT)).not.toBeNull();
+    expect(setEnv.isComplete(at(seeded()))).toBe(false);
+    // SAFEGUARDS is present at load, so the unset step is NOT vacuously true.
+    expect(dropSafeguards.isComplete(at(seeded()))).toBe(false);
   });
 
-  it("real export commands satisfy each step, quoted or not", () => {
-    let env = runExport({}, "BUILD_MODE=release");
-    expect(setMode.isComplete(at(env))).toBe(true);
-    expect(setToken.isComplete(at(env))).toBe(false);
-    // the builtin strips surrounding quotes, so a quoted token still matches
-    env = runExport(env, `CRUNCH_TOKEN="${CRUNCH_TOKEN}"`);
-    expect(setToken.isComplete(at(env))).toBe(true);
+  it("real export/unset commands satisfy each step", () => {
+    let env = run("export", seeded(), "ENV=prod");
+    expect(setEnv.isComplete(at(env))).toBe(true);
+    expect(dropSafeguards.isComplete(at(env))).toBe(false);
+    env = run("unset", env, "SAFEGUARDS");
+    expect(dropSafeguards.isComplete(at(env))).toBe(true);
   });
 
-  it("wrong values do not satisfy the steps", () => {
-    expect(setMode.isComplete(at({ BUILD_MODE: "debug" }))).toBe(false);
-    expect(setToken.isComplete(at({ CRUNCH_TOKEN: "crunch-wrong" }))).toBe(false);
+  it("wrong or empty values do not satisfy the steps", () => {
+    expect(setEnv.isComplete(at({ ...seeded(), ENV: "dev" }))).toBe(false);
+    // export SAFEGUARDS= leaves the key set — only removal counts.
+    expect(dropSafeguards.isComplete(at({ SAFEGUARDS: "" }))).toBe(false);
   });
 });
 
@@ -876,15 +877,18 @@ describe("shell env win-detection (store)", () => {
   const select = (id: string) =>
     useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === id));
 
-  it("export-driven envVars advance env-export step by step", () => {
+  it("export/unset-driven envVars advance env-export step by step", () => {
     const state = useGameStore.getState;
     select("env-export");
+    // loadChallenge merges initialEnv, so the unset step isn't pre-satisfied.
+    expect(state().envVars.SAFEGUARDS).toBe("on");
     state().checkCompletion();
     expect(state().stepIndex).toBe(0);
-    state().setEnvVars({ ...state().envVars, BUILD_MODE: "release" });
+    state().setEnvVars({ ...state().envVars, ENV: "prod" });
     state().checkCompletion();
     expect(state().stepIndex).toBe(1);
-    state().setEnvVars({ ...state().envVars, CRUNCH_TOKEN });
+    const { SAFEGUARDS: _sg, ...rest } = state().envVars;
+    state().setEnvVars(rest);
     state().checkCompletion();
     expect(state().awaitingContinue || state().completed).toBe(true);
   });
@@ -1082,6 +1086,11 @@ describe("starting cwd", () => {
   it("drops the player inside the repo for git challenges", () => {
     useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "git-first-commit"));
     expect(leafCwd()).toBe(gitFirstCommit.gitRepoPath);
+  });
+
+  it("drops the player at startCwd when the challenge sets one", () => {
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "env-export"));
+    expect(leafCwd()).toBe(envExport.startCwd);
   });
 
   it("starts non-git challenges at HOME_DIR", () => {

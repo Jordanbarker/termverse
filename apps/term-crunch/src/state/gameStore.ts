@@ -203,14 +203,15 @@ export const useGameStore = create<GameState>()(
     // the zshrc's aliases/exports for the session (mirrors a login shell sourcing
     // ~/.zshrc; explicit `source` still works for re-applying edits mid-session).
     const fs = applyConfigs(challenge.setup(buildBaseFs()), zshrc, tmuxConf);
-    // Git challenges drop the player inside the seeded repo (gitRepoPath) so they
-    // don't have to `cd` in before any git command works; everything else starts at ~.
+    // Challenges can pick their starting cwd (startCwd); git challenges drop the
+    // player inside the seeded repo (gitRepoPath) so they don't have to `cd` in
+    // before any git command works; everything else starts at ~.
     const win = challenge.initialWindow
       ? challenge.initialWindow()
-      : makeWindow(CRUNCH_MACHINE, challenge.gitRepoPath ?? HOME_DIR);
+      : makeWindow(CRUNCH_MACHINE, challenge.startCwd ?? challenge.gitRepoPath ?? HOME_DIR);
     set({
       fs,
-      envVars: parseEnvAssignments(zshrc),
+      envVars: { ...parseEnvAssignments(zshrc), ...challenge.initialEnv },
       aliases: parseAliases(zshrc),
       windows: [win],
       activeWindowId: win.id,
@@ -398,12 +399,15 @@ export const useGameStore = create<GameState>()(
   // Save edited configs: persist the strings, re-seed them into the current fs,
   // and re-derive envVars/aliases from the new zshrc so the change takes effect
   // immediately (no challenge reset). tmux.conf is read reactively by TabManager.
+  // Re-merge the challenge's initialEnv so a mid-challenge Settings save can't
+  // wipe a seeded var and falsely satisfy an unset-style predicate.
   setConfigs: (zshrc, tmuxConf) => {
+    const challenge = getCategory(get().activeCategory).challenges[get().challengeIndex];
     set((state) => ({
       zshrc,
       tmuxConf,
       fs: applyConfigs(state.fs, zshrc, tmuxConf),
-      envVars: parseEnvAssignments(zshrc),
+      envVars: { ...parseEnvAssignments(zshrc), ...challenge?.initialEnv },
       aliases: parseAliases(zshrc),
     }));
   },
