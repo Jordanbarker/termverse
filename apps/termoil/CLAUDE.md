@@ -8,7 +8,7 @@ A narrative-driven browser game that teaches Linux/terminal through a workplace 
 
 ## In-Game Commands
 
-The full builtin roster + registration lives in `src/engine/commands/builtins/` and `story/commandGates.ts` — read there rather than a mirror. Highlights: standard coreutils (`ls`/`cd`/`cat`/`grep`/`find`/`sort`/etc.), editors/viewers (`nano`/`less`), narrative tools (`mail`/`piper`/`chip`), data tools (`snow`/`dbt`/`git`, dev-container only), computer nav (`ssh`/`coder`/`exit`/`shutdown`), and save control (`save`/`load`/`newgame`). Pipes (`|`), redirection (`>`/`>>`, zsh multios, prechecked), stdin passing, and chaining (`&&`/`||`/`;`) are all supported; shell-layer errors use zsh wording (only the `bash` script runner keeps `bash:` prefixes). See the **commands** skill.
+The full builtin roster + registration lives in `src/engine/commands/builtins/` and `story/commandGates.ts` — read there rather than a mirror. Highlights: standard coreutils (`ls`/`cd`/`cat`/`grep`/`find`/`sort`/etc.), editors/viewers (`nano`/`vim`/`less`), narrative tools (`mail`/`piper`/`chip`), data tools (`snow`/`dbt`/`git`, dev-container only), computer nav (`ssh`/`coder`/`exit`/`shutdown`), and save control (`save`/`load`/`newgame`). Pipes (`|`), redirection (`>`/`>>`, zsh multios, prechecked), stdin passing, and chaining (`&&`/`||`/`;`) are all supported; shell-layer errors use zsh wording (only the `bash` script runner keeps `bash:` prefixes). See the **commands** skill.
 
 ## Project Structure
 

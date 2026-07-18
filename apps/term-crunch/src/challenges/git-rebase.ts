@@ -72,7 +72,7 @@ export const gitRebaseChallenge: Challenge = {
   title: "Rebase onto main and resolve a conflict",
   type: "git",
   gitRepoPath: PROJECT_DIR,
-  commands: ["git", "nano", "ls", "cat", "cd", "pwd"],
+  commands: ["git", "nano", "vim", "ls", "cat", "cd", "pwd"],
   brief:
     "main has moved on and edited the same config.txt line as your feature commit. " +
     "Rebase feature onto main, resolve the conflict, and finish.",

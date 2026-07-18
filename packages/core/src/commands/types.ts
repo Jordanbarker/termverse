@@ -77,6 +77,8 @@ export interface EditorSessionInfo {
   content: string;
   readOnly: boolean;
   isNewFile: boolean;
+  /** Which editor session class the app router should start. Absent = nano. */
+  editor?: "nano" | "vim";
   triggerRow?: number;
   triggerEvents?: GameEvent[];
   requireSave?: boolean;

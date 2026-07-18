@@ -7,6 +7,7 @@ import "./clear";
 import "./help";
 import "./shortcuts";
 import "./nano";
+import "./vim";
 import "./python";
 import "./snow";
 import "./dbt";

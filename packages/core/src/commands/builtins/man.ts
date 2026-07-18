@@ -76,6 +76,7 @@ function getCommandDescription(cmd: string): string {
     whoami: "print effective userid",
     history: "display command history",
     nano: "a small and friendly text editor",
+    vim: "Vi IMproved, a programmer's text editor",
     mail: "send and receive email",
     clear: "clear the terminal screen",
     help: "list available commands",

@@ -54,6 +54,21 @@ export const HELP_TEXTS: Record<string, string> = {
     "  Ctrl+X   Exit the editor",
   ].join("\n"),
 
+  vim: [
+    "Usage: vim [FILE]",
+    "",
+    "Open FILE in the vim modal text editor (alias: vi).",
+    "If FILE does not exist, create a new file.",
+    "",
+    "  i / a / o        Enter insert mode (Esc returns to normal mode)",
+    "  h j k l          Move the cursor; w/b/e by word, 0/^/$ within the line",
+    "  dd / yy / p      Delete / yank the line, paste; dw, d$, 3dd etc.",
+    "  v / V            Visual (character / line) selection",
+    "  u / Ctrl+R       Undo / redo",
+    "  /text            Search (n/N for next/previous match)",
+    "  :w  :q  :wq  :q! Save, quit, save-and-quit, quit without saving",
+  ].join("\n"),
+
   mail: [
     "Usage: mail [MESSAGE_NUMBER]",
     "       mail -s SUBJECT RECIPIENT",

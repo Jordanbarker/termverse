@@ -8,6 +8,7 @@ import { nodeBox } from "@tt/core/terminal/paneTypes";
 import { COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { EditorSession } from "@tt/core/editor/EditorSession";
+import { VimSession } from "@tt/core/vim/VimSession";
 import { LessSession } from "@tt/core/pager/LessSession";
 import type { ISession, SessionResult } from "@tt/core/session/types";
 import type { SessionToStart } from "@tt/core/commands/applyResult";
@@ -45,7 +46,8 @@ export default function TabManager() {
   function startSessionFor(paneId: string, rt: PaneRuntime, s: SessionToStart) {
     let session: ISession;
     if (s.type === "editor") {
-      session = new EditorSession(
+      const EditorClass = s.info.editor === "vim" ? VimSession : EditorSession;
+      session = new EditorClass(
         rt.term,
         useGameStore.getState().fs,
         s.info.filePath,

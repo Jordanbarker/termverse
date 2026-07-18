@@ -45,7 +45,7 @@ The dispatcher rejects unknown flags by default (coreutils-style `<cmd>: invalid
 
 ## Sessions (`session/types.ts`)
 
-`ISession` (`enter`/`handleInput`/optional `canClose`/`resize`) + `SessionResult`. Session kinds: editor (nano), snow-sql, pythonRepl, prompt, ssh, chip, piper, less. **Alt-screen sessions (editor, piper, less)** are recognized in `useSessionRouter.routeInput`'s `usedAltScreen` check so the post-session prompt writes cleanly — add new alt-screen sessions to that list.
+`ISession` (`enter`/`handleInput`/optional `canClose`/`resize`) + `SessionResult`. Session kinds: editor (nano or vim — `EditorSessionInfo.editor` picks the class in each app router; absent = nano; both builtins share `builtins/editorOpen.ts` for open/validation and the backup.sh trigger; vim lives in `packages/core/src/vim/` with pure grammar/motion/edit modules + `VimSession`), snow-sql, pythonRepl, prompt, ssh, chip, piper, less. **Alt-screen sessions (editor, piper, less)** are recognized in `useSessionRouter.routeInput`'s `usedAltScreen` check so the post-session prompt writes cleanly — add new alt-screen sessions to that list. Trap: termoil's command gating is keyed by the literal typed name (`vim` and `vi` are separate `commandGates.ts` entries) while term-crunch allowlists resolve aliases via `getPrimaryName` (listing `vim` covers `vi`).
 
 ## Command availability (`availability.ts`)
 
