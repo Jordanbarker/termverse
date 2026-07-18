@@ -7,7 +7,7 @@ import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 
 const mkdir: CommandHandler = (args, flags, ctx) => {
   if (args.length === 0) {
-    return { output: "mkdir: missing operand" };
+    return { output: "mkdir: missing operand", exitCode: 1 };
   }
 
   const createParents = flags["p"];

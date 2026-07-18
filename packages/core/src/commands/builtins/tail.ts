@@ -17,9 +17,14 @@ const tail: CommandHandler = (args, _flags, ctx) => {
     if (effectiveArgs[i] === "-f" || effectiveArgs[i] === "--follow") {
       return { output: "tail: -f: follow not supported in this terminal", exitCode: 2 };
     }
-    if (effectiveArgs[i] === "-n" && i + 1 < effectiveArgs.length) {
+    if (effectiveArgs[i] === "-n") {
+      if (i + 1 >= effectiveArgs.length) {
+        return { output: "tail: option requires an argument -- 'n'", exitCode: 1 };
+      }
       numLines = parseInt(effectiveArgs[i + 1], 10);
-      if (isNaN(numLines) || numLines < 0) numLines = 10;
+      if (isNaN(numLines) || numLines < 0) {
+        return { output: `tail: invalid number of lines: '${effectiveArgs[i + 1]}'`, exitCode: 1 };
+      }
       i++;
     } else if (/^-\d+$/.test(effectiveArgs[i])) {
       // -N shorthand (e.g. tail -3 file)

@@ -70,3 +70,60 @@ describe("git commit message errors", () => {
     expect(result.exitCode).toBeUndefined();
   });
 });
+
+function setupCommittedRepo(): CommandContext {
+  let ctx = setupRepoWithStagedFile();
+  const result = git(ctx, ["commit", "-m", "init"]);
+  expect(result.newFs).toBeDefined();
+  return { ...ctx, fs: result.newFs! };
+}
+
+describe("git value-flag and exit-code fidelity", () => {
+  it("checkout -b with no value errors instead of creating branch 'true'", () => {
+    const result = git(setupCommittedRepo(), ["checkout", "-b"]);
+    expect(result.output).toBe("error: switch `b' requires a value");
+    expect(result.exitCode).toBe(129);
+  });
+
+  it("checkout -b '' rejects the empty branch name", () => {
+    const result = git(setupCommittedRepo(), ["checkout", "-b", ""]);
+    expect(result.output).toBe("fatal: '' is not a valid branch name");
+    expect(result.exitCode).toBe(128);
+  });
+
+  it("checkout -b feature main creates 'feature', not 'main'", () => {
+    const result = git(setupCommittedRepo(), ["checkout", "-b", "feature", "main"]);
+    expect(result.output).toContain("feature");
+    expect(result.newFs).toBeDefined();
+  });
+
+  it("switch -c with no value errors", () => {
+    const result = git(setupCommittedRepo(), ["switch", "-c"]);
+    expect(result.output).toBe("error: switch `c' requires a value");
+    expect(result.exitCode).toBe(129);
+  });
+
+  it("clone -b with no value errors instead of being ignored", () => {
+    const result = git(setupCommittedRepo(), ["clone", "-b"]);
+    expect(result.exitCode).toBe(129);
+  });
+
+  it("usage errors report nonzero exit codes", () => {
+    const ctx = setupCommittedRepo();
+    expect(git(ctx, ["rm"]).exitCode).toBe(129);
+    expect(git(ctx, ["add"]).exitCode).toBe(1);
+    expect(git(ctx, ["branch", "-d"]).exitCode).toBe(128);
+    expect(git(ctx, ["branch", "-d"]).output).toBe("fatal: branch name required");
+    expect(git(ctx, ["checkout"]).exitCode).toBe(1);
+    expect(git(ctx, ["stash", "bogus"]).exitCode).toBe(129);
+  });
+});
+
+describe("git commit happy path", () => {
+  it("commits with a non-empty message", () => {
+    const result = git(setupRepoWithStagedFile(), ["commit", "-m", "a"]);
+    expect(result.output).toContain("a");
+    expect(result.newFs).toBeDefined();
+    expect(result.exitCode).toBeUndefined();
+  });
+});

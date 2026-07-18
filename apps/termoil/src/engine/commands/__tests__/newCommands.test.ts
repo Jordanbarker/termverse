@@ -977,10 +977,10 @@ describe("head (additional)", () => {
     expect(result.output).toContain("==> old.txt <==");
   });
 
-  it("falls back to 10 for invalid -n value", () => {
+  it("errors on invalid -n value", () => {
     const result = execute("head", ["-n", "abc", "log.txt"], {}, ctx());
-    const lines = result.output.split("\n");
-    expect(lines.length).toBe(10);
+    expect(result.output).toBe("head: invalid number of lines: 'abc'");
+    expect(result.exitCode).toBe(1);
   });
 
   it("returns error when no file and no stdin", () => {
@@ -1015,10 +1015,10 @@ describe("tail (additional)", () => {
     expect(result.output).toContain("==> old.txt <==");
   });
 
-  it("falls back to 10 for invalid -n value", () => {
+  it("errors on invalid -n value", () => {
     const result = execute("tail", ["-n", "abc", "log.txt"], {}, ctx());
-    const lines = result.output.split("\n");
-    expect(lines.length).toBe(10);
+    expect(result.output).toBe("tail: invalid number of lines: 'abc'");
+    expect(result.exitCode).toBe(1);
   });
 
   it("returns error when no file and no stdin", () => {

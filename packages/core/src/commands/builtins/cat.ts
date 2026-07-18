@@ -23,7 +23,7 @@ const cat: CommandHandler = (args, flags, ctx) => {
     return { output: numbered ? numberLines(ctx.stdin, counter) : ctx.stdin };
   }
   if (args.length === 0) {
-    return { output: "cat: missing file operand" };
+    return { output: "cat: missing file operand", exitCode: 1 };
   }
 
   const outputs: string[] = [];

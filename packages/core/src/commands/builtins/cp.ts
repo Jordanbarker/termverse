@@ -55,7 +55,7 @@ function copyDir(
 
 const cp: CommandHandler = (args, flags, ctx) => {
   if (args.length < 2) {
-    return { output: "cp: missing operand\nUsage: cp SOURCE DEST" };
+    return { output: "cp: missing operand\nUsage: cp SOURCE DEST", exitCode: 1 };
   }
 
   const srcPath = resolvePath(args[0], ctx.cwd, ctx.homeDir);

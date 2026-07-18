@@ -24,7 +24,7 @@ function collectRemoveEvents(node: FSNode, path: string): GameEvent[] {
 
 const rm: CommandHandler = (args, flags, ctx) => {
   if (args.length === 0) {
-    return { output: "rm: missing operand" };
+    return { output: "rm: missing operand", exitCode: 1 };
   }
 
   const recursive = flags["r"] || flags["R"];

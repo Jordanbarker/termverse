@@ -14,9 +14,14 @@ const head: CommandHandler = (args, _flags, ctx) => {
   const fileArgs: string[] = [];
 
   for (let i = 0; i < effectiveArgs.length; i++) {
-    if (effectiveArgs[i] === "-n" && i + 1 < effectiveArgs.length) {
+    if (effectiveArgs[i] === "-n") {
+      if (i + 1 >= effectiveArgs.length) {
+        return { output: "head: option requires an argument -- 'n'", exitCode: 1 };
+      }
       numLines = parseInt(effectiveArgs[i + 1], 10);
-      if (isNaN(numLines) || numLines < 0) numLines = 10;
+      if (isNaN(numLines) || numLines < 0) {
+        return { output: `head: invalid number of lines: '${effectiveArgs[i + 1]}'`, exitCode: 1 };
+      }
       i++;
     } else if (/^-\d+$/.test(effectiveArgs[i])) {
       // -N shorthand (e.g. head -3 file)

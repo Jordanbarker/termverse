@@ -32,7 +32,7 @@ function guessFileType(name: string, content: string): string {
 
 const file: CommandHandler = (args, _flags, ctx) => {
   if (args.length === 0) {
-    return { output: "file: missing file operand" };
+    return { output: "file: missing file operand", exitCode: 1 };
   }
 
   const outputs: string[] = [];

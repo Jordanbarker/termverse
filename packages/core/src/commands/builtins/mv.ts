@@ -26,7 +26,7 @@ function buildMoveEvents(srcNode: FSNode, srcPath: string, destPath: string): Ga
 
 const mv: CommandHandler = (args, _flags, ctx) => {
   if (args.length < 2) {
-    return { output: "mv: missing operand\nUsage: mv SOURCE DEST" };
+    return { output: "mv: missing operand\nUsage: mv SOURCE DEST", exitCode: 1 };
   }
 
   const srcPath = resolvePath(args[0], ctx.cwd, ctx.homeDir);

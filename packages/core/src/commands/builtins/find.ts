@@ -51,14 +51,21 @@ const find: CommandHandler = (args, _flags, ctx) => {
 
   // Parse expressions
   while (i < effectiveArgs.length) {
-    if (effectiveArgs[i] === "-name" && i + 1 < effectiveArgs.length) {
+    if (effectiveArgs[i] === "-name") {
+      if (i + 1 >= effectiveArgs.length) {
+        return { output: "find: -name: requires additional arguments", exitCode: 1 };
+      }
       namePattern = globToRegex(effectiveArgs[i + 1]);
       i += 2;
-    } else if (effectiveArgs[i] === "-type" && i + 1 < effectiveArgs.length) {
-      const t = effectiveArgs[i + 1];
-      if (t === "f" || t === "d") {
-        typeFilter = t;
+    } else if (effectiveArgs[i] === "-type") {
+      if (i + 1 >= effectiveArgs.length) {
+        return { output: "find: -type: requires additional arguments", exitCode: 1 };
       }
+      const t = effectiveArgs[i + 1];
+      if (t !== "f" && t !== "d") {
+        return { output: `find: -type: ${t}: unknown type`, exitCode: 1 };
+      }
+      typeFilter = t;
       i += 2;
     } else {
       i++;
