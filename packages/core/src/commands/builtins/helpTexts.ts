@@ -92,14 +92,14 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "dbt (data build tool): transform data in the warehouse.",
     "",
-    "  dbt run              Run all models",
-    "  dbt test             Run data tests",
-    "  dbt build            Run models then tests",
-    "  dbt ls               List resources",
-    "  dbt debug            Show connection info",
-    "  dbt compile          Show compiled SQL",
-    "  dbt show             Preview model output",
-    "  dbt --version        Show dbt version",
+    "  dbt run [-s <model>]      Run all models (-s/--select: just one model)",
+    "  dbt test                  Run data tests",
+    "  dbt build [-s <model>]    Run models then tests",
+    "  dbt ls [--resource-type <type>]  List resources (alias: dbt list)",
+    "  dbt debug                 Show connection info",
+    "  dbt compile [-s <model>]  Show compiled SQL",
+    "  dbt show [-s <model>]     Preview model output",
+    "  dbt --version             Show dbt version",
   ].join("\n"),
 
   grep: [
@@ -130,6 +130,7 @@ export const HELP_TEXTS: Record<string, string> = {
     "Display the first 10 lines of each FILE.",
     "",
     "  -n NUM   output the first NUM lines",
+    "  -NUM     same as -n NUM (e.g. head -5 file)",
   ].join("\n"),
 
   tail: [
@@ -137,8 +138,9 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "Display the last 10 lines of each FILE.",
     "",
-    "  -n NUM   output the last NUM lines",
-    "  -f       follow appended data (not supported in this terminal)",
+    "  -n NUM        output the last NUM lines",
+    "  -NUM          same as -n NUM (e.g. tail -5 file)",
+    "  -f, --follow  follow appended data (not supported in this terminal)",
   ].join("\n"),
 
   less: [
@@ -363,7 +365,6 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "List information about all available block devices.",
     "",
-    "  -a   include empty devices",
     "  -f   show filesystem type and mountpoints",
   ].join("\n"),
 
@@ -414,6 +415,24 @@ export const HELP_TEXTS: Record<string, string> = {
     "  git stash [push] [-u]           Set changes aside (-u: include untracked files)",
     "  git stash pop                   Re-apply the most recent stash",
     "  git stash list                  List stashes",
+  ].join("\n"),
+
+  exit: [
+    "Usage: exit",
+    "",
+    "Exit the current remote session (e.g. after ssh), returning to the previous shell.",
+  ].join("\n"),
+
+  true: [
+    "Usage: true",
+    "",
+    "Do nothing, successfully (exit code 0).",
+  ].join("\n"),
+
+  false: [
+    "Usage: false",
+    "",
+    "Do nothing, unsuccessfully (exit code 1).",
   ].join("\n"),
 
   bash: [
@@ -520,13 +539,13 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "Manage Coder remote development workspaces.",
     "",
-    "  coder list            List workspaces",
+    "  coder list            List workspaces (alias: coder ls)",
     "  coder start <name>    Start a workspace",
     "  coder stop <name>     Stop a workspace",
     "  coder ssh <name>      SSH into a workspace",
     "  coder logs <name>     Show workspace build logs",
-    "  coder create          Create a new workspace",
-    "  coder delete          Delete a workspace",
+    "  coder create          Create a new workspace (requires admin permissions)",
+    "  coder delete          Delete a workspace (requires admin permissions)",
   ].join("\n"),
 
   chip: [

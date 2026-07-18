@@ -1,5 +1,6 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "@tt/core/commands/registry";
+import { HELP_TEXTS } from "@tt/core/commands/builtins/helpTexts";
 
 const VALID_SLOTS = ["1", "2", "3"];
 
@@ -17,4 +18,4 @@ const save: CommandHandler = (args) => {
   return { output: "", gameAction: { type: "save", slotId } };
 };
 
-register("save", save, "Save game to a slot (save [1|2|3])");
+register("save", save, "Save game to a slot (save [1|2|3])", HELP_TEXTS.save);

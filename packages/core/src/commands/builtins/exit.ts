@@ -1,5 +1,6 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
+import { HELP_TEXTS } from "./helpTexts";
 
 const exit: CommandHandler = (_args, _flags, ctx) => {
   if (ctx.activeComputer === "erik-pc") {
@@ -38,4 +39,4 @@ const exit: CommandHandler = (_args, _flags, ctx) => {
   return { output: "" };
 };
 
-register("exit", exit, "Exit the current remote session");
+register("exit", exit, "Exit the current remote session", HELP_TEXTS.exit);

@@ -1,5 +1,6 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register, execute } from "../registry";
+import { HELP_TEXTS } from "./helpTexts";
 
 const sudo: CommandHandler = (args, _flags, ctx) => {
   if (args.length === 0) {
@@ -10,4 +11,4 @@ const sudo: CommandHandler = (args, _flags, ctx) => {
   return execute(subcommand, subArgs, {}, { ...ctx, elevated: true });
 };
 
-register("sudo", sudo, "Execute a command with elevated privileges");
+register("sudo", sudo, "Execute a command with elevated privileges", HELP_TEXTS.sudo);

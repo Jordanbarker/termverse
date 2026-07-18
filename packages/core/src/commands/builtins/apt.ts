@@ -1,5 +1,6 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
+import { HELP_TEXTS } from "./helpTexts";
 
 const INSTALLABLE_PACKAGES: Record<string, {
   flag: string;
@@ -117,4 +118,4 @@ const apt: CommandHandler = (args, _flags, ctx) => {
   return { output: "Usage: apt <update|upgrade|install> [package]" };
 };
 
-register("apt", apt, "Package manager");
+register("apt", apt, "Package manager", HELP_TEXTS.apt);

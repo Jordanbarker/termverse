@@ -88,9 +88,17 @@ export const gitRebaseChallenge: Challenge = {
       },
     },
     {
-      instruction:
-        "Resolve the conflict in config.txt (pick the version you want, remove the conflict markers), then mark it resolved.",
-      hint: "Edit config.txt in nano to delete the <<<<<<< / ======= / >>>>>>> lines and leave the content you want, save, then stage the file to mark the conflict resolved.",
+      instruction: "Open config.txt and delete the conflict markers, keeping the version you want.",
+      hint: "Edit config.txt in nano to remove the <<<<<<< / ======= / >>>>>>> lines, leave just the content you want, and save.",
+      command: "nano config.txt",
+      isComplete: (s) => {
+        const g = readGitState(s.fs, PROJECT_DIR);
+        return g.rebaseInProgress && !hasConflictMarkers(configContent(s.fs));
+      },
+    },
+    {
+      instruction: "Mark the resolved file so the rebase knows the conflict is handled.",
+      hint: "Stage config.txt to mark the conflict resolved.",
       command: "git add config.txt",
       isComplete: (s) => {
         const g = readGitState(s.fs, PROJECT_DIR);

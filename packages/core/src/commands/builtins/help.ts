@@ -1,6 +1,7 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register, getAvailableCommands } from "../registry";
 import { colorize, ansi } from "@tt/core/lib/ansi";
+import { HELP_TEXTS } from "./helpTexts";
 
 const META_COMMANDS = new Set(["save", "load", "newgame", "cheat", "shortcuts"]);
 
@@ -47,4 +48,4 @@ const help: CommandHandler = (_args, _flags, ctx) => {
   return { output: lines.join("\n") };
 };
 
-register("help", help, "Show available commands");
+register("help", help, "Show available commands", HELP_TEXTS.help);

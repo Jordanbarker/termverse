@@ -1,6 +1,7 @@
 import { CommandHandler } from "@tt/core/commands/types";
 import { register } from "../registry";
 import { colorize, ansi } from "@tt/core/lib/ansi";
+import { HELP_TEXTS } from "./helpTexts";
 
 const shortcuts: CommandHandler = (_args, _flags, ctx) => {
   const PAD = 21;
@@ -74,4 +75,4 @@ const shortcuts: CommandHandler = (_args, _flags, ctx) => {
   return { output: lines.join("\n") };
 };
 
-register("shortcuts", shortcuts, "Show keyboard shortcuts");
+register("shortcuts", shortcuts, "Show keyboard shortcuts", HELP_TEXTS.shortcuts);

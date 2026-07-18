@@ -1019,9 +1019,9 @@ describe("--help", () => {
   const gameCommands = ["save", "load", "newgame", "help"] as const;
 
   for (const cmd of gameCommands) {
-    it(`${cmd} --help does NOT return help text`, () => {
+    it(`${cmd} --help returns help text`, () => {
       const result = execute(cmd, [], { help: true }, ctx());
-      expect(result.output).not.toBe(HELP_TEXTS[cmd]);
+      expect(result.output).toBe(HELP_TEXTS[cmd]);
     });
   }
 });

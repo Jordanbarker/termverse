@@ -2,6 +2,7 @@ import { CommandHandler, IncrementalLine } from "@tt/core/commands/types";
 import { register } from "@tt/core/commands/registry";
 import { colorize, ansi } from "@tt/core/lib/ansi";
 import type { ComputerId } from "../../../state/types";
+import { HELP_TEXTS } from "@tt/core/commands/builtins/helpTexts";
 
 interface WorkspaceSpec {
   template: string;
@@ -216,4 +217,4 @@ const coder: CommandHandler = (args, _flags, ctx) => {
   }
 };
 
-register("coder", coder, "Remote development environments on Coder");
+register("coder", coder, "Remote development environments on Coder", HELP_TEXTS.coder);

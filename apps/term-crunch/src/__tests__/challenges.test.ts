@@ -433,7 +433,7 @@ describe("git-unstage challenge", () => {
 describe("git-rebase challenge", () => {
   const repo = gitRebaseChallenge.gitRepoPath!;
   const CONFIG = `${repo}/config.txt`;
-  const [step1, step2, step3] = gitRebaseChallenge.steps;
+  const [step1, step2, step3, step4] = gitRebaseChallenge.steps;
 
   function write(fs: ReturnType<typeof gitRebaseChallenge.setup>, content: string) {
     const r = fs.writeFile(CONFIG, content);
@@ -447,7 +447,7 @@ describe("git-rebase challenge", () => {
     const win = makeWindow(CRUNCH_MACHINE, repo);
     // freshly seeded: nothing done yet
     expect(step1.isComplete(snap(win, fs, repo))).toBe(false);
-    expect(step3.isComplete(snap(win, fs, repo))).toBe(false);
+    expect(step4.isComplete(snap(win, fs, repo))).toBe(false);
   });
 
   it("walks the full rebase → resolve → continue flow", () => {
@@ -458,20 +458,21 @@ describe("git-rebase challenge", () => {
     // git rebase main → conflict
     fs = gitRebase(fs, repo, "main").fs;
     expect(step1.isComplete(at(fs))).toBe(true);
-    expect(step2.isComplete(at(fs))).toBe(false); // markers present, not staged
+    expect(step2.isComplete(at(fs))).toBe(false); // markers still present
 
     // player edits config.txt (removes markers), still unstaged
     fs = write(fs, "host = localhost\nport = 8080\ntimeout = 90\n");
-    expect(step2.isComplete(at(fs))).toBe(false);
+    expect(step2.isComplete(at(fs))).toBe(true); // markers gone
+    expect(step3.isComplete(at(fs))).toBe(false); // not yet staged
 
-    // git add config.txt → resolved + staged
+    // git add config.txt → staged, conflict marked resolved
     fs = gitAdd(fs, repo, repo, ["config.txt"], false).fs;
-    expect(step2.isComplete(at(fs))).toBe(true);
-    expect(step3.isComplete(at(fs))).toBe(false); // still mid-rebase
+    expect(step3.isComplete(at(fs))).toBe(true);
+    expect(step4.isComplete(at(fs))).toBe(false); // still mid-rebase
 
     // git rebase --continue → done
     fs = gitRebaseContinue(fs, repo).fs;
-    expect(step3.isComplete(at(fs))).toBe(true);
+    expect(step4.isComplete(at(fs))).toBe(true);
   });
 
   it("accepts resolving in favor of one side (content equals a parent version)", () => {
@@ -484,18 +485,20 @@ describe("git-rebase challenge", () => {
     fs = write(fs, "host = localhost\nport = 8080\ntimeout = 45\n");
     fs = gitAdd(fs, repo, repo, ["config.txt"], false).fs;
     expect(step2.isComplete(at(fs))).toBe(true);
+    expect(step3.isComplete(at(fs))).toBe(true);
 
     fs = gitRebaseContinue(fs, repo).fs;
-    expect(step3.isComplete(at(fs))).toBe(true);
+    expect(step4.isComplete(at(fs))).toBe(true);
   });
 
-  it("does NOT complete step 2 while conflict markers remain", () => {
+  it("does NOT complete the staging step while conflict markers remain", () => {
     let fs = gitRebaseChallenge.setup(buildBaseFs());
     const win = makeWindow(CRUNCH_MACHINE, repo);
     fs = gitRebase(fs, repo, "main").fs;
     // stage the still-conflicted file (markers intact)
     fs = gitAdd(fs, repo, repo, ["config.txt"], false).fs;
-    expect(step2.isComplete(snap(win, fs, repo))).toBe(false);
+    expect(step2.isComplete(snap(win, fs, repo))).toBe(false); // markers not removed
+    expect(step3.isComplete(snap(win, fs, repo))).toBe(false); // so staging step stays blocked
   });
 });
 
@@ -1013,13 +1016,13 @@ describe("group-relative completion gate", () => {
     state().checkCompletion();
     expect(state().stepIndex).toBe(1);
 
-    // step 2: resolve markers + stage → advance to the final step
+    // steps 2+3: remove markers, then stage → cascade advances to the final step
     useGameStore.setState({ fs: state().fs.writeFile(config, "host = localhost\nport = 8080\ntimeout = 90\n").fs! });
     useGameStore.setState({ fs: gitAdd(state().fs, repo, repo, ["config.txt"], false).fs });
     state().checkCompletion();
-    expect(state().stepIndex).toBe(2);
+    expect(state().stepIndex).toBe(3);
 
-    // step 3: git rebase --continue → last step of the final challenge → done, no gate
+    // step 4: git rebase --continue → last step of the final challenge → done, no gate
     useGameStore.setState({ fs: gitRebaseContinue(state().fs, repo).fs });
     state().checkCompletion();
     expect(state().completed).toBe(true);
