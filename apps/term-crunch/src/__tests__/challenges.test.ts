@@ -713,9 +713,8 @@ describe("chmod-perms challenge", () => {
 
 describe("mv-organize challenge", () => {
   const DIR = "/home/player/downloads";
-  const NAMES = ["notes.md", "ideas.md", "todo.txt", "draft.txt", "build.log", "error.log"];
-  const ext = (name: string) => name.slice(name.lastIndexOf(".") + 1);
-  const [mkDirs, moveFiles] = mvOrganize.steps;
+  const NAMES = ["notes.md", "todo.txt", "build.log"];
+  const [mkLogs, moveLog] = mvOrganize.steps;
 
   function fsSnap(fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot {
     return snap(makeWindow(CRUNCH_MACHINE, HOME_DIR), fs);
@@ -732,45 +731,43 @@ describe("mv-organize challenge", () => {
     return r.newFs ?? fs;
   }
 
-  it("seeds a flat mess with no extension subdirs, both steps unsatisfied", () => {
+  it("seeds a flat mess with no logs subdir, both steps unsatisfied", () => {
     resetAvailabilityPolicy();
     const fs = mvOrganize.setup(buildBaseFs());
     for (const name of NAMES) expect(fs.getNode(`${DIR}/${name}`)).not.toBeNull();
-    for (const e of ["md", "txt", "log"]) expect(fs.getNode(`${DIR}/${e}`)).toBeNull();
-    expect(mkDirs.isComplete(fsSnap(fs))).toBe(false);
-    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+    expect(fs.getNode(`${DIR}/logs`)).toBeNull();
+    expect(mkLogs.isComplete(fsSnap(fs))).toBe(false);
+    expect(moveLog.isComplete(fsSnap(fs))).toBe(false);
   });
 
-  it("mkdir of all three subdirs completes step 1 only", () => {
+  it("mkdir logs completes step 1 only", () => {
     resetAvailabilityPolicy();
     let fs = mvOrganize.setup(buildBaseFs());
-    fs = run(fs, "mkdir", ["md", "txt", "log"]);
-    expect(mkDirs.isComplete(fsSnap(fs))).toBe(true);
-    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+    fs = run(fs, "mkdir", ["logs"]);
+    expect(mkLogs.isComplete(fsSnap(fs))).toBe(true);
+    expect(moveLog.isComplete(fsSnap(fs))).toBe(false);
   });
 
-  it("a flat FILE named like an extension does not satisfy step 1", () => {
-    const fs = mvOrganize.setup(buildBaseFs()).writeFile(`${DIR}/md`, "").fs!;
-    expect(mkDirs.isComplete(fsSnap(fs))).toBe(false);
+  it("a flat FILE named logs does not satisfy step 1", () => {
+    const fs = mvOrganize.setup(buildBaseFs()).writeFile(`${DIR}/logs`, "").fs!;
+    expect(mkLogs.isComplete(fsSnap(fs))).toBe(false);
   });
 
-  it("mv-ing all but one file leaves step 2 incomplete; the last mv completes it", () => {
+  it("mv-ing the log file into logs/ completes step 2", () => {
     resetAvailabilityPolicy();
     let fs = mvOrganize.setup(buildBaseFs());
-    fs = run(fs, "mkdir", ["md", "txt", "log"]);
-    const [last, ...rest] = NAMES;
-    for (const name of rest) fs = run(fs, "mv", [name, `${ext(name)}/`]);
-    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
-    fs = run(fs, "mv", [last, `${ext(last)}/`]);
-    expect(moveFiles.isComplete(fsSnap(fs))).toBe(true);
+    fs = run(fs, "mkdir", ["logs"]);
+    expect(moveLog.isComplete(fsSnap(fs))).toBe(false);
+    fs = run(fs, "mv", ["build.log", "logs/"]);
+    expect(moveLog.isComplete(fsSnap(fs))).toBe(true);
   });
 
-  it("a copy-like state (file in subdir AND still flat) does not satisfy step 2", () => {
+  it("a copy-like state (file in logs/ AND still flat) does not satisfy step 2", () => {
     let fs = mvOrganize.setup(buildBaseFs());
-    for (const e of ["md", "txt", "log"]) fs = fs.makeDirectory(`${DIR}/${e}`).fs!;
-    // Write every file at its sorted path but leave the flat originals in place.
-    for (const name of NAMES) fs = fs.writeFile(`${DIR}/${ext(name)}/${name}`, "copy").fs!;
-    expect(moveFiles.isComplete(fsSnap(fs))).toBe(false);
+    fs = fs.makeDirectory(`${DIR}/logs`).fs!;
+    // Write the log file at its sorted path but leave the flat original in place.
+    fs = fs.writeFile(`${DIR}/logs/build.log`, "copy").fs!;
+    expect(moveLog.isComplete(fsSnap(fs))).toBe(false);
   });
 });
 
