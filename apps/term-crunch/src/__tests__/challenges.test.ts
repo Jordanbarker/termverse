@@ -47,6 +47,12 @@ import { aliasShortcut } from "../challenges/alias-shortcut";
 import { copyModeYank } from "../challenges/copy-mode-yank";
 import { sessionsDetachAttach } from "../challenges/sessions-detach-attach";
 import { sessionsJuggle } from "../challenges/sessions-juggle";
+import { vimFirstEdit } from "../challenges/vim-first-edit";
+import { vimDeleteLines } from "../challenges/vim-delete-lines";
+import { vimFixWord } from "../challenges/vim-fix-word";
+import { vimYankPaste } from "../challenges/vim-yank-paste";
+import { vimSearchFix } from "../challenges/vim-search-fix";
+import { vimReorder } from "../challenges/vim-reorder";
 import type { ChallengeSnapshot } from "../challenges/types";
 
 function snap(
@@ -941,11 +947,84 @@ describe("copy-mode-yank challenge", () => {
   });
 });
 
+describe("vim challenges (validated on the SAVED buffer)", () => {
+  // Vim predicates only see the file on disk after a :w, so these drive the
+  // outcome directly by writing the saved content — VimSession's own keystroke
+  // behavior is covered by packages/core/src/vim/__tests__. Every save target
+  // lives under this scratch dir, which each challenge's setup creates.
+  const WORK = "/home/player/work";
+  const fsSnap = (fs: ReturnType<typeof buildBaseFs>): ChallengeSnapshot =>
+    snap(makeWindow(CRUNCH_MACHINE, WORK), fs, WORK);
+  // Simulate a vim :w of `content` into `path` on top of the seeded fs.
+  const save = (c: typeof vimFirstEdit, path: string, content: string) =>
+    c.setup(buildBaseFs()).writeFile(path, content).fs!;
+
+  it("vim-first-edit: empty seed fails, the exact line passes (trailing newline ok)", () => {
+    const [step] = vimFirstEdit.steps;
+    expect(step.isComplete(fsSnap(vimFirstEdit.setup(buildBaseFs())))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimFirstEdit, `${WORK}/notes.txt`, "Hello, Vim!")))).toBe(true);
+    // vim appends a newline if you press Enter after the text — still a pass.
+    expect(step.isComplete(fsSnap(save(vimFirstEdit, `${WORK}/notes.txt`, "Hello, Vim!\n")))).toBe(true);
+    expect(step.isComplete(fsSnap(save(vimFirstEdit, `${WORK}/notes.txt`, "hello, vim!")))).toBe(false);
+  });
+
+  it("vim-delete-lines: seed with scratch lines fails, keepers-only passes", () => {
+    const [step] = vimDeleteLines.steps;
+    const keepers = "keep: alpha\nkeep: beta\nkeep: gamma\n";
+    expect(step.isComplete(fsSnap(vimDeleteLines.setup(buildBaseFs())))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimDeleteLines, `${WORK}/tasks.txt`, keepers)))).toBe(true);
+    // A leftover scratch line, or a deleted keeper, both fail.
+    expect(step.isComplete(fsSnap(save(vimDeleteLines, `${WORK}/tasks.txt`, "# scratch note, delete me\n" + keepers)))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimDeleteLines, `${WORK}/tasks.txt`, "keep: alpha\nkeep: beta\n")))).toBe(false);
+  });
+
+  it("vim-fix-word: staging seed fails, production passes, debug line must survive", () => {
+    const [step] = vimFixWord.steps;
+    expect(step.isComplete(fsSnap(vimFixWord.setup(buildBaseFs())))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimFixWord, `${WORK}/app.conf`, "environment = production\ndebug = true")))).toBe(true);
+    // Fixing the value but clobbering the decoy line fails.
+    expect(step.isComplete(fsSnap(save(vimFixWord, `${WORK}/app.conf`, "environment = production")))).toBe(false);
+  });
+
+  it("vim-yank-paste: single line fails, duplicated line passes, .1 rule must remain", () => {
+    const [step] = vimYankPaste.steps;
+    expect(step.isComplete(fsSnap(vimYankPaste.setup(buildBaseFs())))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimYankPaste, `${WORK}/rules.conf`, "allow 10.0.0.1\nallow 10.0.0.2\nallow 10.0.0.2")))).toBe(true);
+    // Duplicated but the other rule got lost → fail.
+    expect(step.isComplete(fsSnap(save(vimYankPaste, `${WORK}/rules.conf`, "allow 10.0.0.2\nallow 10.0.0.2")))).toBe(false);
+  });
+
+  it("vim-search-fix: any oldhost left fails, all-newhost passes", () => {
+    const [step] = vimSearchFix.steps;
+    expect(step.isComplete(fsSnap(vimSearchFix.setup(buildBaseFs())))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimSearchFix, `${WORK}/hosts.conf`, "backend = newhost\ncache = newhost\nworker = newhost")))).toBe(true);
+    // Only two of three changed → one oldhost remains → fail.
+    expect(step.isComplete(fsSnap(save(vimSearchFix, `${WORK}/hosts.conf`, "backend = newhost\ncache = newhost\nworker = oldhost")))).toBe(false);
+  });
+
+  it("vim-reorder: seed order fails, 1/2/3 order passes", () => {
+    const [step] = vimReorder.steps;
+    const ordered = "Step 1: chop the vegetables\nStep 2: simmer for 20 minutes\nStep 3: serve";
+    expect(step.isComplete(fsSnap(vimReorder.setup(buildBaseFs())))).toBe(false);
+    expect(step.isComplete(fsSnap(save(vimReorder, `${WORK}/recipe.txt`, ordered)))).toBe(true);
+    expect(step.isComplete(fsSnap(save(vimReorder, `${WORK}/recipe.txt`, ordered + "\n")))).toBe(true);
+  });
+
+  it("start the player in the scratch dir so `vim <file>` needs no cd", () => {
+    expect(vimFirstEdit.startCwd).toBe(WORK);
+    useGameStore.setState({ activeCategory: "all" });
+    useGameStore.getState().loadChallenge(CHALLENGES.findIndex((c) => c.id === "vim-first-edit"));
+    const win = useGameStore.getState().windows[0];
+    expect(win.root.kind === "leaf" && win.root.cwd).toBe(WORK);
+    useGameStore.getState().loadChallenge(0); // restore default
+  });
+});
+
 describe("challenges are objective-first with progressive hints", () => {
   // The command belongs in `command` (revealed on request), never in the objective
   // text — that's the whole point of the rework, so guard it. The pane challenges
   // (panes-split/windows-create) are keyboard-driven and intentionally excluded.
-  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, envExport, aliasShortcut, copyModeYank, sessionsDetachAttach, sessionsJuggle];
+  const objectiveFirst = [gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, envExport, aliasShortcut, copyModeYank, sessionsDetachAttach, sessionsJuggle, vimFirstEdit, vimDeleteLines, vimFixWord, vimYankPaste, vimSearchFix, vimReorder];
 
   it("each has a brief and every step has a hint + command", () => {
     for (const c of objectiveFirst) {
@@ -978,10 +1057,11 @@ describe("categories", () => {
   });
 
   it("type-derived groups contain only their type and are non-empty", () => {
-    const cases: Array<[string, "git" | "tmux" | "fs"]> = [
+    const cases: Array<[string, "git" | "tmux" | "fs" | "vim"]> = [
       ["git", "git"],
       ["tmux", "tmux"],
       ["fs", "fs"],
+      ["vim", "vim"],
     ];
     for (const [id, type] of cases) {
       const cs = getCategory(id).challenges;

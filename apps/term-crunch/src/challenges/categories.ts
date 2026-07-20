@@ -20,6 +20,7 @@ export const CATEGORIES: Category[] = [
   { id: "tmux", label: "Tmux", challenges: byType("tmux") },
   { id: "git", label: "Git", challenges: byType("git") },
   { id: "fs", label: "Filesystem", challenges: byType("fs") },
+  { id: "vim", label: "Vim", challenges: byType("vim") },
 ];
 
 export const DEFAULT_CATEGORY = "all";

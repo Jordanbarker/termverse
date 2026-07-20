@@ -166,13 +166,22 @@ describe("review sessions", () => {
     const state = useGameStore.getState;
     const all = getCategory("all").challenges;
     const last = all[all.length - 1];
-    expect(last.id).toBe("sessions-juggle");
-    // sessions-juggle's final step (attached to "0", no scratch session) is
-    // exactly the freshly loaded state, so parking stepIndex on it lets
-    // checkCompletion hit the terminal branch without tmux choreography.
+    expect(last.id).toBe("vim-reorder");
+    // vim-reorder's final step checks recipe.txt is in Step 1/2/3 order. Seed
+    // the file into that satisfied state so parking stepIndex on the last step
+    // lets checkCompletion hit the terminal branch without editor choreography.
+    const satisfyLast = () => {
+      const wr = state().fs.writeFile(
+        "/home/player/work/recipe.txt",
+        "Step 1: chop the vegetables\nStep 2: simmer for 20 minutes\nStep 3: serve\n",
+      );
+      if (!wr.fs) throw new Error(wr.error ?? "seed recipe.txt failed");
+      state().setFs(wr.fs);
+    };
 
     // Outside review: end-of-track banner with a pending grade.
     state().loadChallenge(all.length - 1);
+    satisfyLast();
     useGameStore.setState({ stepIndex: last.steps.length - 1 });
     state().checkCompletion();
     expect(state().completed).toBe(true);
@@ -189,6 +198,7 @@ describe("review sessions", () => {
     // During review: the gate rises instead, so the queue can keep chaining.
     useGameStore.setState({ completed: false, reviewReturn: { category: "all", index: 0 }, reviewTotal: 1 });
     state().loadChallenge(all.length - 1);
+    satisfyLast();
     useGameStore.setState({ stepIndex: last.steps.length - 1 });
     state().checkCompletion();
     expect(state().awaitingContinue).toBe(true);

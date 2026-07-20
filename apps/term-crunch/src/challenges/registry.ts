@@ -18,7 +18,13 @@ import { aliasShortcut } from "./alias-shortcut";
 import { copyModeYank } from "./copy-mode-yank";
 import { sessionsDetachAttach } from "./sessions-detach-attach";
 import { sessionsJuggle } from "./sessions-juggle";
+import { vimFirstEdit } from "./vim-first-edit";
+import { vimDeleteLines } from "./vim-delete-lines";
+import { vimFixWord } from "./vim-fix-word";
+import { vimYankPaste } from "./vim-yank-paste";
+import { vimSearchFix } from "./vim-search-fix";
+import { vimReorder } from "./vim-reorder";
 import type { Challenge } from "./types";
 
 /** Ordered, linear progression. The player advances one challenge at a time. */
-export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, panesCleanup, panesResize, panesResizeRows, panesResizeCorner, windowsCreate, gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, envExport, aliasShortcut, copyModeYank, sessionsDetachAttach, sessionsJuggle];
+export const CHALLENGES: Challenge[] = [panesSplit, panesGrid, panesCleanup, panesResize, panesResizeRows, panesResizeCorner, windowsCreate, gitFirstCommit, gitUnstage, gitStashChallenge, gitPullFf, gitRebaseChallenge, rmBomb, chmodPerms, mvOrganize, envExport, aliasShortcut, copyModeYank, sessionsDetachAttach, sessionsJuggle, vimFirstEdit, vimDeleteLines, vimFixWord, vimYankPaste, vimSearchFix, vimReorder];
