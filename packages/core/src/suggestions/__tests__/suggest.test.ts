@@ -142,6 +142,14 @@ describe("getSuggestion", () => {
       expect(getSuggestion("nano no", createCtx())).toBe("nano notes.txt");
     });
 
+    it("supports vim path completion", () => {
+      expect(getSuggestion("vim no", createCtx())).toBe("vim notes.txt");
+    });
+
+    it("supports vi path completion", () => {
+      expect(getSuggestion("vi no", createCtx())).toBe("vi notes.txt");
+    });
+
     it("completes path after flags (head -n 1)", () => {
       expect(getSuggestion("head -n 1 no", createCtx())).toBe("head -n 1 notes.txt");
     });
