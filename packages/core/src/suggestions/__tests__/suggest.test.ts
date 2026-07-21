@@ -150,6 +150,22 @@ describe("getSuggestion", () => {
       expect(getSuggestion("vi no", createCtx())).toBe("vi notes.txt");
     });
 
+    it("completes file path for source and its . alias", () => {
+      expect(getSuggestion("source no", createCtx())).toBe("source notes.txt");
+      expect(getSuggestion(". no", createCtx())).toBe(". notes.txt");
+    });
+
+    it("completes file path for python and python3", () => {
+      expect(getSuggestion("python no", createCtx())).toBe("python notes.txt");
+      expect(getSuggestion("python3 no", createCtx())).toBe("python3 notes.txt");
+    });
+
+    it("mkdir completes directories only", () => {
+      expect(getSuggestion("mkdir do", createCtx())).toBe("mkdir docs/");
+      // 'n' matches notes.txt (file) — mkdir should not suggest it
+      expect(getSuggestion("mkdir n", createCtx())).toBeNull();
+    });
+
     it("completes path after flags (head -n 1)", () => {
       expect(getSuggestion("head -n 1 no", createCtx())).toBe("head -n 1 notes.txt");
     });

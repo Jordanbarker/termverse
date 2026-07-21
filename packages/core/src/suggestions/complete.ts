@@ -2,6 +2,7 @@ import { splitOnChainOperators } from "@tt/core/commands/parser";
 import {
   SuggestionContext,
   PATH_COMMANDS,
+  DIRECTORY_ONLY_COMMANDS,
   SUBCOMMAND_MAP,
   listMatchingEntries,
   splitPartialPath,
@@ -103,7 +104,7 @@ export function getCompletions(
     const restPrefix = lastSpaceInRest === -1 ? "" : rest.slice(0, lastSpaceInRest + 1);
     const replaceFrom = spaceIdx + 1 + (lastSpaceInRest === -1 ? 0 : lastSpaceInRest + 1);
 
-    const result = completePaths(partial, ctx, resolvedCmd === "cd");
+    const result = completePaths(partial, ctx, DIRECTORY_ONLY_COMMANDS.includes(resolvedCmd));
     if (result) {
       return {
         matches: result.matches,

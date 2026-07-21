@@ -160,6 +160,25 @@ describe("getCompletions", () => {
       expect(getCompletions("vi n", createCtx())!.displayNames).toEqual(["notes.txt"]);
     });
 
+    it("source and . complete filenames", () => {
+      expect(getCompletions("source n", createCtx())!.displayNames).toEqual(["notes.txt"]);
+      expect(getCompletions(". n", createCtx())!.displayNames).toEqual(["notes.txt"]);
+    });
+
+    it("python and python3 complete filenames", () => {
+      expect(getCompletions("python n", createCtx())!.displayNames).toEqual(["notes.txt"]);
+      expect(getCompletions("python3 n", createCtx())!.displayNames).toEqual(["notes.txt"]);
+    });
+
+    it("mkdir completes directories only", () => {
+      expect(getCompletions("mkdir n", createCtx())).toBeNull();
+      expect(getCompletions("mkdir D", createCtx())!.displayNames).toEqual([
+        "Desktop/",
+        "Documents/",
+        "Downloads/",
+      ]);
+    });
+
     it("completes after flags", () => {
       const result = getCompletions("head -n 5 n", createCtx());
       expect(result).not.toBeNull();

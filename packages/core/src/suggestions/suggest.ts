@@ -19,8 +19,11 @@ export interface SuggestionContext {
 export const PATH_COMMANDS = [
   "cd", "ls", "cat", "less", "nano", "vim", "vi", "head", "tail", "grep", "diff", "wc", "file",
   "sort", "uniq", "chmod", "rm", "cp", "mv", "touch", "find", "tree",
-  "pdftotext", "bash", "sh",
+  "pdftotext", "bash", "sh", "source", ".", "python", "python3", "mkdir",
 ];
+
+/** Path commands that complete directories only (not files) */
+export const DIRECTORY_ONLY_COMMANDS = ["cd", "mkdir"];
 
 /** Subcommand lists keyed by parent command */
 export const SUBCOMMAND_MAP: Record<string, string[]> = {
@@ -211,7 +214,7 @@ export function getSuggestion(
       const lastSpaceInRest = rest.lastIndexOf(" ");
       const partial = lastSpaceInRest === -1 ? rest : rest.slice(lastSpaceInRest + 1);
       const prefix = lastSpaceInRest === -1 ? "" : rest.slice(0, lastSpaceInRest + 1);
-      const completed = completePath(partial, ctx, resolvedCmd === "cd");
+      const completed = completePath(partial, ctx, DIRECTORY_ONLY_COMMANDS.includes(resolvedCmd));
       if (completed !== null) {
         return cmd + " " + prefix + completed;
       }
