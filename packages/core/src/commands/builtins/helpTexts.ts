@@ -62,6 +62,8 @@ export const HELP_TEXTS: Record<string, string> = {
     "",
     "  i / a / o        Enter insert mode (Esc returns to normal mode)",
     "  h j k l          Move the cursor; w/b/e by word, 0/^/$ within the line",
+    "  gg / G / f{c}    First/last line; jump to next {c} in the line; :5 to line 5",
+    "  x / r{c}         Delete character / replace character",
     "  dd / yy / p      Delete / yank the line, paste; dw, d$, 3dd etc.",
     "  v / V            Visual (character / line) selection",
     "  u / Ctrl+R       Undo / redo",

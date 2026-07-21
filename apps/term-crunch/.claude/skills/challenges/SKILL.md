@@ -16,7 +16,7 @@ Read `types.ts` for `Challenge` / `Step` / `ChallengeSnapshot`. Conventions and 
 
 ## Categories (`src/challenges/categories.ts`)
 
-Categories are pure filters over the linear `CHALLENGES` registry, derived from each challenge's `type`: `all`, `tmux`, `git`, `fs`. `SELECTABLE_CATEGORIES` drops empty groups; `getCategory(id)` falls back to `all` (covers a stale persisted id). **Trap: the store's `challengeIndex` is relative to the active category's list, not the global registry.** Anything resolving the current challenge must go through `getCategory(activeCategory).challenges[challengeIndex]` (store, `ChallengePanel`, `availabilityPolicy`) — never `CHALLENGES[challengeIndex]`. Default track `DEFAULT_CATEGORY="all"` mirrors registry order (so a global index still resolves under the default).
+Categories are pure filters over the linear `CHALLENGES` registry, derived from each challenge's `type`: `all`, `tmux`, `git`, `fs`, `vim`. `SELECTABLE_CATEGORIES` drops empty groups; `getCategory(id)` falls back to `all` (covers a stale persisted id). **Trap: the store's `challengeIndex` is relative to the active category's list, not the global registry.** Anything resolving the current challenge must go through `getCategory(activeCategory).challenges[challengeIndex]` (store, `ChallengePanel`, `availabilityPolicy`) — never `CHALLENGES[challengeIndex]`. Default track `DEFAULT_CATEGORY="all"` mirrors registry order (so a global index still resolves under the default).
 
 ## Win-detection (`src/state/gameStore.ts`)
 
