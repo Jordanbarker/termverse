@@ -1,4 +1,4 @@
-import { isBackspace, isPrintable } from "@tt/core/terminal/keyCodes";
+import { isBackspace, isPrintable, parseCsi } from "@tt/core/terminal/keyCodes";
 
 export type EditorAction =
   | { type: "insert"; char: string }
@@ -43,12 +43,9 @@ export function parseEditorInput(data: string): EditorAction[] {
 
     // Escape sequences (CSI: \x1b[ params final)
     if (data[i] === "\x1b" && data[i + 1] === "[") {
-      // Consume full CSI sequence: \x1b[ followed by parameter bytes (0-9;) then a final byte (A-Z, a-z, ~)
-      let j = i + 2;
-      while (j < data.length && data[j] >= "0" && data[j] <= "?") j++;
-      const params = data.slice(i + 2, j);
-      const final = j < data.length ? data[j] : "";
-      i = j + 1;
+      const csi = parseCsi(data, i);
+      const { params, final } = csi;
+      i = csi.next;
 
       // Map final byte to action. Ctrl+Left/Right (modifier 5) jump by word like real
       // nano; other modified keys (e.g. \x1b[1;3C) are treated the same as plain keys.

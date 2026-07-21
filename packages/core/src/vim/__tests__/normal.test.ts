@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EMPTY_PENDING, PendingState, showcmd, stepNormal } from "../normal";
+import { EMPTY_PENDING, MAX_COUNT, PendingState, showcmd, stepNormal } from "../normal";
 
 /** Feed a key sequence, returning the last command and final pending state. */
 function feed(keys: string) {
@@ -31,20 +31,20 @@ describe("stepNormal grammar", () => {
     expect(command).toMatchObject({ kind: "move", motion: "l", count: 20 });
   });
 
-  it("builds operator + motion", () => {
+  it("builds operator + motion (no count typed => null)", () => {
     expect(feed("dw").command).toEqual({
-      kind: "operate", op: "d", motion: "w", count: 1, countGiven: false, char: undefined,
+      kind: "operate", op: "d", motion: "w", count: null, char: undefined,
     });
   });
 
   it("multiplies counts around the operator (2d3w = 6 words)", () => {
-    expect(feed("2d3w").command).toMatchObject({ kind: "operate", op: "d", motion: "w", count: 6, countGiven: true });
+    expect(feed("2d3w").command).toMatchObject({ kind: "operate", op: "d", motion: "w", count: 6 });
   });
 
   it("doubles an operator into a linewise operation", () => {
-    expect(feed("dd").command).toMatchObject({ kind: "operate", op: "d", motion: "line", count: 1 });
+    expect(feed("dd").command).toMatchObject({ kind: "operate", op: "d", motion: "line", count: null });
     expect(feed("3yy").command).toMatchObject({ kind: "operate", op: "y", motion: "line", count: 3 });
-    expect(feed("cc").command).toMatchObject({ kind: "operate", op: "c", motion: "line", count: 1 });
+    expect(feed("cc").command).toMatchObject({ kind: "operate", op: "c", motion: "line", count: null });
   });
 
   it("aborts on mismatched operators", () => {
@@ -99,6 +99,13 @@ describe("stepNormal grammar", () => {
     expect(feed("?").command).toEqual({ kind: "cmdline", prefix: "?" });
     expect(feed("n").command).toEqual({ kind: "searchNext", reverse: false });
     expect(feed("N").command).toEqual({ kind: "searchNext", reverse: true });
+  });
+
+  it("clamps an absurd count to MAX_COUNT (guards paste/motion against OOM/hang)", () => {
+    expect(feed("999999999p").command).toEqual({ kind: "put", before: false, count: MAX_COUNT });
+    expect(feed("999999999x").command).toEqual({ kind: "deleteChar", count: MAX_COUNT });
+    // 9999 * 9999 overflows the cap, so the product is clamped too.
+    expect(feed("9999d9999w").command).toMatchObject({ kind: "operate", op: "d", motion: "w", count: MAX_COUNT });
   });
 
   it("rejects standalone commands while an operator is pending", () => {

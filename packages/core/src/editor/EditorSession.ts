@@ -13,6 +13,30 @@ export interface EditorTrigger {
   requireSave?: boolean;
 }
 
+/**
+ * Build the SessionResult for leaving an editor: merge the file_created/modified
+ * events with the explicit story trigger, which only fires once the reader has
+ * scrolled to `triggerRow` and (if `requireSave`) actually saved. Shared by nano
+ * and vim so the same file edited in either editor fires the same story events.
+ */
+export function buildEditorExitResult(
+  fs: VirtualFS,
+  fileEvents: GameEvent[],
+  trigger: EditorTrigger | undefined,
+  maxRowReached: number,
+  hasSaved: boolean
+): SessionResult {
+  const rowOk = !trigger || maxRowReached >= trigger.triggerRow;
+  const saveOk = !trigger?.requireSave || hasSaved;
+  const explicitTrigger = trigger && rowOk && saveOk ? trigger.triggerEvents : [];
+  const triggerEvents = [...fileEvents, ...explicitTrigger];
+  return {
+    type: "exit",
+    newFs: fs,
+    triggerEvents: triggerEvents.length > 0 ? triggerEvents : undefined,
+  };
+}
+
 export class EditorSession implements ISession {
   private state: EditorState;
   private config: EditorConfig;
@@ -871,15 +895,7 @@ export class EditorSession implements ISession {
 
   private exitEditor(): SessionResult {
     this.terminal.write("\x1b[?25h\x1b[?1049l"); // Show cursor + exit alt buffer
-    const rowOk = !this.trigger || this.maxRowReached >= this.trigger.triggerRow;
-    const saveOk = !this.trigger?.requireSave || this.hasSaved;
-    const explicitTrigger = this.trigger && rowOk && saveOk ? this.trigger.triggerEvents : [];
-    const triggerEvents = [...this.fileEvents, ...explicitTrigger];
-    return {
-      type: "exit",
-      newFs: this.fs,
-      triggerEvents: triggerEvents.length > 0 ? triggerEvents : undefined,
-    };
+    return buildEditorExitResult(this.fs, this.fileEvents, this.trigger, this.maxRowReached, this.hasSaved);
   }
 
   // === Rendering ===

@@ -1,10 +1,11 @@
 import { Terminal } from "@xterm/xterm";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
+import { basename } from "@tt/core/lib/pathUtils";
 import { GameEvent } from "@tt/core";
 import { ISession, SessionResult } from "../session/types";
-import { EditorTrigger } from "../editor/EditorSession";
+import { EditorTrigger, buildEditorExitResult } from "../editor/EditorSession";
 import { CursorPosition, EditorConfig } from "../editor/types";
-import { STICKY_EOL, UndoSnapshot, VimState } from "./types";
+import { CmdlineState, STICKY_EOL, UndoSnapshot, VimState } from "./types";
 import { VimKey, decodeKeys } from "./keys";
 import { Motion, MotionKey, applyMotion, charClass, firstNonBlank } from "./motions";
 import { EMPTY_PENDING, NormalCommand, Operator, stepNormal } from "./normal";
@@ -26,6 +27,13 @@ import { renderVim } from "./render";
 
 const MAX_UNDO = 100;
 const E45 = "E45: 'readonly' option is set (add ! to override)";
+
+/** Compare two line buffers cheaply: untouched lines are shared, so match by reference. */
+function sameLines(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
 
 export class VimSession implements ISession {
   private state: VimState;
@@ -55,7 +63,7 @@ export class VimSession implements ISession {
     this.trigger = trigger;
     this.lastSavedText = content;
 
-    const fileName = filePath.split("/").pop() || filePath;
+    const fileName = basename(filePath);
     const lines = content.split("\n");
     if (lines.length === 0) lines.push("");
 
@@ -117,12 +125,13 @@ export class VimSession implements ISession {
   }
 
   private handleKey(key: VimKey): SessionResult | null {
+    // An open command line (: / ?) captures keys regardless of the underlying
+    // mode, so it is the single source of truth; there is no separate mode.
+    if (this.state.cmdline) return this.handleCommandKey(this.state.cmdline, key);
     switch (this.state.mode) {
       case "insert":
         this.handleInsertKey(key);
         return null;
-      case "command":
-        return this.handleCommandKey(key);
       case "visual":
       case "visual-line":
         this.handleVisualKey(key);
@@ -186,7 +195,7 @@ export class VimSession implements ISession {
         this.moveTo(cmd.motion, cmd.count, cmd.char);
         break;
       case "operate":
-        this.applyOperator(cmd.op, cmd.motion, cmd.count, cmd.countGiven, cmd.char);
+        this.applyOperator(cmd.op, cmd.motion, cmd.count, cmd.char);
         break;
       case "deleteChar": {
         if (this.blockIfReadOnly()) break;
@@ -252,7 +261,6 @@ export class VimSession implements ISession {
         break;
       case "cmdline":
         st.cmdline = { prefix: cmd.prefix, input: "" };
-        st.mode = "command";
         break;
       case "searchNext": {
         if (!st.lastSearch) {
@@ -296,8 +304,7 @@ export class VimSession implements ISession {
   private applyOperator(
     op: Operator,
     motionKey: MotionKey | "line",
-    count: number,
-    countGiven: boolean,
+    count: number | null,
     char?: string
   ): void {
     const st = this.state;
@@ -312,7 +319,7 @@ export class VimSession implements ISession {
     if (motionKey === "line") {
       linewise = true;
       startRow = st.cursor.row;
-      endRow = Math.min(st.lines.length - 1, st.cursor.row + count - 1);
+      endRow = Math.min(st.lines.length - 1, st.cursor.row + (count ?? 1) - 1);
     } else {
       let effKey = motionKey;
       // Vim special case: cw on a non-blank behaves like ce.
@@ -320,7 +327,7 @@ export class VimSession implements ISession {
         const line = st.lines[st.cursor.row];
         if (st.cursor.col < line.length && charClass(line[st.cursor.col]) !== 0) effKey = "e";
       }
-      const motion: Motion = { key: effKey, count: countGiven ? count : null, char };
+      const motion: Motion = { key: effKey, count, char };
       const res = applyMotion(st.lines, st.cursor, motion, { forOperator: true });
       if (!res) return;
       linewise = res.wise === "linewise";
@@ -351,20 +358,35 @@ export class VimSession implements ISession {
     }
 
     this.pushUndo();
-    if (op === "d") {
-      const r = linewise ? deleteLinewise(st.lines, startRow, endRow) : deleteCharwise(st.lines, start, endEx);
-      st.lines = r.lines;
-      st.register = r.register;
-      st.cursor = { row: r.cursor.row, col: this.clampToLine(r.cursor.row, r.cursor.col) };
-      this.afterBufferChange();
-    } else {
-      const r = linewise ? changeLinewise(st.lines, startRow, endRow) : deleteCharwise(st.lines, start, endEx);
-      st.lines = r.lines;
-      st.register = r.register;
-      st.cursor = r.cursor;
-      this.afterBufferChange();
-      this.enterInsertMode(false);
-    }
+    this.applyDeleteChange(op, linewise, { startRow, endRow, start, endEx });
+  }
+
+  /**
+   * Delete or change a resolved range: mutate the buffer + register, position the
+   * cursor, and (for change) enter insert mode. Shared by the normal-motion
+   * operator and the visual operator; callers own undo and visual-mode exit.
+   */
+  private applyDeleteChange(
+    op: "d" | "c",
+    linewise: boolean,
+    range: { startRow: number; endRow: number; start: CursorPosition; endEx: CursorPosition }
+  ): void {
+    const st = this.state;
+    const r =
+      op === "d"
+        ? linewise
+          ? deleteLinewise(st.lines, range.startRow, range.endRow)
+          : deleteCharwise(st.lines, range.start, range.endEx)
+        : linewise
+          ? changeLinewise(st.lines, range.startRow, range.endRow)
+          : deleteCharwise(st.lines, range.start, range.endEx);
+    st.lines = r.lines;
+    st.register = r.register;
+    // After a delete the cursor can land past EOL, so clamp; a change leaves it
+    // where the insert begins (insert-mode clamp permits the extra column).
+    st.cursor = op === "d" ? { row: r.cursor.row, col: this.clampToLine(r.cursor.row, r.cursor.col) } : r.cursor;
+    this.afterBufferChange();
+    if (op === "c") this.enterInsertMode(false);
   }
 
   // === Undo / redo ===
@@ -421,7 +443,7 @@ export class VimSession implements ISession {
         st.desiredCol = st.cursor.col;
         // A whole insert session is one undo unit; drop the entry if nothing changed.
         const top = st.undoStack[st.undoStack.length - 1];
-        if (top && top.lines.join("\n") === st.lines.join("\n")) st.undoStack.pop();
+        if (top && sameLines(top.lines, st.lines)) st.undoStack.pop();
         return;
       }
       case "enter": {
@@ -573,46 +595,23 @@ export class VimSession implements ISession {
     }
 
     this.pushUndo();
-    if (op === "d") {
-      const r = linewise ? deleteLinewise(st.lines, start.row, end.row) : deleteCharwise(st.lines, start, endEx);
-      st.lines = r.lines;
-      st.register = r.register;
-      st.cursor = { row: r.cursor.row, col: this.clampToLine(r.cursor.row, r.cursor.col) };
-      this.exitVisual();
-      this.afterBufferChange();
-    } else {
-      const r = linewise ? changeLinewise(st.lines, start.row, end.row) : deleteCharwise(st.lines, start, endEx);
-      st.lines = r.lines;
-      st.register = r.register;
-      st.cursor = r.cursor;
-      this.exitVisual();
-      this.afterBufferChange();
-      this.enterInsertMode(false);
-    }
+    this.exitVisual();
+    this.applyDeleteChange(op, linewise, { startRow: start.row, endRow: end.row, start, endEx });
   }
 
   // === Command-line mode (: / ?) ===
 
-  private handleCommandKey(key: VimKey): SessionResult | null {
+  private handleCommandKey(cl: CmdlineState, key: VimKey): SessionResult | null {
     const st = this.state;
-    const cl = st.cmdline;
-    if (!cl) {
-      st.mode = "normal";
-      return null;
-    }
     switch (key.type) {
       case "esc":
         st.cmdline = null;
-        st.mode = "normal";
         return null;
       case "enter":
         return this.submitCmdline();
       case "backspace":
         if (cl.input.length > 0) cl.input = cl.input.slice(0, -1);
-        else {
-          st.cmdline = null;
-          st.mode = "normal";
-        }
+        else st.cmdline = null;
         return null;
       case "char":
         cl.input += key.char;
@@ -626,7 +625,6 @@ export class VimSession implements ISession {
     const st = this.state;
     const cl = st.cmdline;
     st.cmdline = null;
-    st.mode = "normal";
     st.message = null;
     if (!cl) return null;
 
@@ -721,15 +719,7 @@ export class VimSession implements ISession {
 
   private exitSession(): SessionResult {
     this.terminal.write("\x1b[0 q\x1b[?25h\x1b[?1049l"); // Reset cursor shape, show cursor, exit alt buffer
-    const rowOk = !this.trigger || this.maxRowReached >= this.trigger.triggerRow;
-    const saveOk = !this.trigger?.requireSave || this.hasSaved;
-    const explicitTrigger = this.trigger && rowOk && saveOk ? this.trigger.triggerEvents : [];
-    const triggerEvents = [...this.fileEvents, ...explicitTrigger];
-    return {
-      type: "exit",
-      newFs: this.fs,
-      triggerEvents: triggerEvents.length > 0 ? triggerEvents : undefined,
-    };
+    return buildEditorExitResult(this.fs, this.fileEvents, this.trigger, this.maxRowReached, this.hasSaved);
   }
 
   // === Shared helpers ===
@@ -743,7 +733,11 @@ export class VimSession implements ISession {
   }
 
   private afterBufferChange(): void {
-    this.recomputeModified();
+    // An edit can only dirty the buffer, so flip the flag in O(1) rather than
+    // re-joining the whole buffer on every keystroke. The exact comparison
+    // against lastSavedText only runs where the buffer can become clean again:
+    // undo/redo (restoreSnapshot) and save (writeFile).
+    this.state.modified = true;
     this.state.desiredCol = this.state.cursor.col;
     this.ensureCursorVisible();
   }

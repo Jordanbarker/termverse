@@ -20,6 +20,21 @@ describe("charClass", () => {
   });
 });
 
+describe("huge-count word motions terminate at the buffer edge", () => {
+  it("early-exits instead of spinning the full count", () => {
+    const lines = ["one two", "three"];
+    // A billion-step `w` must settle at end-of-buffer without looping 1e9 times.
+    expect(motion(lines, { row: 0, col: 0 }, { key: "w", count: 1_000_000_000 })!.target).toEqual({
+      row: 1,
+      col: 5,
+    });
+    expect(motion(lines, { row: 1, col: 4 }, { key: "b", count: 1_000_000_000 })!.target).toEqual({
+      row: 0,
+      col: 0,
+    });
+  });
+});
+
 describe("firstNonBlank", () => {
   it("finds the first non-blank column", () => {
     expect(firstNonBlank("  indent")).toBe(2);

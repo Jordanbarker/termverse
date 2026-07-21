@@ -22,6 +22,13 @@ describe("decodeKeys", () => {
     expect(decodeKeys("\x1b[6~")).toEqual([{ type: "pageDown" }]);
   });
 
+  it("decodes the Home/End tilde variants some terminals emit", () => {
+    expect(decodeKeys("\x1b[1~")).toEqual([{ type: "home" }]);
+    expect(decodeKeys("\x1b[7~")).toEqual([{ type: "home" }]);
+    expect(decodeKeys("\x1b[4~")).toEqual([{ type: "end" }]);
+    expect(decodeKeys("\x1b[8~")).toEqual([{ type: "end" }]);
+  });
+
   it("treats a bare ESC as the ESC key", () => {
     expect(decodeKeys("\x1b")).toEqual([{ type: "esc" }]);
   });

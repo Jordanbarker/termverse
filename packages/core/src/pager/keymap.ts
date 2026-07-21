@@ -1,4 +1,4 @@
-import { BACKSPACE, BACKSPACE_ALT, CTRL_C, isPrintable } from "@tt/core/terminal/keyCodes";
+import { BACKSPACE, BACKSPACE_ALT, CTRL_C, isPrintable, parseCsi } from "@tt/core/terminal/keyCodes";
 
 const CTRL_L = 0x0c;
 const ENTER = 0x0d;
@@ -33,15 +33,9 @@ export function parsePagerInput(data: string): PagerAction[] {
 
     if (ch === "\x1b") {
       if (data[i + 1] === "[") {
-        let j = i + 2;
-        while (j < data.length) {
-          const c = data.charCodeAt(j);
-          if (c >= 0x40 && c <= 0x7e) break;
-          j++;
-        }
-        const params = data.slice(i + 2, j);
-        const final = j < data.length ? data[j] : "";
-        i = j + 1;
+        const csi = parseCsi(data, i);
+        const { params, final } = csi;
+        i = csi.next;
 
         if (final === "A") {
           actions.push({ type: "arrowUp" });

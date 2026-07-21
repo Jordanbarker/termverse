@@ -1,4 +1,5 @@
 import { CommandContext, CommandResult } from "@tt/core/commands/types";
+import type { EditorId } from "@tt/core/session/editorRegistry";
 import { resolvePath, parentPath } from "@tt/core/lib/pathUtils";
 import { isFile, isDirectory } from "@tt/core/filesystem/types";
 
@@ -6,18 +7,17 @@ import { isFile, isDirectory } from "@tt/core/filesystem/types";
  * Shared open/validation logic for the editor builtins (nano, vim): directory
  * and permission checks, readOnly detection, new-file parent check, and the
  * home backup.sh story trigger. `editor` selects which session class the app
- * routers instantiate; it is omitted for nano so nano's descriptor is unchanged.
+ * routers instantiate (see editorRegistry).
  */
 export function openFileForEditing(
   target: string | undefined,
   ctx: CommandContext,
-  editor: "nano" | "vim"
+  editor: EditorId
 ): CommandResult {
   if (!target) {
     return { output: `Usage: ${editor} <filename>` };
   }
 
-  const editorField = editor === "vim" ? { editor: "vim" as const } : {};
   const absolutePath = resolvePath(target, ctx.cwd, ctx.homeDir);
   const node = ctx.fs.getNode(absolutePath);
 
@@ -39,7 +39,7 @@ export function openFileForEditing(
         content: node.content,
         readOnly,
         isNewFile: false,
-        ...editorField,
+        editor,
         ...(isBackupScript && {
           triggerRow: 0,
           triggerEvents: [{ type: "file_read" as const, detail: "fixed_backup_script" }],
@@ -49,7 +49,7 @@ export function openFileForEditing(
     };
   }
 
-  // New file — check parent directory exists and permissions
+  // New file: check parent directory exists and permissions
   const parent = parentPath(absolutePath);
   const parentNode = ctx.fs.getNode(parent);
   if (!parentNode || !isDirectory(parentNode)) {
@@ -67,7 +67,7 @@ export function openFileForEditing(
       content: "",
       readOnly: false,
       isNewFile: true,
-      ...editorField,
+      editor,
     },
   };
 }

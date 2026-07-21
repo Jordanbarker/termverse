@@ -1,5 +1,5 @@
 import { CursorPosition } from "../editor/types";
-import { MotionKey } from "./motions";
+import { MotionKey, MOTION_CHARS } from "./motions";
 
 /** Pending visual-mode input: an optional count plus a g/f/t continuation. */
 export interface VisualPending {
@@ -15,8 +15,6 @@ export type VisualCommand =
   | { kind: "swapEnds" }
   | { kind: "setWise"; linewise: boolean }
   | { kind: "exit" };
-
-const MOTION_CHARS = new Set<string>(["h", "l", "j", "k", "w", "b", "e", "^", "$", "G"]);
 
 type Step = { pending: VisualPending; command: VisualCommand | null };
 

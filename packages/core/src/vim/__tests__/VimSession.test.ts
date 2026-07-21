@@ -5,7 +5,7 @@ import { EditorTrigger } from "../../editor/EditorSession";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode, FileNode } from "@tt/core/filesystem/types";
 
-// Minimal mock Terminal — only needs write(), rows, cols
+// Minimal mock Terminal: only needs write(), rows, cols
 function mockTerminal(rows = 24, cols = 80) {
   return {
     write: vi.fn(),

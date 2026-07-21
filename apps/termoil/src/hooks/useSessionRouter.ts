@@ -2,8 +2,7 @@ import { useCallback, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { useGameStore, getActivePaneId } from "../state/gameStore";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
-import { EditorSession } from "@tt/core/editor/EditorSession";
-import { VimSession } from "@tt/core/vim/VimSession";
+import { editorSessionClass } from "@tt/core/session/editorRegistry";
 import { PythonReplSession } from "@tt/core/python/PythonReplSession";
 import { SnowSqlSession } from "@tt/core/snowflake/session/SnowSqlSession";
 import { createDefaultContext } from "@tt/core/snowflake/session/context";
@@ -368,7 +367,7 @@ export function useSessionRouter(deps: SessionRouterDeps) {
         const trigger = triggerEvents
           ? { triggerRow: triggerRow ?? 0, triggerEvents, requireSave }
           : undefined;
-        const EditorClass = session.info.editor === "vim" ? VimSession : EditorSession;
+        const EditorClass = editorSessionClass(session.info.editor);
         const editorSession = new EditorClass(
           term,
           currentFs,

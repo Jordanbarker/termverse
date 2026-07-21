@@ -1,4 +1,4 @@
-import { isBackspace, isPrintable } from "@tt/core/terminal/keyCodes";
+import { isBackspace, isPrintable, parseCsi } from "@tt/core/terminal/keyCodes";
 
 export type VimKey =
   | { type: "char"; char: string }
@@ -18,7 +18,7 @@ export type VimKey =
 
 /**
  * Decode raw xterm bytes into vim key tokens. Unlike nano's keymap, a bare
- * ESC byte must survive decoding — it is how vim leaves insert/visual mode.
+ * ESC byte must survive decoding: it is how vim leaves insert/visual mode.
  * An ESC not opening a CSI sequence is the ESC key (Alt-chords decode as
  * ESC followed by the plain key, which matches vim).
  */
@@ -30,11 +30,8 @@ export function decodeKeys(data: string): VimKey[] {
     const code = data.charCodeAt(i);
 
     if (data[i] === "\x1b" && data[i + 1] === "[") {
-      let j = i + 2;
-      while (j < data.length && data[j] >= "0" && data[j] <= "?") j++;
-      const params = data.slice(i + 2, j);
-      const final = j < data.length ? data[j] : "";
-      i = j + 1;
+      const { params, final, next } = parseCsi(data, i);
+      i = next;
 
       if (final === "A") keys.push({ type: "up" });
       else if (final === "B") keys.push({ type: "down" });
@@ -47,8 +44,10 @@ export function decodeKeys(data: string): VimKey[] {
         if (keyNum === "3") keys.push({ type: "delete" });
         else if (keyNum === "5") keys.push({ type: "pageUp" });
         else if (keyNum === "6") keys.push({ type: "pageDown" });
+        else if (keyNum === "1" || keyNum === "7") keys.push({ type: "home" });
+        else if (keyNum === "4" || keyNum === "8") keys.push({ type: "end" });
       }
-      // else: unknown CSI final — ignore
+      // else: unknown CSI final: ignore
     } else if (data[i] === "\x1b") {
       keys.push({ type: "esc" });
       i++;

@@ -11,9 +11,9 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   "shortcuts",
   "mail",
   "nano",
-  // Gating is keyed by the literal typed name, so the vi alias needs its own entry.
+  // Aliases (vi, python3, sh/zsh, ., env) resolve to their primary in
+  // availabilityPolicy.isAvailable, so only the primary needs a gate entry.
   "vim",
-  "vi",
   "piper",
   "save",
   "load",
@@ -21,14 +21,9 @@ export const HOME_COMMANDS: ReadonlySet<string> = new Set([
   "cheat",
   "history",
   "python",
-  "python3",
   "bash",
-  "sh",
-  "zsh",
   "source",
-  ".",
   "printenv",
-  "env",
   "export",
   "alias",
   "unalias",
@@ -71,7 +66,6 @@ export const NEXACORP_GATED: Record<string, StoryFlagName> = {
   coder: "coder_unlocked",
   chip: "chip_unlocked",
   printenv: "printenv_unlocked",
-  env: "printenv_unlocked",
   piper: "piper_unlocked",
   chmod: "chmod_unlocked",
   sudo: "apt_unlocked",
@@ -96,13 +90,14 @@ export const DEVCONTAINER_ONLY: ReadonlySet<string> = new Set([
 
 /** Commands available in the Coder dev container. */
 export const DEVCONTAINER_COMMANDS: ReadonlySet<string> = new Set([
-  "ls", "cd", "cat", "pwd", "clear", "help", "shortcuts", "nano", "vim", "vi", "python", "python3", "dbt",
+  // Aliases resolve to their primary in isAvailable, so list primaries only.
+  "ls", "cd", "cat", "pwd", "clear", "help", "shortcuts", "nano", "vim", "python", "dbt",
   "snow", "chip", "grep", "find", "diff", "head", "tail", "wc", "less",
   "sort", "uniq", "echo", "whoami", "hostname", "file", "tree",
   "date", "which", "command", "type", "man", "mkdir", "rm", "mv", "cp", "touch", "chmod",
-  "history", "exit", "save", "load", "newgame", "cheat", "git", "bash", "sh", "zsh",
-  "source", ".",
-  "printenv", "env", "export",
+  "history", "exit", "save", "load", "newgame", "cheat", "git", "bash",
+  "source",
+  "printenv", "export",
   "alias", "unalias",
   "ssh", "ssh-add",
   "lsblk", "mount", "umount",

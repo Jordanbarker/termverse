@@ -622,9 +622,9 @@ export class GameRunner {
     }
 
     if (session.type === "editor") {
-      const { filePath, content, readOnly } = session.info;
+      const { filePath, content, readOnly, editor } = session.info;
       const preview = content.length > 200 ? content.slice(0, 200) + "..." : content;
-      const text = `\n[nano would open: ${filePath}${readOnly ? " (read-only)" : ""}]\nContent preview:\n${preview}\nUse :write ${filePath} <content> or runner.writeFile() to edit.`;
+      const text = `\n[${editor ?? "nano"} would open: ${filePath}${readOnly ? " (read-only)" : ""}]\nContent preview:\n${preview}\nUse :write ${filePath} <content> or runner.writeFile() to edit.`;
       return { text, promptPending: false };
     }
 

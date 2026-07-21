@@ -4,6 +4,9 @@ import { HOME_COMMANDS } from "../../../story/commandGates";
 // Registers TERMOIL_AVAILABILITY_POLICY as a side effect so isCommandAvailable
 // reflects the termoil gates rather than the engine's allow-all default.
 import "../../../story/availabilityPolicy";
+// Registers the builtins (and their registerAlias calls) so getPrimaryName can
+// resolve vi->vim, python3->python, env->printenv in the alias-gating test.
+import "../builtins";
 
 describe("isCommandAvailable", () => {
   describe("home computer", () => {
@@ -47,6 +50,18 @@ describe("isCommandAvailable", () => {
 
     it("allows python on home computer", () => {
       expect(isCommandAvailable("python", "home")).toBe(true);
+    });
+
+    it("resolves command aliases to their primary's gate", () => {
+      // vi/python3/sh/. have no literal gate entry; they inherit vim/python/bash/source.
+      expect(isCommandAvailable("vi", "home")).toBe(true);
+      expect(isCommandAvailable("python3", "home")).toBe(true);
+      expect(isCommandAvailable("sh", "home")).toBe(true);
+      expect(isCommandAvailable(".", "home")).toBe(true);
+      // env inherits printenv's NexaCorp gate.
+      expect(isCommandAvailable("env", "nexacorp")).toBe(false);
+      expect(isCommandAvailable("env", "nexacorp", { printenv_unlocked: true })).toBe(true);
+      expect(isCommandAvailable("vi", "devcontainer")).toBe(true);
     });
 
     it("blocks basic tools without basic_tools_unlocked flag", () => {

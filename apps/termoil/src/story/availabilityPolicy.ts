@@ -10,6 +10,7 @@ import {
   HOME_ONLY,
 } from "./commandGates";
 import { colorize, ansi } from "@tt/core/lib/ansi";
+import { getPrimaryName } from "@tt/core/commands/registry";
 
 /** Per-command hint shown when a NexaCorp command is gated. */
 const NEXACORP_GATE_HINTS: Record<string, string> = {
@@ -18,20 +19,24 @@ const NEXACORP_GATE_HINTS: Record<string, string> = {
 };
 
 function isAvailable(commandName: string, computer: ComputerId, storyFlags?: StoryFlags): boolean {
+  // Gating is defined for primary command names; resolve aliases (vi->vim,
+  // python3->python, env->printenv, ...) so an alias inherits its target's gate
+  // without needing its own literal entry in every set below.
+  const name = getPrimaryName(commandName);
   if (computer === "devcontainer" || computer === "chipinfra") {
-    return DEVCONTAINER_COMMANDS.has(commandName);
+    return DEVCONTAINER_COMMANDS.has(name);
   }
   if (computer === "nexacorp") {
-    if (DEVCONTAINER_ONLY.has(commandName)) return false;
-    if (HOME_ONLY.has(commandName)) return false;
-    const requiredFlag = NEXACORP_GATED[commandName];
+    if (DEVCONTAINER_ONLY.has(name)) return false;
+    if (HOME_ONLY.has(name)) return false;
+    const requiredFlag = NEXACORP_GATED[name];
     if (requiredFlag && !storyFlags?.[requiredFlag]) return false;
     return true;
   }
   // erik-pc is reached via SSH from chipinfra — `exit` returns there.
-  if (computer === "erik-pc" && commandName === "exit") return true;
-  if (DEVCONTAINER_ONLY.has(commandName)) return false;
-  const homeFlag = HOME_GATED[commandName];
+  if (computer === "erik-pc" && name === "exit") return true;
+  if (DEVCONTAINER_ONLY.has(name)) return false;
+  const homeFlag = HOME_GATED[name];
   if (homeFlag) {
     // Erik's work laptop is fully set up — the player's home-PC tutorial
     // unlocks don't apply there (skipping Olive's optional challenge must not
@@ -40,10 +45,10 @@ function isAvailable(commandName: string, computer: ComputerId, storyFlags?: Sto
     if (!storyFlags?.[homeFlag]) return false;
     return true;
   }
-  if (HOME_COMMANDS.has(commandName)) return true;
+  if (HOME_COMMANDS.has(name)) return true;
   // Commands unlocked at NexaCorp carry over to home PC (except NexaCorp-only commands)
-  if (NEXACORP_ONLY.has(commandName)) return false;
-  const nexaFlag = NEXACORP_GATED[commandName];
+  if (NEXACORP_ONLY.has(name)) return false;
+  const nexaFlag = NEXACORP_GATED[name];
   if (nexaFlag && storyFlags?.[nexaFlag]) return true;
   return false;
 }

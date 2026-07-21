@@ -1,6 +1,7 @@
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { LessSessionInfo } from "@tt/core/pager/types";
+import type { EditorId } from "@tt/core/session/editorRegistry";
 import type { MachineId, StoryFlags, GameEvent, PromptSessionInfo, ChipSessionInfo, PiperSessionInfo } from "@tt/core";
 import { SecurityViolation, SecurityPolicy } from "./security";
 import { DeviceProvider } from "./devices";
@@ -77,8 +78,8 @@ export interface EditorSessionInfo {
   content: string;
   readOnly: boolean;
   isNewFile: boolean;
-  /** Which editor session class the app router should start. Absent = nano. */
-  editor?: "nano" | "vim";
+  /** Which editor session class the app router should start (see editorRegistry). Absent = nano. */
+  editor?: EditorId;
   triggerRow?: number;
   triggerEvents?: GameEvent[];
   requireSave?: boolean;

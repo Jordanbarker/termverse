@@ -15,6 +15,9 @@ export type MotionKey =
   | "gg" | "G"
   | "f" | "t";
 
+/** Single-key motions that resolve immediately (0, gg, f, t are handled separately). */
+export const MOTION_CHARS = new Set<string>(["h", "l", "j", "k", "w", "b", "e", "^", "$", "G"]);
+
 export interface MotionResult {
   /** Raw target. col may equal line length (one past the last char); callers clamp for display. */
   target: CursorPosition;
@@ -101,6 +104,22 @@ function stepWordEnd(lines: string[], pos: CursorPosition): CursorPosition {
   }
 }
 
+/** Apply a single-step motion `count` times, stopping early once it stops moving. */
+function repeat(
+  step: (lines: string[], pos: CursorPosition) => CursorPosition,
+  lines: string[],
+  cursor: CursorPosition,
+  count: number
+): CursorPosition {
+  let p = cursor;
+  for (let i = 0; i < count; i++) {
+    const next = step(lines, p);
+    if (next.row === p.row && next.col === p.col) break;
+    p = next;
+  }
+  return p;
+}
+
 /**
  * `w` as an operator target (`dw`, `cw` fallback): vim clamps the final step at
  * end-of-line instead of crossing to the next line's first word, unless the
@@ -114,6 +133,7 @@ function wordForwardForOperator(lines: string[], pos: CursorPosition, count: num
       const eol = lines[p.row].length;
       if (p.col < eol) return { row: p.row, col: eol };
     }
+    if (next.row === p.row && next.col === p.col) break;
     p = next;
   }
   return p;
@@ -164,20 +184,12 @@ export function applyMotion(
       if (opts.forOperator) {
         return { target: wordForwardForOperator(lines, cursor, count), wise: "exclusive" };
       }
-      let p = cursor;
-      for (let i = 0; i < count; i++) p = stepWordForward(lines, p);
-      return { target: p, wise: "exclusive" };
+      return { target: repeat(stepWordForward, lines, cursor, count), wise: "exclusive" };
     }
-    case "b": {
-      let p = cursor;
-      for (let i = 0; i < count; i++) p = stepWordBack(lines, p);
-      return { target: p, wise: "exclusive" };
-    }
-    case "e": {
-      let p = cursor;
-      for (let i = 0; i < count; i++) p = stepWordEnd(lines, p);
-      return { target: p, wise: "inclusive" };
-    }
+    case "b":
+      return { target: repeat(stepWordBack, lines, cursor, count), wise: "exclusive" };
+    case "e":
+      return { target: repeat(stepWordEnd, lines, cursor, count), wise: "inclusive" };
     case "gg": {
       const row = motion.count !== null ? Math.max(0, Math.min(lastRow, motion.count - 1)) : 0;
       return { target: { row, col: firstNonBlank(lines[row]) }, wise: "linewise" };

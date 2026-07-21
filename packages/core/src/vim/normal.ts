@@ -1,4 +1,4 @@
-import { MotionKey } from "./motions";
+import { MotionKey, MOTION_CHARS } from "./motions";
 
 export type Operator = "d" | "c" | "y";
 
@@ -20,7 +20,7 @@ export const EMPTY_PENDING: PendingState = { count1: "", op: null, count2: "", p
 
 export type NormalCommand =
   | { kind: "move"; motion: MotionKey; count: number | null; char?: string }
-  | { kind: "operate"; op: Operator; motion: MotionKey | "line"; count: number; countGiven: boolean; char?: string }
+  | { kind: "operate"; op: Operator; motion: MotionKey | "line"; count: number | null; char?: string }
   | { kind: "deleteChar"; count: number }
   | { kind: "replaceChar"; char: string; count: number }
   | { kind: "put"; before: boolean; count: number }
@@ -32,12 +32,17 @@ export type NormalCommand =
   | { kind: "cmdline"; prefix: ":" | "/" | "?" }
   | { kind: "searchNext"; reverse: boolean };
 
-const MOTION_CHARS = new Set<string>(["h", "l", "j", "k", "w", "b", "e", "^", "$", "G"]);
+/**
+ * Upper bound on a resolved count. Game buffers are tiny, so any larger count is a
+ * fat-fingered `999999999p`; capping keeps paste/motion loops from hanging or
+ * OOM-crashing the tab while leaving every realistic count untouched.
+ */
+export const MAX_COUNT = 100000;
 
 function totalCount(p: PendingState): { count: number; given: boolean } {
   const c1 = p.count1 === "" ? 1 : parseInt(p.count1, 10);
   const c2 = p.count2 === "" ? 1 : parseInt(p.count2, 10);
-  return { count: c1 * c2, given: p.count1 !== "" || p.count2 !== "" };
+  return { count: Math.min(c1 * c2, MAX_COUNT), given: p.count1 !== "" || p.count2 !== "" };
 }
 
 type Step = { pending: PendingState; command: NormalCommand | null };
@@ -46,10 +51,11 @@ const reset = (command: NormalCommand | null = null): Step => ({ pending: EMPTY_
 
 function motionStep(p: PendingState, motion: MotionKey, char?: string): Step {
   const { count, given } = totalCount(p);
+  const resolvedCount = given ? count : null;
   if (p.op) {
-    return reset({ kind: "operate", op: p.op, motion, count, countGiven: given, char });
+    return reset({ kind: "operate", op: p.op, motion, count: resolvedCount, char });
   }
-  return reset({ kind: "move", motion, count: given ? count : null, char });
+  return reset({ kind: "move", motion, count: resolvedCount, char });
 }
 
 /**
@@ -86,7 +92,7 @@ export function stepNormal(p: PendingState, ch: string): Step {
   if (ch === "d" || ch === "c" || ch === "y") {
     if (p.op === ch) {
       const { count, given } = totalCount(p);
-      return reset({ kind: "operate", op: ch, motion: "line", count, countGiven: given });
+      return reset({ kind: "operate", op: ch, motion: "line", count: given ? count : null });
     }
     if (p.op) return reset();
     return { pending: { ...p, op: ch }, command: null };

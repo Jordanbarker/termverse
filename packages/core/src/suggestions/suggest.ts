@@ -17,7 +17,7 @@ export interface SuggestionContext {
 
 /** Commands that accept path arguments */
 export const PATH_COMMANDS = [
-  "cd", "ls", "cat", "less", "nano", "head", "tail", "grep", "diff", "wc", "file",
+  "cd", "ls", "cat", "less", "nano", "vim", "vi", "head", "tail", "grep", "diff", "wc", "file",
   "sort", "uniq", "chmod", "rm", "cp", "mv", "touch", "find", "tree",
   "pdftotext", "bash", "sh",
 ];

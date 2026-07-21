@@ -155,6 +155,11 @@ describe("getCompletions", () => {
       expect(result!.displayNames).toEqual(["notes.txt"]);
     });
 
+    it("vim and its vi alias complete filenames like nano", () => {
+      expect(getCompletions("vim n", createCtx())!.displayNames).toEqual(["notes.txt"]);
+      expect(getCompletions("vi n", createCtx())!.displayNames).toEqual(["notes.txt"]);
+    });
+
     it("completes after flags", () => {
       const result = getCompletions("head -n 5 n", createCtx());
       expect(result).not.toBeNull();

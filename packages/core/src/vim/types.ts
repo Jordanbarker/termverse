@@ -2,7 +2,7 @@ import { CursorPosition } from "../editor/types";
 import { PendingState } from "./normal";
 import { VisualPending } from "./visual";
 
-export type VimMode = "normal" | "insert" | "visual" | "visual-line" | "command";
+export type VimMode = "normal" | "insert" | "visual" | "visual-line";
 
 /**
  * The single unnamed register. Charwise text is stored as segments: one entry

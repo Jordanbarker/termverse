@@ -1,12 +1,14 @@
 import { EditorConfig } from "../editor/types";
+import { ansi } from "@tt/core/lib/ansi";
 import { VimState } from "./types";
 import { showcmd } from "./normal";
 import { orderedRange } from "./visual";
 
+// CSI introducer for cursor positioning; the SGR styles come from the shared ansi table.
 const ESC = "\x1b[";
-const REVERSE = `${ESC}7m`;
-const RESET = `${ESC}0m`;
-const BOLD = `${ESC}1m`;
+const REVERSE = ansi.reverse;
+const RESET = ansi.reset;
+const BOLD = ansi.bold;
 
 /** DECSCUSR cursor shapes: block outside insert mode, bar inside it. */
 export function cursorShapeFor(mode: VimState["mode"]): string {

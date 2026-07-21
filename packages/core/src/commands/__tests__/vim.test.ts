@@ -95,15 +95,15 @@ describe("vim builtin (shared editorOpen paths)", () => {
   });
 });
 
-describe("nano builtin (unchanged after the editorOpen extraction)", () => {
-  it("opens an existing file without an editor discriminator", () => {
+describe("nano builtin (shares editorOpen with vim)", () => {
+  it("opens an existing file tagged as the nano editor", () => {
     const result = run("nano", ["notes.txt"]);
     expect(result.editorSession).toMatchObject({
       filePath: `${HOME}/notes.txt`,
       readOnly: false,
       isNewFile: false,
+      editor: "nano",
     });
-    expect(result.editorSession?.editor).toBeUndefined();
   });
 
   it("keeps nano-prefixed error messages", () => {
