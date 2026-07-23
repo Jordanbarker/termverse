@@ -1,32 +1,12 @@
 # Termoil
 
-A workplace mystery, played from a zsh-themed terminal.
+A workplace mystery, played from a zsh-themed terminal. Learn Linux, git, and data tooling as the story unfolds.
 
-Play it from your browser: https://jordanbarker.github.io/termverse/termoil/
+Play it: https://jordanbarker.github.io/termverse/termoil/
 
-Part of the [termverse](../../README.md) monorepo.
+Part of the [termverse](../../README.md) monorepo. See the root README for the full picture and local dev instructions.
 
-## What it looks like
-
-Command history, suggestions, autocomplete, aliases
-
-![Investigating the file system](../../.assets/file-demo.gif)
-
-### Modern Data Stack
-
-SSH into a coder dev container, git clone, run dbt commands, and query snowflake data.
-
-![Git clone, dbt build](../../.assets/git-dbt.gif)
-
-## Play Locally
-
-From the repo root:
-
-```bash
-npm run dev
-```
-
-Saves live in `localStorage`. To start over from scratch, in your browser devtools:
+Saves live in `localStorage`. To start over, in your browser devtools:
 
 ```js
 localStorage.removeItem('termoil-save'); location.reload();

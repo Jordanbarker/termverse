@@ -1,13 +1,26 @@
 # Termverse
 
-Terminal based browser games, built on one reusable terminal engine.
+Terminal games that run entirely in your browser.
 
-Play them: https://jordanbarker.github.io/termverse/
+**Play them here: https://jordanbarker.github.io/termverse/**
 
-## Games
+Under the hood is a reusable terminal engine (`@tt/core`) that simulates a shell, filesystem, tmux, git, dbt, Snowflake, and Python, all client-side on xterm.js.
 
-- **[termoil](apps/termoil/README.md)** — a workplace mystery
-- **term-crunch** — bite-size terminal-skills challenges
+## The games
+
+### term-crunch
+
+Timed challenges across tmux, git, filesystem, and vim tracks. A spaced-repetition scheduler makes it easy to review what you're rusty on.
+
+### termoil
+
+A workplace mystery. Learn Linux, git, and a modern data stack as the story unfolds.
+
+![Investigating the file system](.assets/file-demo.gif)
+
+SSH into a dev container, `git clone` the repo, run `dbt build`, and query Snowflake.
+
+![Git clone, dbt build](.assets/git-dbt.gif)
 
 ## Local dev
 
@@ -21,3 +34,13 @@ npm run dev:crunch   # term-crunch dev server only
 npm run build        # termoil static export
 npm run build:crunch # term-crunch static export
 ```
+
+## Repo layout
+
+An npm-workspace monorepo:
+
+- `packages/core` (`@tt/core`): the reusable terminal engine.
+- `apps/termoil`: the workplace mystery.
+- `apps/term-crunch`: the timed challenges.
+
+Built with Next.js (static export), TypeScript, xterm.js, Zustand, and Tailwind.
