@@ -19,6 +19,7 @@ import WindowStripView from "./WindowStripView";
 import FsTreeView from "./FsTreeView";
 import SettingsModal from "./SettingsModal";
 import VimCheatSheet from "./VimCheatSheet";
+import TmuxCheatSheet from "./TmuxCheatSheet";
 
 export default function ChallengePanel() {
   const challengeIndex = useGameStore((s) => s.challengeIndex);
@@ -203,6 +204,8 @@ export default function ChallengePanel() {
           )}
 
           {challenge.type === "vim" && <VimCheatSheet />}
+
+          {challenge.type === "tmux" && <TmuxCheatSheet />}
 
           {/* Gated on the field, not the type: an fs-detected challenge in any
               track (e.g. the copy-mode tmux challenge) still gets the tree. */}
