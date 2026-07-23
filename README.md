@@ -1,8 +1,10 @@
 # Termverse
 
-Terminal games that run entirely in your browser.
+Terminal games that run in your browser.
 
 **Play them here: https://jordanbarker.github.io/termverse/**
+
+![Investigating the file system](.assets/file-demo.gif)
 
 Under the hood is a reusable terminal engine (`@tt/core`) that simulates a shell, filesystem, tmux, git, dbt, Snowflake, and Python, all client-side on xterm.js.
 
@@ -14,13 +16,9 @@ Timed challenges across tmux, git, filesystem, and vim tracks. A spaced-repetiti
 
 ### termoil
 
-A workplace mystery. Learn Linux, git, and a modern data stack as the story unfolds.
+A workplace mystery. Learn Linux, git, and a modern data stack as the story unfolds. SSH into a dev container, `git clone` the repo, run `dbt build`, and query Snowflake.
 
-![Investigating the file system](.assets/file-demo.gif)
-
-SSH into a dev container, `git clone` the repo, run `dbt build`, and query Snowflake.
-
-![Git clone, dbt build](.assets/git-dbt.gif)
+![Git clone, dbt build](.assets/git-dbt.webp)
 
 ## Local dev
 
