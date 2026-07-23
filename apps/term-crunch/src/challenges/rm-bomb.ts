@@ -49,7 +49,7 @@ export const rmBomb: Challenge = {
   title: "Defuse the BOMB",
   type: "fs",
   fsWatchPath: WORK_DIR,
-  commands: ["find", "rm", "ls", "cat", "cd", "pwd"],
+  commands: ["find", "rm", "ls", "tree", "cat", "cd", "pwd"],
   brief:
     "A file named BOMB.md is hidden somewhere under ~/work. Delete just that file, " +
     "leaving every other file intact.",

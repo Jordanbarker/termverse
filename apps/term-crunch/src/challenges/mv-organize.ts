@@ -33,7 +33,7 @@ export const mvOrganize: Challenge = {
   title: "Sort the downloads",
   type: "fs",
   fsWatchPath: MESSY_DIR,
-  commands: ["mkdir", "mv", "ls", "cd", "pwd"],
+  commands: ["mkdir", "mv", "ls", "tree", "cd", "pwd"],
   brief:
     "There's a stray log file loose in ~/downloads. Make a logs folder and tuck it away.",
   setup,

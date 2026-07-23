@@ -17,12 +17,15 @@ import { useGameStore } from "../state/gameStore";
  * so the player can always move between challenges. `man` self-scopes:
  * `man <cmd>` only renders a page for commands the current challenge allows
  * (core `man.ts` checks availability), so it returns "No manual entry" for
- * off-list commands.
+ * off-list commands. `ls`, `pwd`, and `cd` are also always allowed as harmless
+ * read-only orientation: players reflexively reach for them (especially in the
+ * keyboard-only tmux challenges), they can never satisfy a challenge predicate, and
+ * every non-tmux challenge already lists them anyway.
  *
  * Mirrors termoil's src/story/availabilityPolicy.ts seam usage; the
  * current challenge is read lazily from the store so import order doesn't matter.
  */
-const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "tmux", "challenges", "goto", "next", "prev", "track", "review"]);
+const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "tmux", "ls", "pwd", "cd", "challenges", "goto", "next", "prev", "track", "review"]);
 
 function isAvailable(commandName: string): boolean {
   const { activeCategory, challengeIndex } = useGameStore.getState();

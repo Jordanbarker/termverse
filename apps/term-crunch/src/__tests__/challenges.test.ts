@@ -1199,12 +1199,17 @@ describe("per-challenge command allowlist", () => {
   beforeAll(() => setAvailabilityPolicy(CRUNCH_AVAILABILITY_POLICY));
   afterAll(() => resetAvailabilityPolicy());
 
-  it("always allows help, clear, man, and shortcuts, regardless of the challenge list", () => {
+  it("always allows help, clear, man, shortcuts, and read-only orientation, regardless of the challenge list", () => {
     select("panes-split"); // commands: []
     expect(isCommandAvailable("help", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("clear", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("man", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("shortcuts", CRUNCH_MACHINE)).toBe(true);
+    // ls/pwd/cd are always allowed as harmless orientation, even in a
+    // keyboard-only tmux challenge that lists no shell commands.
+    expect(isCommandAvailable("ls", CRUNCH_MACHINE)).toBe(true);
+    expect(isCommandAvailable("pwd", CRUNCH_MACHINE)).toBe(true);
+    expect(isCommandAvailable("cd", CRUNCH_MACHINE)).toBe(true);
   });
 
   it("allows exactly the listed commands (plus help/clear) and hides the rest", () => {
