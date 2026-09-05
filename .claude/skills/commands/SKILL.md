@@ -7,9 +7,9 @@ description: "Command parser, registry, pipeline execution, and how to add new c
 
 Parses terminal input, dispatches to registered handlers, chains pipelines, and computes side effects — all as pure functions. **Shared `@tt/core` engine** (`packages/core/src/commands`), consumed by both apps.
 
-Code map: `commands/{types,registry,parser,expansion,runPipeline,applyResult,flagValidation,redirection,security,devices,scriptInterceptors,envTriggers,editorTriggers,availability,clock,fsErrors,operands}.ts` + `builtins/` (one file per command, plus `helpTexts.ts`; `git.ts`/`dbt.ts`/`snow.ts` are core builtins).
+Code map (`packages/core/src/commands/`): the spine is `parser.ts` → `expansion.ts` → `runPipeline.ts` → `registry.ts` → `applyResult.ts`; the rest are one file per topic, most of them seams (see **App-injected seams**). `builtins/` is one file per command plus `helpTexts.ts` (`git.ts`/`dbt.ts`/`snow.ts` are core builtins).
 
-**Core registers only story-agnostic commands.** Termoil's own builtins live in `apps/termoil/src/engine/commands/builtins/` and self-register from that dir's `index.ts` (which imports core's first): `mail`, `ssh`, `ssh-add`, `coder`, `exit`, `apt`, `chip`, `piper`, `shutdown`, `hostname`, `cheat`, `save`/`load`/`newgame`. Their help text is that dir's `helpTexts.ts` (core's map merged with termoil's entries). `apps/term-crunch/src/__tests__/coreSurface.test.ts` fails if a story command reappears in core. Interactive modes: `session/types.ts` (`ISession`/`SessionResult`), `pager/` (less). Orchestration: the store-agnostic chain/pipe loop is core `runPipeline.ts`; the app hooks (`useTerminal.ts`, `useCommandLine.ts`, `useComputerTransitions.ts`) are thin wrappers. Read the type definitions in `commands/types.ts` and `applyResult.ts` directly — not mirrored here.
+**Core registers only story-agnostic commands.** Termoil's own builtins live in `apps/termoil/src/engine/commands/builtins/` and self-register from that dir's `index.ts` (which imports core's first): `mail`, `ssh`, `ssh-add`, `coder`, `exit`, `apt`, `chip`, `piper`, `shutdown`, `hostname`, `cheat`, `save`/`load`/`newgame`. Their help text is that dir's `helpTexts.ts` (core's map merged with termoil's entries). `apps/term-crunch/src/__tests__/coreSurface.test.ts` fails if a story command reappears in core. term-crunch has no `builtins/` dir at all — its app commands are the single file `apps/term-crunch/src/engine/commands/navigation.ts`, so the add-a-command recipe below applies to core and termoil only. Interactive modes: `session/types.ts` (`ISession`/`SessionResult`), `pager/` (less). Orchestration: the store-agnostic chain/pipe loop is core `runPipeline.ts`; the app hooks are thin wrappers (termoil: `useTerminal.ts`, `useCommandLine.ts`, `useComputerTransitions.ts`). Read the type definitions in `commands/types.ts` and `applyResult.ts` directly — not mirrored here.
 
 ## Parser (`parser.ts`)
 
@@ -21,18 +21,17 @@ All quote-aware scanning goes through the exported `scanQuoted` visitor at the t
 
 ## Word expansion (`expansion.ts`)
 
-Order for one submitted line: **alias → parse → variables → globs**. Aliases are textual and pre-parse (`expandAliases`); the other two run per chain segment inside `runPipeline` (`expandSegmentWords`), so a just-`export`ed var and `$?` are current (`scripts/play.ts` mirrors this in `prepareSegment`). The env map is read via `buildContext`, never a snapshot, so `export X=1 && echo $X` works.
+Order for one submitted line: **alias → parse → variables → globs**. Aliases are textual and pre-parse (`expandAliases`, in `parser.ts`); the other two run per chain segment inside `runPipeline` (`expandSegmentWords`), so a just-`export`ed var and `$?` are current (`scripts/play.ts` mirrors this in `prepareSegment`). The env map is read via `buildContext`, never a snapshot, so `export X=1 && echo $X` works.
 
 **Quoted-ness is carried by `parser.tokenizeWords`** (`QuotedWord`: runs tagged `none`/`single`/`double`) — the only thing that survives tokenization to tell `'*.log'` from `*.log`. Expanded argv is rebuilt via `parsedFromTokens`, not re-parsed (a globbed filename may contain a space); `ParsedCommand.raw` stays pre-expansion.
 
-- **`$VAR`** — `$VAR`, `${VAR}`, `${VAR:-default}`, `$1`..`$9` (scripts only), `$?`. Expands unquoted and in double quotes, never in single quotes. Undefined → empty; an unquoted word expanding to nothing disappears from argv. No word splitting. `makeShellLookup` puts `ctx.envVars` first, falling back to shell-managed `HOME`/`USER`/`PWD`; `$?` is the one name env can't shadow.
-- **`$?` is the previous line's status, per pane** (within a line: previous segment). Threaded via `RunPipelineOptions.initialExitCode` (termoil/term-crunch: per-pane `Map`s; `play.ts`: a field). Shell state: new pane starts at 0, resets on machine switch/checkpoint load, never persisted.
-- **Globs** — `*`, `?`, `[...]` (with `!`/`^` negation and ranges), recursive `**`, matched per path segment (a non-final segment only matches directories). `~/x/*` expands the tilde first; a `~` from a variable is a plain character. Matches deduped + sorted. **`*` never matches a dotfile** unless the component starts with a literal `.`.
-- **`**` (globstar)** is a bare `**` component only, matching zero or more levels; the dotfile rule applies at every level. A trailing `**` becomes `**/*`. VirtualFS is symlink-free, so the walk terminates.
-- **A malformed pattern degrades to a literal, never throws** (`compilePathPart` catches bad-RegExp classes like `[z-a]`). Both apps' hooks also `catch` around the pipeline call and print `zsh: internal error`, so an engine throw can't hang the game.
+- **`$VAR`** — `$VAR`, `${VAR}`, `${VAR:-default}`, `$1`..`$9` (scripts only), `$?`. Expands unquoted and in double quotes, never in single quotes. No word splitting. `$?` is the one name `ctx.envVars` can't shadow.
+- **`$?` is the previous line's status, per pane** (within a line: previous segment). Threaded via `RunPipelineOptions.initialExitCode` (termoil/term-crunch: per-pane `Map`s; `play.ts`: a field). New pane starts at 0, resets on machine switch/checkpoint load, never persisted.
+- **Globs** — `*`, `?`, `[...]`, recursive `**`, matched per path segment (a non-final segment only matches directories). **`*` never matches a dotfile** unless the component starts with a literal `.`, at every level. `~/x/*` expands the tilde first; a `~` from a variable is a plain character. VirtualFS is symlink-free, so the walk terminates.
 - **zsh nomatch, not bash passthrough**: an unmatched pattern prints `zsh: no matches found: <pattern>` and the segment does not run at all (exit 1; no `applySegment`, no `command_executed` event; `play.ts` mirrors via its `rejected` flag). So `find . -name *.log` errors unless quoted.
+- **A malformed pattern degrades to a literal, never throws.** Both apps' hooks also `catch` around the pipeline call and print `zsh: internal error`, so an engine throw can't hang the game.
 - **Var-then-glob, one direction only**: metacharacters from a variable's value stay literal (GLOB_SUBST off); only characters typed unquoted can be pattern characters.
-- **Scope: argv only, minus assignment words.** Redirect targets are split off before this pass and never expanded. `NAME=VALUE` operands of `export`/`alias` (`ASSIGNMENT_COMMANDS`) skip globbing but still expand variables. Globbing is interactive-shell only: `bash.ts` shares the variable half (script-local vars layered over `ctx.envVars`; `$?` stays literal) but never globs — authored `.sh` files rely on literal patterns.
+- **Scope: argv only.** Redirect targets are split off before this pass and never expanded. Globbing is interactive-shell only: `bash.ts` shares the variable half (script-local vars layered over `ctx.envVars`; `$?` stays literal) but never globs — authored `.sh` files rely on literal patterns.
 - **Backslash is not an escape anywhere in this engine.** Quote to make a metacharacter literal.
 - **Deliberately NOT supported**: `$(...)`/backticks in the interactive shell (copied through; only `bash.ts` substitutes), brace expansion, arithmetic, process substitution, `~user`.
 
@@ -44,11 +43,9 @@ Both the ghost-text suggester and TAB completion resolve filesystem candidates t
 
 ## Flag validation (`flagValidation.ts`)
 
-The dispatcher rejects unknown flags by default (coreutils-style, exit 2). **Every** command declares known flags via `setKnownFlags(name, {short, long})` after `register(...)`: `{}` when it takes none, one call per alias (lookup is by the typed name). An undeclared command silently rejects every flag, so the omission is a bug: `knownFlags.test.ts` (termoil) walks the registry and fails on any name that neither declares nor opts out (term-crunch mirrors it in `navigation.test.ts`). `--help` short-circuits before validation. Opt-outs (`skipFlagValidation(name)`, validate in-handler):
-- **rawArgs-driven** (`find`, `head`, `tail`, `tree`, `tmux`) — the parser shatters `-name`/`-5`/`-L N`, so the handler re-parses `ctx.rawArgs`.
-- **Per-subcommand** (`git`) — validated with `rejectUnknownFlags(..., {style: "git"})` (exit 129).
-- **Custom prefix** (`snow`) — `rejectUnknownFlags("snow sql", ...)`.
-- **Flag pass-through** (`sudo`) — the parser hoists every flag on the line, so `sudo` validates only flags typed before the command name against its own set, then re-classifies the tail via `parser.splitArgsAndFlags` and re-dispatches verbatim.
+The dispatcher rejects unknown flags by default (coreutils-style, exit 2). **Every** command declares known flags via `setKnownFlags(name, {short, long})` after `register(...)`: `{}` when it takes none, one call per alias (lookup is by the typed name). An undeclared command silently rejects every flag, so the omission is a bug: `knownFlags.test.ts` (termoil) walks the registry and fails on any name that neither declares nor opts out (term-crunch mirrors it in `navigation.test.ts`). `--help` short-circuits before validation.
+
+Current `skipFlagValidation` opt-outs, all validating in-handler: `find`, `head`, `tail`, `tree`, `tmux` (rawArgs-driven — the parser shatters `-name`/`-5`/`-L N`), `git` (per-subcommand, exit 129), `snow`, and `sudo`. **`sudo` is the odd one**: the parser hoists every flag on the line, so it validates only flags typed before the command name against its own set, then re-classifies the tail via `parser.splitArgsAndFlags` and re-dispatches verbatim.
 
 ## Chaining, pipelines, redirection
 
@@ -72,7 +69,7 @@ Execution (`runPipeline.ts`, shared core): outer loop over `ChainSegment[]`, inn
 - **Rendering is `computeEffects`' job**: `AppliedEffects.output` is the segment's whole `stderr` block then its `output`, joined (not interleaved). A new consumer of `CommandResult` that skips `computeEffects` must print `stderr` itself.
 - Deliberately still stdout: `diff`'s exit-1 report, and the per-operand "not found" lines of `which`/`type`/`file` (zsh does the same). Termoil's story builtins (`mail`, `chip`, `piper`, …) also still print on stdout; new code should not add to that list.
 
-## Text helpers (`src/lib/textUtils.ts`)
+## Text helpers (`packages/core/src/lib/textUtils.ts`)
 
 `splitLines(content)` drops the phantom empty element a final `\n` produces — use it in any line-oriented command instead of bare `content.split("\n")`.
 
@@ -100,7 +97,7 @@ Exit-code convention: **1 = read/write failure**, **2 = usage error**. Multi-ope
 
 **Background timers:** `CommandResult.deferredCommands` schedules/cancels app-owned, per-machine commands without suppressing the prompt or stopping a chain. `deferEvents` skips completion events/deliveries until execution; both `runPipeline` and `bash` preserve deferred actions from intermediate/nested commands. Termoil's `hooks/deferredCommands.ts` owns timer handles; `useTerminal` re-executes against live state at expiry and clears timers on load/unmount or machine removal. `CommandContext.pendingCommands` supports duplicate-schedule checks. `shutdown` defaults to 60 seconds; `shutdown -c` cancels, `shutdown [ -h ] now` executes immediately. Headless story playtests use the immediate form when asserting completion flags (the runner does not enact terminal timers/cinematics).
 
-**`GameEvent` vocabulary** (union in `engine/mail/delivery.ts`): `directory_created` fires for `mkdir`/`cp -r`/`mv` (dest + every nested sub-dir); `directory_removed` for `mv`/`rm -r`; `file_created` vs `file_modified` is decided by `fs.getNode(path)` before the write; `file_removed` for `rm`/`mv` source-side. The matcher supports `path` (exact) for all events; `file_read`/`file_created`/`file_modified` also support `pathPrefix`.
+**`GameEvent` vocabulary** (union in `packages/core/src/gameEvent.ts`; `mail/delivery.ts` re-exports it): `directory_created` fires for `mkdir`/`cp -r`/`mv` (dest + every nested sub-dir); `directory_removed` for `mv`/`rm -r`; `file_created` vs `file_modified` is decided by `fs.getNode(path)` before the write; `file_removed` for `rm`/`mv` source-side. The matcher supports `path` (exact) for all events; `file_read`/`file_created`/`file_modified` also support `pathPrefix`.
 
 ## Sessions (`session/types.ts`)
 
@@ -128,19 +125,20 @@ Everything core needs to know about a *particular* game arrives through one of t
 - **`CommandContext.gitAuthor`** — commit author; absent ⇒ generic `username <username@localhost>`.
 - **`CommandContext.dbtModelOrder`** — authored model execution order; absent ⇒ discovered order.
 - **`CommandContext.clock`** — the in-game clock (see above).
-- **`builtins/man.ts` `registerManSummaries`** — the man NAME line for app builtins.
+- **`CommandContext.tmux`** — the mux server snapshot the `tmux` builtin and `shortcuts` gating read; absent ⇒ permanently attached. **`CommandContext.tabPrefixLabel`** — the prefix label shown in help text, parsed from the app's `~/.tmux.conf`. Both in `types.ts`; see the **tmux skill**.
+- **`builtins/man.ts` `registerManSummaries`** — the man NAME line for app builtins; each app exports its own table (termoil: `TERMOIL_MAN_SUMMARIES` in its `builtins/helpTexts.ts`) and passes it in from `builtins/index.ts`.
 
-All have a `reset*` counterpart for test isolation. `packages/core/src/__tests__/storyLiterals.test.ts` is the tripwire: it fails if known story literals (nexacorp, sdb1, story flag/event names) appear anywhere in core source outside `__tests__`. Importing termoil's `builtins/index.ts` gives tests/the app the complete command layer, seams included.
+Most have a `reset*` counterpart for test isolation (the help/man registrars don't — they merge into a module-level map). `packages/core/src/__tests__/storyLiterals.test.ts` is the tripwire: it fails if known story literals (nexacorp, sdb1, story flag/event names) appear in any `.ts` file under core outside `__tests__` (it walks `.ts` only, so a literal in a `.tsx`/`.json` slips past). Importing termoil's `builtins/index.ts` gives tests/the app the complete command layer, seams included.
 
 ## Adding a new command
 
-1. Create `builtins/{name}.ts`: a `CommandHandler` `(args, flags, ctx) => CommandResult`; `register("name", handler, "desc", HELP_TEXTS.name)` + `setKnownFlags("name", {...})` at the bottom. **Story-coupled command? App's builtins dir, not core.**
-2. Add the help entry to the sibling `helpTexts.ts` (`man` reads the registered help text, so a man page comes for free); add a `MAN_SUMMARIES` entry, and `addSubcommandCompletions` if it has subcommands.
+1. Create `builtins/{name}.ts`: a `CommandHandler` `(args, flags, ctx) => CommandResult`; `register("name", handler, "desc", HELP_TEXTS.name)` + `setKnownFlags("name", {...})` at the bottom (`registerAsync` for a promise-returning handler, `registerAlias(alias, primary)` for a second name — `setKnownFlags` is still per typed name). **Story-coupled command? App's builtins dir, not core.**
+2. Add the help entry to the sibling `helpTexts.ts` (`man` reads the registered help text, so a man page comes for free); add the man NAME line to that dir's summaries table (core: `MAN_SUMMARIES` in `builtins/man.ts`; termoil: `TERMOIL_MAN_SUMMARIES`), and `addSubcommandCompletions` if it has subcommands.
 3. `import "./name";` in the matching `builtins/index.ts`.
 4. Add `__tests__/name.test.ts`.
 
-Look at a neighbouring builtin for the pattern that fits. Design invariants: pure functions (no store access), immutable FS (mutations return `newFs`), engine imports types from `state/types.ts` but never Zustand, always `resolvePath(arg, ctx.cwd, ctx.homeDir)`, colors via `colorize()`/`ansi` from `src/lib/ansi.ts`.
+Look at a neighbouring builtin for the pattern that fits. Design invariants: pure functions (no store access), immutable FS (mutations return `newFs`), never import Zustand, always `resolvePath(arg, ctx.cwd, ctx.homeDir)`, colors via `colorize()`/`ansi` from `@tt/core/lib/ansi`.
 
 ## Block devices and mounts (`lsblk`, `mount`, `umount`)
 
-Tooling in `builtins/{lsblk,mount,umount}.ts`; story-side registry `src/story/blockDevices.ts` (`BLOCK_DEVICES`, optional `visibleFlag` + `getContents()`). Every computer has a baseline system disk via `systemDisk(...)` (a `mountpoint?` marks a static baseline mount that `mount` refuses to re-mount); `getRootDevice(computer)` feeds both of `df`'s device and Size columns, so a new machine only needs a `systemDisk(...)` entry. `mount` wraps children via `dir(basename(mountpath), ...)`, refuses non-empty targets, and emits a device's `mountTrigger` event only at its declared mountpath (termoil: `mounted_usb_drive` for `/dev/sdb1` at `/mnt/usb`). The per-computer `Mounts` registry rides the same accumulator pattern as `fs` (`ctx.mounts` → `result.newMounts`, committed by `useTerminal` via `setComputerMounts`); key via `normalizeMountKey(input, cwd, homeDir)`.
+Tooling in `builtins/{lsblk,mount,umount}.ts`; story-side registry `src/story/blockDevices.ts` (`BLOCK_DEVICES`, optional `visibleFlag` + `getContents()`). Every computer has a baseline system disk via `systemDisk(...)` (a `mountpoint?` marks a static baseline mount that `mount` refuses to re-mount); `getRootDevice(computer)` feeds both of `df`'s device and Size columns, so a new machine only needs a `systemDisk(...)` entry. `mount` wraps children via `dir(basename(mountpath), ...)`, refuses non-empty targets, and emits a device's `mountTrigger` event only at its declared mountpath. The per-computer `Mounts` registry rides the same accumulator pattern as `fs` (`ctx.mounts` → `result.newMounts`, committed by `useTerminal` via `setComputerMounts`); key via `normalizeMountKey(input, cwd, homeDir)`.

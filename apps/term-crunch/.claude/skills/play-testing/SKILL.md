@@ -5,16 +5,16 @@ description: "Headless runner for programmatically play-testing term-crunch chal
 
 # Headless Runner (term-crunch)
 
-`apps/term-crunch/scripts/play.ts` exports **`CrunchRunner`** plus an interactive REPL. Unlike termoil's `GameRunner` (which reimplements the browser loop), this is a **thin shim over the real code**: a fake terminal (only `write`/`clear` are ever called) + the real `useGameStore`, driving the real `runLine` from `src/hooks/useTerminal.ts` — so aliases, chained pipelines, `checkCompletion()`, challenge navigation and `applyTmuxAction` ordering are exercised for real. Read the class for its API; conventions and traps:
+`apps/term-crunch/scripts/play.ts` exports **`CrunchRunner`** plus an interactive REPL (`npm -w @tt/term-crunch run play`, or the root `npm run play:crunch`). Unlike termoil's `GameRunner`, it is a **thin shim over the real code** rather than a reimplementation of the browser loop — the header comment at `scripts/play.ts:3-21` explains why and lists both structural limitations. Read the class for its API; conventions and traps:
 
 - **No duplicated state** — read everything from `runner.store` (`useGameStore.getState()`). `runner.challenge` resolves the current challenge through the active **category** (never `CHALLENGES[challengeIndex]` — see the `challenges` skill's index trap).
 - `run(line)` is async and returns `{ output, rawOutput, startSession }`. Navigation helpers (`goto`, `track`) go through `run`, so they exercise the real meta commands; `gotoId(id)` is the direct store jump for test setup.
 - `grade(1-4 | Grade)` answers the completion gate (`continueToNext`), returning false when no gate is up. Grading is what advances to the next challenge. Mastery awards are echoed by a store subscription watching `lastAwards` (MP lands at completion time inside `checkCompletion`, not at the grade).
 - Scripts import `./localStorageStub` **before** the store so persist neither warns nor writes a real file. Keep that import first in any new script.
 
-**Two limitations to plan around:**
-- **Keyboard chords are bypassed.** Prefix chords and `~/.tmux.conf` bindings live in the React `useTabManager` hook, so pane/window play runs through the store actions those chords call: `split`, `killPane`, `focus`/`cyclePane`/`focusPaneAt`, `resize`, `newWindow`, `cycleWindow`, `renameWindow`. `resize(dir, steps)` nudges by `MAX_NUDGE_RATIO` per step. Copy mode isn't reachable at all — drive the observable outcome (e.g. the `mkdir` that spends the yanked token) and verify the yank itself in the browser.
-- **Editor/pager sessions can't be driven.** vim/nano/less return a `SessionToStart` that the React layer instantiates; `run()` surfaces it and stops. `writeFile(path, content)` is the editor stand-in when a predicate only reads the saved file.
+**Two limitations to plan around** (rationale in the file header):
+- **Keyboard chords are bypassed** — drive the store actions the chords call (`split`, `killPane`, `focus`/`cyclePane`/`focusPaneAt`, `resize`, `newWindow`, `cycleWindow`, `renameWindow`). `resize(dir, steps)` is a fixed `MAX_NUDGE_RATIO` nudge, not the real cell-geometry delta. Copy mode isn't reachable at all — drive the observable outcome (e.g. the `mkdir` that spends the yanked token) and verify the yank itself in the browser.
+- **Editor/pager sessions can't be driven** — `writeFile(path, content)` is the editor stand-in when a predicate only reads the saved file.
 
 ## Track playtest
 
@@ -45,7 +45,7 @@ The headless runner has no chord layer, no copy mode, no editor sessions and no 
 
 ### Driving xterm.js
 
-Identical to termoil — **the trap list and driver skeleton live in the `apps/termoil:play-testing` skill** (per-row `textContent` not `innerText`; coordinate-click `.xterm-screen` to focus; outline only with 2+ panes; chords are pane-relative so confirm focus first; real `ClipboardEvent` for paste + read the clipboard back to verify yanks; copy mode's two coordinate systems; real Playwright clicks; tail-match with polling waits). Prefix is Ctrl+Space by default: `keyboard.down('Control'); press('Space'); up('Control')`, then the chord key.
+Identical to termoil — **the trap list and driver skeleton live in the `apps/termoil:play-testing` skill**; read them there. Prefix is Ctrl+Space by default: `keyboard.down('Control'); press('Space'); up('Control')`, then the chord key.
 
 ### DOM map
 

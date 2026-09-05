@@ -125,7 +125,7 @@ function formatStatusShort(status: StatusResult): string {
 
 /**
  * Format a game-time timestamp as a git-style date, matching the `date` builtin.
- * gameNowFor() constructs Dates with local-time field semantics, so we read back
+ * The `ctx.clock` seam constructs Dates with local-time field semantics, so we read back
  * with local getters and label the output +0000 (the in-game wall clock is UTC).
  */
 function formatGitDate(ts: number): string {

@@ -7,7 +7,7 @@ description: "How the Piper team messaging system works — channels, DMs, messa
 
 NexaCorp's Slack-style team chat — casual colleague conversations (quick asks, tool intros, help). Email handles formal/system comms.
 
-Code map: `src/engine/piper/` (`types.ts` — all types, read them there; `delivery.ts` = `checkPiperDeliveries`/`seedImmediatePiper`/`getConversationHistory`/`getPendingReplies`/`getVisibleChannels`; `timestamp.ts`; `render.ts`; `PiperSession.ts` — `pickVisibleReply`). Content in `src/story/piper/`: `channels.ts` (`PIPER_CHANNELS`), `messages.ts` (auto-includes all per-character files in `messages/` — one per character). Command registration `src/engine/commands/builtins/piper.ts` (app-side, like the rest of the story builtins).
+Code map: `src/engine/piper/` (`types.ts` — all types, read them there; `delivery.ts` = `checkPiperDeliveries`/`seedImmediatePiper`/`getConversationHistory`/`getPendingReplies`/`getVisibleChannels`; `timestamp.ts`; `render.ts`; `PiperSession.ts` — `pickVisibleReply`/`consumeDigit`; `deliverPiperAndCascade` in `delivery.ts` is the transition-time entry point). Pacing constants are `src/lib/timing.ts`. Content in `src/story/piper/`: `channels.ts` (`PIPER_CHANNELS`), `messages.ts` (auto-includes all per-character files in `messages/` — one per character). Command registration `src/engine/commands/builtins/piper.ts` (app-side, like the rest of the story builtins).
 
 ## Storage
 
@@ -17,7 +17,9 @@ It is **set-like**: a repeated id replays the message in the conversation, so `a
 
 ## Delivery flow
 
-Player action → `GameEvent` → `computeEffects()` calls `checkPiperDeliveries(event, deliveredIds, username)` → matches added to `newDeliveredPiperIds` → `useTerminal` syncs + toasts "You have new messages on Piper" → player runs `piper`.
+Same shape as email's (see the **email** skill): player action → `GameEvent` → `computeEffects()` → `checkPiperDeliveries(event, deliveredIds, username, computerId?, storyFlags?)` → matches added to `newDeliveredPiperIds` → `useTerminal` syncs + notifies "You have new messages on Piper" → player runs `piper`.
+
+**Deferred notice (`pendingPiperNotification`).** Messages can arrive while the player is on a box with no `piper` (devcontainer, chipinfra, erik-pc). The store flag holds the notice; `useComputerTransitions.ts` flushes it on arrival at any machine where `isCommandAvailable("piper", ...)` passes, using the same gate as the live notification sites. It is persisted — see the **save** skill.
 
 ## Traps and gating
 
@@ -31,21 +33,15 @@ Two views (channel list ↔ conversation); arrows/number keys, Enter select, `q`
 
 **A channel can hold several unanswered reply prompts at once**, and every one of them stays answerable. `getPendingReplies` lists them oldest-first (delivery order, not definition order); `pickVisibleReply` in `PiperSession.ts` takes the oldest whose options aren't all gated away, and answering it surfaces the next. Never assume a delivery supersedes an earlier prompt in the same channel: reply-gated unlocks (Oscar's `search_tools_accepted`, Auri's `inspection_tools_accepted`) are only reachable through their own prompt, so a "newest wins" rule silently deletes them from the game.
 
-**Multi-digit menu selection** (`consumeDigit()` in `PiperSession.ts`) — the menu can exceed 9 items. A digit `d` commits when `(buffer+d)*10 > menuLength` (no longer selection reachable); otherwise it's buffered until Enter or another digit. Any non-digit/non-Enter clears the buffer. Footer shows the in-progress buffer as `[NN_]`. Same rule for the reply menu.
+**Multi-digit menu selection** (`consumeDigit()` in `PiperSession.ts`) — the menu can exceed 9 items. A digit `d` commits when `(buffer+d)*10 > menuLength` (no longer selection reachable); otherwise it's buffered until Enter or another digit. `consumeDigit` itself **preserves** the buffer on a non-digit or out-of-range key (it only ever returns a commit or the extended buffer); clearing on a stray key is the session's job, in the fall-through after `consumeDigit` declines. Footer shows the in-progress buffer as `[NN_]`. Same rule for the reply menu.
 
 ## Dynamic timestamps — segment interpolation
 
-Timestamps are computed at render time in `getConversationHistory()` (set `timestamp: ""` in definitions). `timestamp.ts` defines five fixed **time segments**; deliveries are bucketed into a segment and linearly interpolated within its clock window, so end-of-day messages always land near the segment end regardless of how many quests the player did.
+Timestamps are computed at render time in `getConversationHistory()` (set `timestamp: ""` in definitions). `timestamp.ts`'s `SEGMENTS` is five fixed windows (two nexacorp workdays, three home stretches), each with a clock key, a start minute, a duration, and a calendar date — **read the array, don't mirror it**. `SEGMENT_BOUNDARIES` maps a boundary story flag to the segment it advances its clock into; `INITIAL_SEGMENTS` names each clock's starting one.
 
-| Segment | Clock | Window | Calendar | Boundary trigger |
-|---|---|---|---|---|
-| `nexacorp_day1` | nexacorp | 8:30 AM–6:15 PM | Mon Feb 23 | (initial) |
-| `nexacorp_day2` | nexacorp | 8:30 AM–6:00 PM | Tue Feb 24 | `ssh_day2` |
-| `home_pre_work` | home | 2:00–4:00 PM | Sat Feb 21 | (initial) |
-| `home_post_work` | home | 6:15–9:00 PM | Mon Feb 23 | `returned_home_day1` |
-| `home_day2` | home | 6:30–9:00 AM | Tue Feb 24 | `day1_shutdown` |
+Algorithm (`interpolateDeliveries`): bucket every delivered id by detecting boundary flags in `deliveredIds` as it walks them, then place the `i`th delivery in a segment at `start + (i / (totalDeliveriesInSegment - 1)) * duration`. **The denominator is the segment's total *possible* deliveries, not how many actually landed** — so a player who did few quests gets early-in-the-day timestamps rather than a compressed run to the segment end. Reply follow-ups land at `parentTime + 2min`.
 
-Key exports: `interpolateDeliveries` (shared by `getConversationHistory` + `getGameTime`; returns `deliveryMinutes` map + `lastSegment` per clock), `computeTimestamp` (formats minutes, `+floor(msgIndex/2)` for within-delivery pairing), `getGameTime` (time + calendar for `date` and, via `gameNowFor()`, SQL date functions), plus `SEGMENTS`/`SEGMENT_BOUNDARIES`/`INITIAL_SEGMENTS`. Algorithm: bucket by detecting `after_story_flag` boundary flags in `deliveredIds`; interpolate `start + (i/max(N-1,1))*duration`; reply follow-ups land at `parentTime + 2min`.
+Key exports: `interpolateDeliveries` (returns a `deliveryMinutes` map + `lastSegment` per clock), `computeTimestamp` (formats minutes, `+floor(msgIndex/2)` for within-delivery pairing), and `getGameTime` (time + calendar), which is what `story/clock.ts` wraps into the `ctx.clock` seam so `date` and SQL date functions agree with Piper.
 
 ## Adding messages
 

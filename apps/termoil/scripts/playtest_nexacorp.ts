@@ -128,13 +128,16 @@ async function main() {
   // Log comparison — diff
   cmd(runner, "diff /var/log/system.log /var/log/system.log.bak");
 
-  // ── 5. Chip Config & Internal ──────────────────────────────────────
+  // ── 5. Chip Client Install ─────────────────────────────────────────
+  // ws01 only carries the THIN CLIENT (bin/config/cache/VERSION/README).
+  // The plugin tree and its cleanup.sh live on chipinfra, which this
+  // nexacorp-only script never reaches.
 
-  section("5. CHIP CONFIG & INTERNAL FILES");
+  section("5. CHIP CLIENT INSTALL");
 
+  cmd(runner, "ls -a /opt/chip/");
   cmd(runner, "cat /opt/chip/config/settings.json");
-  cmd(runner, "cat /opt/chip/.internal/directives.txt");
-  cmd(runner, "cat /opt/chip/.internal/cleanup.sh");
+  cmd(runner, "cat /opt/chip/VERSION");
   cmd(runner, "cat /opt/chip/README.md");
 
   // ── 6. Chip Cache (story flag dependent) ───────────────────────────

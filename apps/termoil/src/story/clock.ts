@@ -32,7 +32,7 @@ function gameTimeToDate(t: GameTime): Date {
 /**
  * Build a GameClock scoped to the current delivery state, user, and machine.
  * Methods recompute from the live inputs each call (cheap; mirrors the old
- * gameNowFor/gameTsFor/date construction).
+ * per-call Date construction the engines used before the GameClock seam).
  */
 export function createGameClock(
   deliveredPiperIds: string[],

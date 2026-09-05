@@ -317,7 +317,7 @@ dbt build      # Run models + tests
 const README_FINAL = ALL_FILES["README.md"];
 
 // --- Timestamp helpers ---
-// Uses the local-time field convention shared with gameNowFor() so
+// Uses the local-time field convention shared with createGameClock() so
 // formatGitDate() renders these the same way as player-authored commits.
 // In-game wall clock is UTC; the hour passed is the displayed UTC hour.
 function utc(year: number, month: number, day: number, hour: number, min: number): number {

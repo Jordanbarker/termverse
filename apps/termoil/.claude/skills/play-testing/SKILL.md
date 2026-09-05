@@ -11,19 +11,19 @@ description: "Headless game runner for programmatic play-testing without a brows
 printf 'cheat 3\n:switch devcontainer\ncd nexacorp-analytics\ndbt run\n:quit\n' | npm -w @tt/termoil run play
 ```
 
-Command gates apply to piped runs too, so route to the right machine first (`git`/`dbt`/`snow` are DEVCONTAINER_ONLY; `cheat 3` lands on nexacorp). Run via the workspace scripts (`npm -w @tt/termoil run play|playtest|playtest:arcs|...`) so `tsx` picks up the path aliases. The script mocks `globalThis.localStorage` before imports (Zustand persist would crash in Node) and side-effect-imports `story/availabilityPolicy` so the real command gates apply — without it the allow-all default lets gated commands run unlocked.
+Command gates apply to piped runs too, so route to the right machine first (`git`/`dbt`/`snow` are DEVCONTAINER_ONLY; `cheat 3` lands on nexacorp). Run via a workspace script (`npm -w @tt/termoil run play|playtest|playtest:arcs|...`, or the root `npm run play`; the root `play:crunch` is term-crunch's) so `tsx` picks up the path aliases. The script mocks `globalThis.localStorage` before imports (Zustand persist would crash in Node) and side-effect-imports `story/availabilityPolicy` so the real command gates apply — without it the allow-all default lets gated commands run unlocked.
 
-`playtest`, `playtest:arcs` and `playtest:git` exit non-zero on failure and gate CI via the root `npm run playtest` (part of `npm run check`). `playtest:nexacorp` and `playtest:reference` stay print-for-review. `playtest.ts` treats `warn()` as non-fatal; only `issue()` fails.
+`playtest`, `playtest:arcs` and `playtest:git` exit non-zero on failure and gate CI via the root `npm run playtest` (part of `npm run check`); `playtest:git` is scoped to the Day 2 git questline (clone → pull → branch → commit → push) and is the one to run after touching the git engine or its remotes. `playtest:nexacorp` and `playtest:reference` stay print-for-review. `playtest.ts` treats `warn()` as non-fatal; only `issue()` fails.
 
 ## GameRunner essentials
 
 Construct with a computer (`new GameRunner("home")`); public state (`fs`, `cwd`, `storyFlags`, `deliveredEmailIds`, etc.) is readable/writable. Core methods: `run(input)` / `runAsync(input)` (mirror `useTerminal` submission; use `runAsync` for possibly-async commands like `dbt`), `selectOption(n)` (resolve a pending `mail` reply prompt), `writeFile` (replaces nano), `runPython`, `switchComputer(to)` (rebuilds the target FS from seed each switch, so file changes don't survive a round-trip; env/aliases/mounts/flags do; devcontainer routes through `buildFs` so a cloned dbt project keeps its `.git`), `status()`.
 
-**`buildCtx` must stay in lockstep with `buildCommandContext` in `src/hooks/useTerminal.ts`.** Every seam the browser injects (game `clock`, `dbtModelOrder`, `security` policy, `gitAuthor`, redirection security, intermediate `file_read` events) changes observable behaviour — a missing one silently turns a headless run into evidence about a game nobody plays. The pane-model fields (`tabPrefixLabel`, `tmux`) are the deliberate exception.
+**`buildCtx` must stay in lockstep with `buildCommandContext` in `src/hooks/useTerminal.ts`.** The parity block is commented as such in `play.ts` — add any new seam there too, or a headless run silently stops being evidence about the real game. The pane-model fields (`tabPrefixLabel`, `tmux`) are the deliberate exception.
 
 `save`/`load`/`cheat`/`newgame` work headlessly: `applyGameAction` mirrors the `effects.gameAction` branch of `executeEffects`. `cheat` is not a hand-written mirror — both it and `gameStore.loadCheckpointData` call `buildCheckpointState` (`src/state/checkpointLoad.ts`); add store-free checkpoint behavior there, not twice. Slots live in the mocked process-local `localStorage`, so save and load within one session. `shutdown`/`reboot` remain React-only cinematics. `CommandOutput` reports `transitionTo` + `terminationReason`, so security tripwires are assertable; the runner reports an ordinary route without walking it (follow with `:switch`), while a tripwire is enacted.
 
-`selectOption(n)` reproduces `useSessionRouter.processTriggerEvents` by halves: objectives, story-flag triggers, then email deliveries (in that order, so deliveries see the reply's own flags). The piper cascade half is not reproduced (see the limitation below).
+`selectOption(n)` reproduces `useSessionRouter.processTriggerEvents` but stops short of the piper cascade — the ordering and the reason are commented at `play.ts`'s `selectOption`; the workaround is the limitation below.
 
 ## Multi-arc regression playtest
 
@@ -38,7 +38,7 @@ The headless runner has **no tab model and no transition animations** — tab su
 
 ### Setup
 
-- **Dev server:** a `next dev` is often already on :3000 (a second `npm run dev` fails on `.next/dev/lock` → :3001). Check `curl -s localhost:3000` first.
+- **Dev server:** use `npm run dev:termoil` and check `curl -s localhost:3000` first (a `next dev` is often already up; a second one fails on `.next/dev/lock`). The **root** `npm run dev` is the whole termverse orchestrator — termoil on 3000, term-crunch on 3001, landing page on 8080 — so it is not the single-app server this recipe assumes.
 - **Playwright:** a repo-root devDependency (pinned `1.61.0`) — drive it from the repo root, no scratch install. If it demands a browser download: `npx playwright install chromium`.
 
 ### Game-side facts the driver must know

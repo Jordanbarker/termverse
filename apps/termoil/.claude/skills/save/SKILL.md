@@ -1,13 +1,13 @@
 ---
 name: save
-description: "How the save/load/newgame system works — localStorage slots, SaveData snapshots, FS serialization, and the save/load/newgame commands. Use this skill whenever modifying save slots, adding new persisted state fields, working on save/load/newgame commands, bumping SAVE_FORMAT_VERSION, or touching files like src/state/saveManager.ts, src/state/saveTypes.ts, or src/engine/filesystem/serialization.ts."
+description: "How the save/load/newgame system works — localStorage slots, SaveData snapshots, FS serialization, and the save/load/newgame commands. Use this skill whenever modifying save slots, adding new persisted state fields, working on save/load/newgame commands, bumping SAVE_FORMAT_VERSION, or touching files like apps/termoil/src/state/saveManager.ts, src/state/saveTypes.ts, or packages/core/src/filesystem/serialization.ts."
 ---
 
 # Save System
 
 Save/load/restart via terminal commands, using localStorage slots.
 
-Code map: `engine/filesystem/serialization.ts` (`serializeFS`/`deserializeFS`, pure), `state/saveTypes.ts` (`SavePayload`/`SaveData`/`SaveSlotMeta`/`SaveSlotId`, `SAVE_FORMAT_VERSION`), `state/saveManager.ts` (the single snapshot writer/reader `serializeGameState`/`restoreGameState`, plus the cheap `pickSaveableState`, `buildFs`, localStorage CRUD `createSaveData`/`saveToSlot`/`loadFromSlot`/`deleteSlot`/`listSaveSlots`; pure/no-React), `state/debouncedStorage.ts` (the persist storage adapter), `commands/builtins/{save,load,newgame}.ts`, `state/gameStore.ts` (`saveGame`/`loadGame` actions + persist `partialize`/`merge`, both thin wrappers over saveManager), `useTerminal.ts` (`gameAction` handler). `GameAction` union is in `commands/types.ts`. Read the type definitions there.
+Code map: `packages/core/src/filesystem/serialization.ts` (`serializeFS`/`deserializeFS`, pure), `state/saveTypes.ts` (`SavePayload`/`SaveData`/`SaveSlotMeta`/`SaveSlotId`, `SAVE_FORMAT_VERSION`), `state/saveManager.ts` (the single snapshot writer/reader `serializeGameState`/`restoreGameState`, plus the cheap `pickSaveableState`, `buildFs`, localStorage CRUD `createSaveData`/`saveToSlot`/`loadFromSlot`/`deleteSlot`/`listSaveSlots`; pure/no-React), `state/debouncedStorage.ts` (the persist storage adapter), `commands/builtins/{save,load,newgame}.ts`, `state/gameStore.ts` (`saveGame`/`loadGame` actions + persist `partialize`/`merge`, both thin wrappers over saveManager), `useTerminal.ts` (`gameAction` handler). `GameAction` union is in `commands/types.ts`. Read the type definitions there.
 
 ## Slots
 
@@ -20,12 +20,12 @@ Terminal commands: `save`/`load` list slots; `save 1|2|3` saves; `load 1|2|3` lo
 
 ## What gets saved
 
-**Both paths share ONE snapshot shape and one writer/reader**: `SavePayload` (`saveTypes.ts`) produced by `serializeGameState()` and consumed by `restoreGameState()` (`saveManager.ts`). Auto-persist uses them via the storage adapter's `serialize`/`merge`; manual slots via `createSaveData` (= payload + `timestamp`/`label` metadata) and `loadGame`. Both loaders discard any blob whose `version !== SAVE_FORMAT_VERSION` (no migrations, pre-release).
+**Both paths share ONE snapshot shape and one writer/reader**: `SavePayload` (`saveTypes.ts`) produced by `serializeGameState()` and consumed by `restoreGameState()` (`saveManager.ts`) — so a manual `load` restores *everything* in the payload, Snowflake state included; nothing survives from the pre-load session. Auto-persist uses them via the storage adapter's `serialize`/`merge`; manual slots via `createSaveData` (= payload + `timestamp`/`label` metadata) and `loadGame`. Both loaders discard any blob whose `version !== SAVE_FORMAT_VERSION` (no migrations, pre-release).
 
 **The canonical field list is `SavePayload` in `saveTypes.ts` — check it there, not a table.** Non-obvious fields:
 - `computerStates` — per-computer serialized FS (incl. the `.zsh_history` file), env vars, aliases, mounts.
-- `zshHistory` — durable per-computer `.zsh_history` mirror that **survives `removeComputer`/FS rebuilds**, so shell history (the single source of truth — the `.zsh_history` file) continues across day/computer transitions even for boxes that get torn down and rebuilt.
-- `serializedSnowflake` — via `serializeSnowflake()`; on restore, a deserialize failure falls back to `createInitialSnowflakeState()` rather than crashing the load; the nexacorp FS is re-bridged via `syncToVirtualFS`.
+- `zshHistory` — durable per-computer mirror of the `.zsh_history` file (which is itself the single source of truth for shell history: no `commandHistory[]` array). It **survives `removeComputer`/FS rebuilds**, so history continues across day/computer transitions even for boxes that get torn down and rebuilt.
+- `serializedSnowflake` — via `serializeSnowflake()`; on restore, a deserialize failure falls back to `createInitialSnowflakeState({ includeDay2: !!data.storyFlags.day1_shutdown })` rather than crashing the load (pass that option, or a day-2 restore reseeds with day-1 logs); the nexacorp FS is re-bridged via `syncToVirtualFS`.
 - `windows`/`activeWindowIndex` — window/pane tree + active window (panes rebuilt with fresh ids via `rebuildWindow`; see the tmux skill). `restoreGameState` also rebuilds an FS (via `buildFs`, which lives in saveManager and is re-exported from gameStore) for any pane whose computer entry failed to deserialize.
 - `tmuxAttachedSession`/`tmuxDetachedSessions` — tmux session lifecycle (attached `{name, createdAt}` or null when the save was made on the bare shell; detached sessions as `TmuxSessionSnapshot[]`, already serialization-shaped). `pendingMuxNotice` is transient (restored as null). See the tmux skill.
 - `notifiedChipTopicIds`, `copyModeHelpHidden` — dedup + UI preference.

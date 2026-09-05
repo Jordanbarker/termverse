@@ -7,7 +7,7 @@ An npm-workspace monorepo (`workspaces: ["packages/*", "apps/*"]`) holding a reu
 
 ## Workspaces
 
-- **`packages/core` (`@tt/core`)** — the reusable terminal engine: VirtualFS, command engine + builtins, git/dbt/snowflake engines, the pane/window tree model (`@tt/core/terminal/paneTypes`), `PaneDividers`, sessions (nano/vim editors, pager), and the zsh-style autosuggestion + TAB-completion engine (`@tt/core/suggestions/{suggest,complete}`). It is a **raw-TS package (no build step)** — consumers resolve it via tsconfig `paths` (`@tt/core`, `@tt/core/*`) for typecheck and, for the Next apps, via a node_modules workspace symlink + `transpilePackages: ["@tt/core"]`. Each app's Tailwind v4 `@source` directive must point at `packages/core/src` so core component classes emit. **When you change `@tt/core`, both apps consume it — check both.** **Core registers only story-agnostic commands**: termoil's story builtins (`mail`, `ssh`, `ssh-add`, `coder`, `exit`, `apt`, `chip`, `piper`, `shutdown`, `hostname`, `cheat`, `save`/`load`/`newgame`) live in `apps/termoil/src/engine/commands/builtins/`, as do its ASCII art and Chip/Piper pacing constants (`apps/termoil/src/lib/{ascii,timing}.ts`). Anything core needs to know about one game arrives through a seam it injects — never a literal machine id, flag name, or path in `packages/core`. `apps/term-crunch/src/__tests__/coreSurface.test.ts` guards the command half of that rule; the full seam list is in the **commands** skill.
+- **`packages/core` (`@tt/core`)** — the reusable terminal engine: VirtualFS, command engine + builtins, git/dbt/snowflake engines, the pane/window tree model (`@tt/core/terminal/paneTypes`), `PaneDividers`, sessions (nano/vim editors, pager), and the zsh-style autosuggestion + TAB-completion engine (`@tt/core/suggestions/{suggest,complete}`). It is a **raw-TS package (no build step)** — consumers resolve it via tsconfig `paths` (`@tt/core`, `@tt/core/*`) for typecheck and, for the Next apps, via a node_modules workspace symlink + `transpilePackages: ["@tt/core"]`. Each app's Tailwind v4 `@source` directive must point at `packages/core/src` so core component classes emit. **When you change `@tt/core`, both apps consume it — check both.** **Core registers only story-agnostic commands**: termoil's story builtins live in `apps/termoil/src/engine/commands/builtins/` (roster in the **commands** skill), as do its ASCII art and Chip/Piper pacing constants (`apps/termoil/src/lib/{ascii,timing}.ts`). Anything core needs to know about one game arrives through a seam it injects — never a literal machine id, flag name, or path in `packages/core`. `apps/term-crunch/src/__tests__/coreSurface.test.ts` guards the command half of that rule; the full seam list is in the **commands** skill.
 
 ## Tech Stack
 
@@ -37,6 +37,7 @@ npm run test         # Vitest (or: npx vitest run)
 npm run play         # termoil headless REPL (play:crunch for term-crunch)
 npm run playtest     # asserting playtests: termoil playtest/:arcs/:git + term-crunch tracks
 npm run check        # Combined lint + typecheck + test + playtest + build:all (also run in CI)
+npm run screenshot:panes  # browser visual harnesses (scripts/visual/, needs a dev server); also screenshot:mp-reward
 ```
 
 ## Deploy

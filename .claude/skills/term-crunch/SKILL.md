@@ -8,6 +8,5 @@ disable-model-invocation: true
 
 You are working on **`apps/term-crunch`** (`@tt/term-crunch`, basePath `/termverse/term-crunch`), built on the shared `@tt/core` engine.
 
-- It does not import termoil's story code.
-- Do not edit `apps/termoil` unless the change is in the shared `@tt/core` engine, and when it is in core, check that both apps still consume it correctly.
-- Where the detail lives: `apps/term-crunch/CLAUDE.md` (structure, conventions), the `apps/term-crunch:challenges` skill (challenge framework, win-detection), the `apps/term-crunch:play-testing` skill (headless runner, `SOLUTIONS` playtest gate, Playwright driving).
+- It does not import termoil's story code. Don't edit `apps/termoil`.
+- Where the detail lives: `apps/term-crunch/CLAUDE.md` (structure, conventions), the `challenges` skill (challenge framework, win-detection), the `apps/term-crunch:play-testing` skill (headless runner, `SOLUTIONS` playtest gate, Playwright driving).
