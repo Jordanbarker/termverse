@@ -523,6 +523,7 @@ export function useTerminal() {
         const initialFs = store.computerState[computerId]!.fs;
         const homeDir = initialFs.homeDir;
         const initialMounts = store.computerState[computerId]?.mounts ?? {};
+        let pendingEditorEffects: AppliedEffects | undefined;
 
         const applyCommandResult = (
           cmdResult: import("@tt/core/commands/types").CommandResult,
@@ -549,6 +550,14 @@ export function useTerminal() {
             renderSavesList,
             renderCheckpointsList,
           });
+
+          if (effects.startSession?.type === "editor" && !effects.transitionTo && !effects.incrementalLines) {
+            // Editors retain their opening FS for saves and exit. Start only
+            // after the submitted command's history has been committed, or
+            // their older snapshot will erase that history on save/quit.
+            pendingEditorEffects = effects;
+            return { newCwd: effects.newCwd, stopChain: true, earlyReturn: true };
+          }
 
           if (!isFinal) {
             // Per-segment: apply story flags, deliveries to store (needed for gating)
@@ -599,7 +608,7 @@ export function useTerminal() {
           applySegment: (cmdResult, parsedCmd, state, isFinal) =>
             applyCommandResult(cmdResult, parsedCmd, state.fs, isFinal),
         });
-        let runningFs = run.fs;
+        let runningFs = pendingEditorEffects?.newFs ?? run.fs;
 
         // `$?` for the next line typed in THIS pane (see lastExitCodeRef).
         if (submittingPaneId) lastExitCodeRef.current.set(submittingPaneId, run.lastExitCode);
@@ -623,6 +632,12 @@ export function useTerminal() {
         // Write final mounts to store once
         if (run.mounts !== initialMounts) {
           useGameStore.getState().setComputerMounts(computerId, run.mounts);
+        }
+
+        if (pendingEditorEffects) {
+          // The FS (including deliveries and history) is already committed.
+          // Preserve the remaining effects and deferred session notifications.
+          executeEffects(term, { ...pendingEditorEffects, newFs: undefined }, submittingPaneId);
         }
 
         if (!run.earlyReturn) {
