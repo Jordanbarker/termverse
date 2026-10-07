@@ -5,7 +5,6 @@ import "@xterm/xterm/css/xterm.css";
 
 import { parseZshHistory } from "@tt/core/terminal/zshHistory";
 import { nodeBox } from "@tt/core/terminal/paneTypes";
-import { COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
 import PaneDividers from "@tt/core/components/PaneDividers";
 import { editorSessionClass } from "@tt/core/session/editorRegistry";
 import { LessSession } from "@tt/core/pager/LessSession";
@@ -194,6 +193,8 @@ export default function TabManager() {
           theme={tm.tabTheme}
           prefixActive={tm.prefixActive}
           renamePrompt={tm.renamePrompt}
+          copyModeActive={tm.copyModeActive}
+          copyModeHelpHidden={copyModeHelpHidden}
           sessionName={attachedSession.name}
           onNewWindow={() => useGameStore.getState().newWindow()}
           onSelectWindow={(id) => useGameStore.getState().selectWindow(id)}
@@ -204,14 +205,6 @@ export default function TabManager() {
           measured size already excludes the status bar. */}
       <div className="relative flex-1">
         <div ref={wrapperRef} className="absolute inset-0 isolate" />
-        {tm.copyModeActive && (
-          <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
-            <span className="font-bold text-[#e6b450]">COPY MODE</span>
-            <span className="text-[#6c7380]">
-              {copyModeHelpHidden ? COPY_MODE_HINT_HIDDEN : COPY_MODE_HINT}
-            </span>
-          </div>
-        )}
         {attachedSession && activeWindow && tm.wrapperSize.w > 0 && (
           <PaneDividers
             root={activeWindow.root}

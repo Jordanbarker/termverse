@@ -65,16 +65,16 @@ const SHOW_CURSOR = "\x1b[?25h";
 /** Preferred-column sentinel: "stick to end-of-line" on vertical moves (vi `$`). */
 const EOL_COL = Number.MAX_SAFE_INTEGER;
 
-/** One-line key hint shown in the COPY MODE overlay (expanded). */
+/** One-line key hint shown in the COPY MODE status line (expanded). */
 export const COPY_MODE_HINT =
   " · hjkl move · w/b/e word · 0/^/$ line · g/G top/bot · H/M/L screen · ^u/^d ^b/^f page · v select · y yank · esc exit · ? hide";
-/** Collapsed hint shown when the help overlay is toggled off. */
+/** Collapsed hint shown when the status-line help is toggled off. */
 export const COPY_MODE_HINT_HIDDEN = " · ? help";
 
 /**
  * High-contrast selection colors applied while copy mode is active so the
  * cursor cell / selection stand out against the terminal's dim default
- * selection. Gold matches the COPY MODE overlay accent; the dark foreground
+ * selection. Gold matches the COPY MODE status-line accent; the dark foreground
  * keeps selected text readable on top of it. Apps swap these into the live
  * xterm theme on `onChange(active)` and restore their base theme on exit.
  */

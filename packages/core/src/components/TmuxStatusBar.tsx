@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { WindowState } from "../terminal/paneTypes";
 import { ANSI_COLORS } from "../terminal/ansiPalette";
+import { COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN, COPY_MODE_SELECTION_BG } from "../terminal/copyMode";
 
 const PREFIX_BLUE = ANSI_COLORS.blue;
 
@@ -35,6 +36,10 @@ export interface TmuxStatusBarProps {
   prefixActive: boolean;
   /** Modal takeover text (rename-window / confirm-before-kill); hides tabs when set. */
   modalText?: string | null;
+  /** Copy mode takes over the status line unless an explicit modal prompt is open. */
+  copyModeActive?: boolean;
+  /** Persisted or local help preference supplied by the app. */
+  copyModeHelpHidden?: boolean;
   /** Bar colors, parsed from `~/.tmux.conf`. */
   theme: StatusBarTheme;
   /** App-specific new-window control rendered after the tabs (a `+` or a dropdown). */
@@ -57,13 +62,15 @@ export default function TmuxStatusBar({
   onCloseWindow,
   prefixActive,
   modalText,
+  copyModeActive,
+  copyModeHelpHidden,
   theme,
   trailing,
   sessionName,
 }: TmuxStatusBarProps) {
   return (
     <div
-      className="flex items-center border-b font-mono text-xs select-none"
+      className={`flex min-w-0 shrink-0 items-center border-b font-mono text-xs select-none ${modalText || copyModeActive ? "relative z-20" : ""}`}
       style={{ backgroundColor: theme.statusBg, borderBottomColor: theme.statusBg }}
     >
       {modalText ? (
@@ -71,6 +78,15 @@ export default function TmuxStatusBar({
         <span className="px-2 py-0.5 font-bold" style={{ color: theme.currentFg }}>
           {modalText}
         </span>
+      ) : copyModeActive ? (
+        <div className="flex min-w-0 flex-1 items-center whitespace-nowrap px-2 py-0.5">
+          <span className="shrink-0 font-bold" style={{ color: COPY_MODE_SELECTION_BG }}>
+            COPY MODE
+          </span>
+          <span className="min-w-0 truncate" style={{ color: theme.statusFg }}>
+            {copyModeHelpHidden ? COPY_MODE_HINT_HIDDEN : COPY_MODE_HINT}
+          </span>
+        </div>
       ) : (
         <>
           {sessionName !== undefined && (

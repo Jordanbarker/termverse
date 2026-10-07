@@ -19,7 +19,7 @@ export default function GameShell() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0a0e14]">
-      <div className="relative flex-1">
+      <div className="relative min-w-0 flex-1">
         <TabManager />
         <Toast />
       </div>

@@ -9,7 +9,6 @@ import { allLeaves, paneRects } from "@tt/core/terminal/paneTypes";
 import { useTerminal } from "../../hooks/useTerminal";
 import { nexacorpLogo, homeWelcome, coderBanner, UNLOCK_BOX } from "@/lib/ascii";
 import { seedImmediatePiper } from "../../engine/piper/delivery";
-import { COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN } from "@tt/core/terminal/copyMode";
 import { sessionUsesAltScreen } from "@tt/core/session/types";
 import { useTabManager, type TabManagerAdapter, type TabManagerExtensions } from "@tt/core/terminal/useTabManager";
 import { ComputerId } from "../../state/types";
@@ -229,6 +228,8 @@ export default function TabManager() {
           prefixActive={tm.prefixActive}
           closeConfirm={closeConfirm}
           renamePrompt={tm.renamePrompt}
+          copyModeActive={tm.copyModeActive}
+          copyModeHelpHidden={copyModeHelpHidden}
           theme={tm.tabTheme}
           sessionName={attachedSession?.name}
         />
@@ -251,14 +252,6 @@ export default function TabManager() {
             )}
             onResize={(splitId, ratio) => adapter.resizeSplit(splitId, ratio)}
           />
-        )}
-        {tm.copyModeActive && (
-          <div className="absolute bottom-4 left-2 z-20 pointer-events-none rounded-md border border-[#2a2f3a] bg-[#1a1f29]/90 px-3 py-1 font-mono text-xs text-[#b3b1ad] backdrop-blur-sm">
-            <span className="font-bold text-[#e6b450]">COPY MODE</span>
-            <span className="text-[#6c7380]">
-              {copyModeHelpHidden ? COPY_MODE_HINT_HIDDEN : COPY_MODE_HINT}
-            </span>
-          </div>
         )}
         {/* Pre-unlock there's no tab bar, so float the prefix indicator here instead. */}
         {tm.prefixActive && !showTabBar && (
