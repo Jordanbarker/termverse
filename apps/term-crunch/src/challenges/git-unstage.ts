@@ -54,7 +54,7 @@ export const gitUnstage: Challenge = {
   // `rm .env` / `git reset --hard` empty the index too, but the whole point was
   // keeping the file. Nothing brings it back, so tell the player rather than
   // leaving them on a board that can never pass.
-  failed: (s) => (envIntact(s.fs) ? null : ".env was deleted or changed. Unstaging touches only the index; the file stays put. Restart to retry."),
+  failed: (s) => (envIntact(s.fs) ? null : ".env was deleted or changed. Unstaging touches only the index; the file stays put. Run 'restart' to retry."),
   steps: [
     {
       instruction: "Unstage .env without deleting it or changing its contents.",

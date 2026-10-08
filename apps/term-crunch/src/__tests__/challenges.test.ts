@@ -1336,7 +1336,7 @@ describe("failed (unrecoverable sandbox) predicates", () => {
     expect(rmBomb.failed!(fsSnap(fs.removeNode("/home/player/work/reports/2024/BOMB.md").fs!))).toBeNull();
     const nuked = fs.removeNode("/home/player/work/reports/2024").fs!;
     expect(rmBomb.failed!(fsSnap(nuked))).toContain("q1.md");
-    expect(rmBomb.failed!(fsSnap(nuked))).toContain("Restart");
+    expect(rmBomb.failed!(fsSnap(nuked))).toContain("Run 'restart'");
   });
 
   it("git-unstage: null at load, a message once .env is deleted or altered", () => {

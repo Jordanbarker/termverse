@@ -16,7 +16,7 @@ import { useGameStore } from "../state/gameStore";
  *
  * `help`, `clear`, `man`, `shortcuts`, and `tmux` are always available so the player can
  * orient, reset, read the manual, and drive the session lifecycle, and the challenge-navigation builtins
- * (`challenges`/`goto`/`next`/`prev`/`track`/`review`, engine/commands/navigation.ts)
+ * (`challenges`/`goto`/`next`/`prev`/`track`/`review`/`restart`, engine/commands/navigation.ts)
  * so the player can always move between challenges. `man` self-scopes:
  * `man <cmd>` only renders a page for commands the current challenge allows
  * (core `man.ts` checks availability), so it returns "No manual entry" for
@@ -29,7 +29,7 @@ import { useGameStore } from "../state/gameStore";
  * Mirrors termoil's src/story/availabilityPolicy.ts seam usage; the
  * current challenge is read lazily from the store so import order doesn't matter.
  */
-const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "tmux", "ls", "pwd", "cd", "challenges", "goto", "next", "prev", "track", "review"]);
+const ALWAYS_AVAILABLE = new Set(["help", "clear", "man", "shortcuts", "tmux", "ls", "pwd", "cd", "challenges", "goto", "next", "prev", "track", "review", "restart"]);
 
 function isAvailable(commandName: string): boolean {
   const { activeCategory, challengeIndex } = useGameStore.getState();

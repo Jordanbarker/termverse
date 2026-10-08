@@ -81,9 +81,17 @@ describe("challenge navigation commands", () => {
     expect(consumePendingNavigation()).toEqual({ type: "load", index: count - 2 });
   });
 
+  it("restart queues a re-seed of the current challenge", () => {
+    useGameStore.setState({ challengeIndex: 2 });
+    const res = run("restart");
+    expect(res.exitCode).toBeUndefined();
+    expect(strip(res.output)).toContain(`3. ${getCategory("all").challenges[2].title}`);
+    expect(consumePendingNavigation()).toEqual({ type: "restart" });
+  });
+
   it("help lists the navigation commands as cyan meta commands", () => {
     const out = run("help").output;
-    for (const name of ["challenges", "goto", "next", "prev", "track", "review"]) {
+    for (const name of ["challenges", "goto", "next", "prev", "track", "review", "restart"]) {
       // meta commands render cyan (36m), unlike the green in-world commands
       expect(out).toMatch(new RegExp(`\\x1b\\[36m${name}\\b`));
     }

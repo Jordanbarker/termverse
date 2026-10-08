@@ -250,7 +250,7 @@ export class CrunchRunner {
     this.store.renameWindow(windowId, name);
   }
 
-  /** Re-seed the current challenge (the panel's Restart button). */
+  /** Re-seed the current challenge (the `restart` command / failure-box button). */
   restart(): void {
     this.store.restartChallenge();
   }

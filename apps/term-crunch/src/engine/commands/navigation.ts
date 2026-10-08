@@ -10,7 +10,7 @@ import { useGameStore } from "../../state/gameStore";
 
 /**
  * Keyboard-first challenge navigation: `challenges`, `goto`, `next`, `prev`,
- * `track`, `review`. App-local builtins (never in termoil's bundle), always
+ * `track`, `review`, `restart`. App-local builtins (never in termoil's bundle), always
  * available regardless of the challenge allowlist (see lib/availabilityPolicy.ts).
  *
  * Handlers must not call loadChallenge/selectCategory directly: runLine commits
@@ -22,7 +22,8 @@ import { useGameStore } from "../../state/gameStore";
 export type PendingNavigation =
   | { type: "load"; index: number }
   | { type: "category"; id: string }
-  | { type: "review"; queue: string[] };
+  | { type: "review"; queue: string[] }
+  | { type: "restart" };
 
 let pending: PendingNavigation | null = null;
 
@@ -137,15 +138,24 @@ const review: CommandHandler = () => {
   };
 };
 
+// Re-seed the current challenge, same as the panel's Restart button. Like the
+// button it keeps an in-flight review session going.
+const restart: CommandHandler = () => {
+  const { category, challengeIndex } = current();
+  pending = { type: "restart" };
+  return { output: `Restarting ${challengeIndex + 1}. ${category.challenges[challengeIndex].title}…\n` };
+};
+
 register("challenges", challenges, "List the current track's challenges and your progress");
 register("goto", goto_, "Jump to challenge <n> in the current track");
 register("next", step(1), "Skip to the next challenge");
 register("prev", step(-1), "Go back to the previous challenge");
 register("track", track, "List tracks or switch with 'track <id>'");
 register("review", review, "Replay challenges that are due for spaced-repetition review");
+register("restart", restart, "Restart the current challenge from a fresh setup");
 // Game-control commands, not in-world shell tools: help lists them separately in cyan.
-registerMetaCommands("challenges", "goto", "next", "prev", "track", "review");
+registerMetaCommands("challenges", "goto", "next", "prev", "track", "review", "restart");
 // All take a bare operand at most; declaring {} keeps an undeclared command a signal.
-for (const name of ["challenges", "goto", "next", "prev", "track", "review"]) {
+for (const name of ["challenges", "goto", "next", "prev", "track", "review", "restart"]) {
   setKnownFlags(name, {});
 }

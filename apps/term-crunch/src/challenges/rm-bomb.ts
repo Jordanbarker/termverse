@@ -49,7 +49,7 @@ export const rmBomb: Challenge = {
   failed: (s) => {
     const lost = SURVIVORS.filter((p) => s.fs.getNode(p) === null).map((p) => p.slice(p.lastIndexOf("/") + 1));
     if (lost.length === 0) return null;
-    return `${lost.join(", ")} went with it. Only BOMB.md may go; the others had to survive. Restart to retry.`;
+    return `${lost.join(", ")} went with it. Only BOMB.md may go; the others had to survive. Run 'restart' to retry.`;
   },
   steps: [
     {

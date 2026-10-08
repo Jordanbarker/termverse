@@ -11,7 +11,7 @@ import type { SuggestionContext } from "@tt/core/suggestions/suggest";
 import "@tt/core/commands/builtins";
 // Side-effect import: registers the per-challenge command-allowlist policy.
 import "../lib/availabilityPolicy";
-// Registers the challenge-navigation builtins (challenges/goto/next/prev/track/review)
+// Registers the challenge-navigation builtins (challenges/goto/next/prev/track/review/restart)
 // and exposes the pending navigation they queue for post-commit application.
 import { consumePendingNavigation } from "../engine/commands/navigation";
 
@@ -229,7 +229,7 @@ export async function runLine(
   store.setPaneCwd(paneId, runningCwd);
   store.checkCompletion();
 
-  // Apply any navigation queued by goto/next/prev/track/review AFTER the
+  // Apply any navigation queued by goto/next/prev/track/review/restart AFTER the
   // shell-state commit above, so loadChallenge's freshly seeded fs/windows
   // aren't clobbered by this pipeline's accumulated state.
   const nav = consumePendingNavigation();
@@ -239,6 +239,8 @@ export async function runLine(
     store.selectCategory(nav.id); // cancels review internally
   } else if (nav?.type === "review") {
     store.startReviewSession(nav.queue);
+  } else if (nav?.type === "restart") {
+    store.restartChallenge(); // keeps any review session going
   }
 
   // tmux lifecycle swap — after the shell-state commit for the same reason.

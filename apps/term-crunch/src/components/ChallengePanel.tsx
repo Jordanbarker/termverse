@@ -269,14 +269,6 @@ export default function ChallengePanel() {
           {challenge.fsWatchPath && (
             <FsTreeView fs={fs} watchPath={challenge.fsWatchPath} dangerPath={challenge.fsDangerPath} />
           )}
-
-          <button
-            type="button"
-            onClick={restartChallenge}
-            className="self-start rounded border border-[#3d4751] px-2 py-1 text-xs text-[#6b7680] hover:border-[#6b7680] hover:text-[#b3b1ad]"
-          >
-            ↺ Restart challenge
-          </button>
         </div>
       )}
       </div>

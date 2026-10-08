@@ -33,7 +33,7 @@ The headless runner has no chord layer, no copy mode, no editor sessions and no 
 ### Setup
 
 - **Dev server:** term-crunch is on **:3001** under the full `npm run dev`, or **:3000** via `npm run dev:crunch` alone. Check `curl -s localhost:3001` before starting another.
-- Fresh context = empty localStorage (key `term-crunch-progress`) → boot lands directly in challenge 1. **No nano tutorial, no transitions, no `cheat`** (that's termoil). Navigate with `goto N` / `track <id>` / `next` / `prev` / `review`, or the panel dropdowns.
+- Fresh context = empty localStorage (key `term-crunch-progress`) → boot lands directly in challenge 1. **No nano tutorial, no transitions, no `cheat`** (that's termoil). Navigate with `goto N` / `track <id>` / `next` / `prev` / `review` (`restart` re-seeds the current one), or the panel dropdowns.
 - Player is `player@crunch`, home `/home/player`.
 - **Driving from an ad-hoc script:** imports need absolute paths; `@tt/core` resolves only with `npx tsx --tsconfig apps/term-crunch/tsconfig.json`; `playwright` needs an absolute path into the repo's `node_modules`; top-level `await` fails under the cjs transform (wrap in `async main()`). Write such scripts to the session scratchpad, not the repo.
 
@@ -49,7 +49,7 @@ Identical to termoil — **the trap list and driver skeleton live in the `apps/t
 
 ### DOM map
 
-- Layout is **terminal on the left, `ChallengePanel` `<aside>` on the right** (`w-[420px]`). The panel has **no data attributes — select by text**: the challenge title, `CURRENT`/`TARGET` headings, the brief, the step instruction, hint controls, `Restart`, `Settings`.
+- Layout is **terminal on the left, `ChallengePanel` `<aside>` on the right** (`w-[420px]`). The panel has **no data attributes — select by text**: the challenge title, `CURRENT`/`TARGET` headings, the brief, the step instruction, hint controls, `Settings`, and `Restart` (only while a challenge's `failed` message shows; otherwise type `restart`).
 - Window tab bar is the shared `TmuxStatusBar` (same labels as termoil: `1:crunch:~ *`, `(n)` pane count).
 - **Gate detection: match on the full panel text, not its tail** — the end-of-track banner sits *above* the cheat sheet. Strings (from `ChallengePanel.tsx`): `✓ <title> complete!` (mid-track gate), `Enter = Good` (the `GradeBar`), `🎉 All … challenges complete. Nicely done.` (end of track).
 
