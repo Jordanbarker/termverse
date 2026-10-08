@@ -84,6 +84,41 @@ describe("runPipeline", () => {
     expect(outputs.join("")).toContain("two");
   });
 
+  describe("line breaks between printing segments", () => {
+    /** Runs `input` with a host that writes each segment's output raw, like the apps. */
+    async function screen(input: string): Promise<string> {
+      let out = "";
+      await runPipeline(baseOpts(input, {
+        redirection: { computerId: "home" },
+        write: (t) => { out += t; },
+        applySegment: (r) => {
+          if (r.clearScreen) out = "";
+          out += [r.stderr, r.output].filter(Boolean).join("\n");
+          return {};
+        },
+      }));
+      return stripAnsi(out);
+    }
+
+    it("separates consecutive outputs", async () => {
+      expect(await screen("echo one; echo two")).toBe("one\r\ntwo");
+    });
+
+    it("separates stderr from the next segment's output", async () => {
+      expect(await screen("cat missing.txt; echo x")).toMatch(/missing\.txt.*\r\nx$/);
+    });
+
+    it("adds nothing around segments that print nothing", async () => {
+      expect(await screen("echo a > f.txt; echo b")).toBe("b");
+      expect(await screen("true; echo b")).toBe("b");
+      expect(await screen("echo a; true")).toBe("a");
+    });
+
+    it("starts fresh after clear", async () => {
+      expect(await screen("echo a; clear; echo b")).toBe("b");
+    });
+  });
+
   it("threads newCwd from applySegment into later segments", async () => {
     const cwds: string[] = [];
     const result = await runPipeline(baseOpts("cd docs; pwd", {

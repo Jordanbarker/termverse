@@ -327,11 +327,20 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     }
 
     lastExitCode = lastResult.exitCode ?? 0;
-    if (lastResult.output || lastResult.stderr) wroteOutput = true;
 
     if (hasAsyncCmd) {
       opts.write("\r\x1b[K");
     }
+
+    // Output carries no trailing newline (the next prompt supplies it), so the
+    // line break between two printing segments is ours to write. Hosts write
+    // the segment's output raw inside applySegment, right after this.
+    if (lastResult.clearScreen) wroteOutput = false;
+    const prints = !!(lastResult.output || lastResult.stderr || lastResult.incrementalLines?.length);
+    // An async segment's "Loading..." line was just cleared in place, so the
+    // cursor already sits at the start of a fresh line.
+    if (wroteOutput && prints && !hasAsyncCmd) opts.write("\r\n");
+    if (prints) wroteOutput = true;
 
     const isFinal = ci === chain.length - 1 || isChainEarlyReturn(lastResult);
     const state: PipelineRunState = { fs: runningFs, cwd: runningCwd, mounts: runningMounts, lastExitCode };
