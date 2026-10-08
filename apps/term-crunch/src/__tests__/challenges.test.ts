@@ -58,7 +58,6 @@ import { vimFirstEdit } from "../challenges/vim-first-edit";
 import { vimDeleteLines } from "../challenges/vim-delete-lines";
 import { vimFixWord } from "../challenges/vim-fix-word";
 import { vimYankPaste } from "../challenges/vim-yank-paste";
-import { vimSearchFix } from "../challenges/vim-search-fix";
 import { vimReorder } from "../challenges/vim-reorder";
 import type { ChallengeSnapshot } from "../challenges/types";
 
@@ -1174,14 +1173,6 @@ describe("vim challenges (validated on the SAVED buffer)", () => {
     expect(step.isComplete(fsSnap(save(vimYankPaste, `${WORK}/rules.conf`, "allow 10.0.0.1\nallow 10.0.0.2\nallow 10.0.0.2")))).toBe(true);
     // Duplicated but the other rule got lost → fail.
     expect(step.isComplete(fsSnap(save(vimYankPaste, `${WORK}/rules.conf`, "allow 10.0.0.2\nallow 10.0.0.2")))).toBe(false);
-  });
-
-  it("vim-search-fix: any oldhost left fails, all-newhost passes", () => {
-    const [step] = vimSearchFix.steps;
-    expect(step.isComplete(fsSnap(vimSearchFix.setup(buildBaseFs())))).toBe(false);
-    expect(step.isComplete(fsSnap(save(vimSearchFix, `${WORK}/hosts.conf`, "backend = newhost\ncache = newhost\nworker = newhost")))).toBe(true);
-    // Only two of three changed → one oldhost remains → fail.
-    expect(step.isComplete(fsSnap(save(vimSearchFix, `${WORK}/hosts.conf`, "backend = newhost\ncache = newhost\nworker = oldhost")))).toBe(false);
   });
 
   it("vim-reorder: seed order fails, 1/2/3 order passes", () => {

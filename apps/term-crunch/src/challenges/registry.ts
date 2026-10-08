@@ -24,7 +24,6 @@ import { vimFirstEdit } from "./vim-first-edit";
 import { vimDeleteLines } from "./vim-delete-lines";
 import { vimFixWord } from "./vim-fix-word";
 import { vimYankPaste } from "./vim-yank-paste";
-import { vimSearchFix } from "./vim-search-fix";
 import { vimReorder } from "./vim-reorder";
 import type { Challenge } from "./types";
 
@@ -46,5 +45,5 @@ export const CHALLENGES: Challenge[] = [
   // shell
   envExport, aliasShortcut,
   // vim
-  vimFirstEdit, vimDeleteLines, vimFixWord, vimYankPaste, vimSearchFix, vimReorder,
+  vimFirstEdit, vimDeleteLines, vimFixWord, vimYankPaste, vimReorder,
 ];

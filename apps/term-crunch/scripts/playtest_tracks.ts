@@ -31,7 +31,6 @@ const SKIPPED: Record<string, string> = {
   "vim-delete-lines": "solution is vim keystrokes",
   "vim-fix-word": "solution is vim keystrokes",
   "vim-yank-paste": "solution is vim keystrokes",
-  "vim-search-fix": "solution is vim keystrokes",
   "vim-reorder": "solution is vim keystrokes",
 };
 
