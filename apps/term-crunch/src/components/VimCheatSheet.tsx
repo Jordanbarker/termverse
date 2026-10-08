@@ -63,9 +63,8 @@ export default function VimCheatSheet() {
       sections={SECTIONS}
       intro={
         <>
-          {"Vim is modal: it starts in "}
-          <span className="font-semibold text-[#e6b450]">normal</span>
-          {" mode, where keys are commands. Press "}
+          {"Vim starts in normal mode where keys are commands. "}
+          {"Press "}
           <code className="text-[#e6b450]">i</code>
           {" to type text, "}
           <code className="text-[#e6b450]">Esc</code>
