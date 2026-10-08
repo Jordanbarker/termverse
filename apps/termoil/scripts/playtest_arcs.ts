@@ -498,9 +498,9 @@ function arc9_endOfDay1() {
   r.switchComputer("home");
 
   step("Shutdown at home");
-  out = r.run("shutdown");
-  // bare shutdown returns incrementalLines (gameAction shutdown) — output buffer may be empty
-  if (out.exitCode === 0) pass("shutdown command accepted (60s countdown)");
+  out = r.run("shutdown -h now");
+  // Immediate shutdown emits its completion event without a background timer.
+  if (out.exitCode === 0) pass("immediate shutdown command accepted");
   else fail(`shutdown rejected: ${out.output.slice(0, 200)}`);
   // The day1_shutdown flag is set via the command_executed: shutdown trigger
   expectFlag(r, "day1_shutdown");
@@ -776,7 +776,7 @@ function arc14_marcusEndgame(suspect: "edward" | "sarah" | "erik" | "nobody") {
   expectFlag(r, "read_board_debrief_day2");
 
   step("shutdown → endgame credits");
-  out = r.run("shutdown");
+  out = r.run("shutdown -h now");
   if (out.exitCode === 0) {
     pass("shutdown accepted at endgame");
   } else {

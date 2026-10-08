@@ -39,6 +39,8 @@ export interface CommandContext {
   setAliases?: (aliases: Record<string, string>) => void;
   deliveredPiperIds?: string[];
   mounts?: Mounts;
+  /** Background commands currently scheduled on this machine (app-owned). */
+  pendingCommands?: string[];
   /** Current terminal-tab prefix label (e.g. "Ctrl+Space"), from ~/.tmux.conf. */
   tabPrefixLabel?: string;
   /**
@@ -200,7 +202,15 @@ export interface CommandResult {
   sessionExit?: boolean;
   /** Resolved tmux lifecycle action from the `tmux` builtin (applied by the app store). */
   tmuxAction?: TmuxAction;
+  /** App-owned timers; scheduling/cancelling does not occupy the shell. */
+  deferredCommands?: DeferredCommand[];
+  /** The command's completion event will be emitted when its timer fires. */
+  deferEvents?: boolean;
 }
+
+export type DeferredCommand =
+  | { type: "schedule"; command: string; args: string[]; flags: Record<string, boolean>; delayMs: number }
+  | { type: "cancel"; command: string };
 
 // Canonical definition is ../incrementalLine (re-exported from the package
 // index); re-exported here too for call sites that import it from this module.

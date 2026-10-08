@@ -29,7 +29,7 @@ export default function TabManager() {
 
   const activeWindow = windows.find((w) => w.id === activeWindowId);
 
-  const { handleInput, getPrompt, startSession, canCloseCurrentSession, getActiveSessionType, cleanupPane, resizeActiveSession, resizePaneSession } = useTerminal();
+  const { handleInput, getPrompt, startSession, canCloseCurrentSession, getActiveSessionType, registerPane, cleanupPane, resizeActiveSession, resizePaneSession } = useTerminal();
 
   const shownUnlockRef = useRef(false);
   const prevGamePhaseRef = useRef(gamePhase);
@@ -98,6 +98,7 @@ export default function TabManager() {
     },
     onShellData: (_paneId, term, data) => handleInput(term, data),
     onPaneCreated: (paneId, rt, info) => {
+      registerPane(paneId, rt.term);
       const store = useGameStore.getState();
       const leaf = windows.flatMap((w) => allLeaves(w.root)).find((l) => l.id === paneId);
 

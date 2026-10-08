@@ -1,4 +1,4 @@
-import { CommandResult, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo, TmuxAction } from "@tt/core/commands/types";
+import { CommandResult, DeferredCommand, EditorSessionInfo, GameAction, IncrementalLine, SshSessionInfo, TmuxAction } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { Mounts } from "@tt/core/filesystem/mounts";
 import { resolvePath } from "@tt/core/lib/pathUtils";
@@ -79,6 +79,7 @@ export interface AppliedEffects {
   terminationReason?: SecurityViolation;
   /** Resolved tmux lifecycle action — the app store applies it (and decides prompt suppression by whether the client view swapped). */
   tmuxAction?: TmuxAction;
+  deferredCommands?: DeferredCommand[];
 }
 
 export interface ApplyContext {
@@ -125,6 +126,7 @@ export function computeEffects(
     newDeliveredPiperIds: [],
     piperNotifications: 0,
     suppressPrompt: false,
+    deferredCommands: result.deferredCommands,
   };
 
   // FS and cwd updates
@@ -213,6 +215,8 @@ export function computeEffects(
   }
 
   // Build event list — skip events for usage errors (exitCode >= 2) and unknown commands (127)
+  // Scheduling and cancellation must not run the completion delivery cascade.
+  if (result.deferEvents) return effects;
   const events: GameEvent[] = [];
   if (result.exitCode === undefined || result.exitCode <= 1) {
     events.push({ type: "command_executed", detail: applyCtx.parsedCommand });

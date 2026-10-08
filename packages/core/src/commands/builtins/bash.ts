@@ -366,6 +366,7 @@ interface ScriptState {
    * ever sees stdout).
    */
   stderr: string[];
+  deferredCommands: NonNullable<CommandResult["deferredCommands"]>;
 }
 
 /** Record one command's result into the script-wide accumulators (first violation wins). */
@@ -376,6 +377,7 @@ function accumulate(state: ScriptState, result: CommandResult): void {
     state.securityViolation = result.securityViolation;
   }
   if (result.newMounts) state.mounts = result.newMounts;
+  if (result.deferredCommands) state.deferredCommands.push(...result.deferredCommands);
 }
 
 /** Expand $(command) substitutions by executing inner commands. */
@@ -807,7 +809,7 @@ export async function executeScript(
   positionalArgs?: string[],
 ): Promise<CommandResult> {
   const nodes = parseScript(content);
-  const state: ScriptState = { triggerEvents: [], mounts: ctx.mounts, stderr: [] };
+  const state: ScriptState = { triggerEvents: [], mounts: ctx.mounts, stderr: [], deferredCommands: [] };
   const exec: ExecContext = {
     ctx,
     variables: new Map(),
@@ -823,6 +825,7 @@ export async function executeScript(
     ...(state.stderr.length > 0 && { stderr: state.stderr.join("\n") }),
     exitCode: result.exitCode,
     triggerEvents: state.triggerEvents.length > 0 ? state.triggerEvents : undefined,
+    deferredCommands: state.deferredCommands.length > 0 ? state.deferredCommands : undefined,
   };
 
   if (result.fs !== ctx.fs) {

@@ -31,6 +31,9 @@ import { CommandContext } from "@tt/core/commands/types";
 import { parseTmuxPrefix } from "@tt/core/terminal/tmuxConfig";
 import { parseZshHistory, appendZshHistory } from "@tt/core/terminal/zshHistory";
 import { Mounts } from "@tt/core/filesystem/mounts";
+import { execute } from "@tt/core/commands/registry";
+import { allLeaves } from "@tt/core/terminal/paneTypes";
+import { createDeferredCommands } from "./deferredCommands";
 
 // ---------------------------------------------------------------------------
 // Module-scope helpers (no React dependencies)
@@ -157,6 +160,22 @@ export function useTerminal() {
   const busyRef = useRef(createBusyGate());
   const confirmNewGameRef = useRef(false);
   const pendingNotificationsRef = useRef<{ email: number; piper: number } | null>(null);
+  const deferredRef = useRef(createDeferredCommands<ComputerId>());
+  const terminalsRef = useRef(new Map<string, Terminal>());
+  const reloadGenerationRef = useRef(0);
+
+  useEffect(() => {
+    const deferred = deferredRef.current;
+    const unsubscribe = useGameStore.subscribe((state) => {
+      for (const id of Object.keys(COMPUTERS) as ComputerId[]) {
+        if (!state.computerState[id]) deferred.clear(id);
+      }
+    });
+    return () => {
+      unsubscribe();
+      deferred.clear();
+    };
+  }, []);
 
   // Per-pane local refs — derived from the active pane (the focused leaf)
   const initState = useGameStore.getState();
@@ -294,11 +313,13 @@ export function useTerminal() {
 
   /** Execute the computed effects from applyResult. Returns true if prompt should be suppressed. */
   const executeEffects = useCallback(
-    (term: Terminal, effects: AppliedEffects, tabId?: string) => {
-      const computerId = activeComputerRef.current;
+    (term: Terminal, effects: AppliedEffects, tabId?: string, sourceComputer?: ComputerId) => {
+      const computerId = sourceComputer ?? activeComputerRef.current;
 
       /** Shared post-load logic: sync refs, clear screen, show message + prompt. */
       function finishLoad(t: Terminal, message: string): true {
+        deferredRef.current.clear();
+        reloadGenerationRef.current++;
         const state = useGameStore.getState();
         const loadedLeaf = getActiveLeaf(state);
         cwdRef.current = loadedLeaf?.cwd ?? `/home/${state.username}`;
@@ -327,8 +348,64 @@ export function useTerminal() {
         term.clear();
       }
 
+      for (const action of effects.deferredCommands ?? []) {
+        const generation = reloadGenerationRef.current;
+        const runDeferred = (scheduled: Extract<NonNullable<AppliedEffects["deferredCommands"]>[number], { type: "schedule" }>) => {
+          void enqueueCommand(computerId, () => {
+            const state = useGameStore.getState();
+            const fs = state.computerState[computerId]?.fs;
+            if (!fs || generation !== reloadGenerationRef.current || state.storyFlags.game_ended) return;
+            // A connection/boot animation owns the terminal; finish it before
+            // applying the machine's expired timer to a live shell.
+            if (state.gamePhase !== "playing") {
+              deferredRef.current.apply(computerId, { ...scheduled, delayMs: 100 }, runDeferred);
+              return;
+            }
+            const leaves = state.windows.flatMap((w) => allLeaves(w.root));
+            const downed = computerId === "home" ? Object.keys(COMPUTERS) : getConnectionClosure(computerId);
+            const active = getActiveLeaf(state);
+            const leaf = (active?.computerId === computerId ? active : undefined)
+              ?? leaves.find((l) => l.id === tabId && downed.includes(l.computerId))
+              ?? leaves.find((l) => l.computerId === computerId)
+              ?? leaves.find((l) => downed.includes(l.computerId));
+            const targetTerm = leaf ? terminalsRef.current.get(leaf.id) : undefined;
+            const cwd = leaf?.computerId === computerId ? leaf.cwd : fs.homeDir;
+            const result = execute(scheduled.command, scheduled.args, scheduled.flags,
+              buildCommandContext(fs, cwd, computerId, fs.homeDir, undefined, [], false, state, state.computerState[computerId]?.mounts ?? {}));
+            const completed = computeEffects(result, {
+              parsedCommand: scheduled.command, parsedArgs: scheduled.args,
+              cwd, homeDir: fs.homeDir, activeComputer: computerId, username: state.username,
+              fs, storyFlags: state.storyFlags, deliveredEmailIds: state.deliveredEmailIds,
+              deliveredPiperIds: state.deliveredPiperIds, processDeliveries,
+              targetComputerExists: result.transitionTo ? !!state.computerState[result.transitionTo as ComputerId] : undefined,
+            });
+            if (!leaf || !targetTerm) {
+              applyStateEffects(completed, computerId);
+              if (completed.closeTabsForComputer) state.closePanesForComputers(getConnectionClosure(computerId));
+              return;
+            }
+            state.setActivePane(leaf.id);
+            if (leaf.computerId !== computerId) state.setActivePaneComputer(computerId, cwd);
+            executeEffects(targetTerm, completed, leaf.id, computerId);
+          });
+        };
+        deferredRef.current.apply(computerId, action, runDeferred);
+      }
+
       // Incremental line-by-line rendering (e.g. dbt output)
       if (effects.incrementalLines) {
+        const poweringOff = effects.gameAction?.type === "shutdown" || effects.gameAction?.type === "reboot" || !!effects.closeTabsForComputer;
+        if (poweringOff) {
+          if (computerId === "home") deferredRef.current.clear();
+          else for (const id of getConnectionClosure(computerId)) deferredRef.current.clear(id);
+          // Shutdown kills foreground sessions too. Leave alternate-screen
+          // apps before printing the poweroff sequence, and discard shell input.
+          if (tabId) sessionRouter.cleanupPane(tabId);
+          commandLine.reset();
+          term.write("\x1b[?1049l\x1b[?25h\r\n");
+          if (tabId) useGameStore.getState().setActivePane(tabId);
+          useGameStore.getState().setGamePhase("transitioning");
+        }
         applyStateEffects(effects, computerId);
         // Take ownership of the input gate for the whole stream. The enqueued
         // command that started us resolves as soon as this returns, so its
@@ -347,6 +424,7 @@ export function useTerminal() {
             setTimeout(writeNext, i < lines.length ? lines[i].delayMs : 0);
           } else {
             busyRef.current.release(streamToken);
+            if (poweringOff) useGameStore.getState().setGamePhase("playing");
             // The box is down once the broadcast/countdown lines finish.
             closeTabsForDownedComputer();
             if (effects.gameAction?.type === "shutdown") {
@@ -447,7 +525,7 @@ export function useTerminal() {
 
       return effects.suppressPrompt;
     },
-    [sessionRouter, getPrompt, dispatchTransition, runShutdownTransition, runRebootTransition, applyStateEffects, writeNotifications, writePrompt]
+    [sessionRouter, commandLine, getPrompt, dispatchTransition, runShutdownTransition, runRebootTransition, applyStateEffects, writeNotifications, writePrompt]
   );
 
   const handleInput = useCallback(
@@ -469,11 +547,11 @@ export function useTerminal() {
         return;
       }
 
-      // Route input to active session if one exists
-      if (sessionRouter.routeInput(term, data)) return;
-
       // Ignore input while an async command or line animation owns this pane
       if (busyRef.current.isBlocked(getActivePaneId(useGameStore.getState()))) return;
+
+      // Route input to active session if one exists
+      if (sessionRouter.routeInput(term, data)) return;
 
       // Cursor-aware line editing (arrows, Home/End, word-skip, Ctrl+A/E/U/K/L/W/D,
       // ghost/TAB completion) is owned by the shared @tt/core LineEditor.
@@ -560,6 +638,10 @@ export function useTerminal() {
           }
 
           if (!isFinal) {
+            if (effects.deferredCommands) {
+              executeEffects(term, effects, submittingPaneId, computerId);
+              return { newCwd: effects.newCwd };
+            }
             // Per-segment: apply story flags, deliveries to store (needed for gating)
             // but do NOT write FS, notifications, or prompt
             applyStoryFlagUpdates(effects.storyFlagUpdates);
@@ -581,13 +663,13 @@ export function useTerminal() {
             }
             // Check if segment triggers session/incremental/transition/tmux swap — must stop chain
             if (effects.startSession || effects.incrementalLines || effects.transitionTo || effects.tmuxAction) {
-              const suppress = executeEffects(term, effects, submittingPaneId);
+              const suppress = executeEffects(term, effects, submittingPaneId, computerId);
               return { newCwd: effects.newCwd, stopChain: true, earlyReturn: suppress };
             }
             return { newCwd: effects.newCwd };
           }
 
-          return { newCwd: effects.newCwd, earlyReturn: executeEffects(term, effects, submittingPaneId) };
+          return { newCwd: effects.newCwd, earlyReturn: executeEffects(term, effects, submittingPaneId, computerId) };
         };
 
         const run = await runPipeline({
@@ -598,7 +680,8 @@ export function useTerminal() {
           mounts: initialMounts,
           initialExitCode: submittingPaneId ? lastExitCodeRef.current.get(submittingPaneId) : undefined,
           buildContext: ({ fs, cwd, stdin, rawArgs, isPiped, mounts }) =>
-            buildCommandContext(fs, cwd, computerId, homeDir, stdin, rawArgs, isPiped, useGameStore.getState(), mounts),
+            ({ ...buildCommandContext(fs, cwd, computerId, homeDir, stdin, rawArgs, isPiped, useGameStore.getState(), mounts),
+              pendingCommands: deferredRef.current.pending(computerId) }),
           write: (t) => term.write(t),
           redirection: {
             computerId,
@@ -664,10 +747,12 @@ export function useTerminal() {
   return {
     handleInput,
     getPrompt,
+    registerPane: (paneId: string, term: Terminal) => terminalsRef.current.set(paneId, term),
     startSession: sessionRouter.startSession,
     canCloseCurrentSession: sessionRouter.canCloseCurrentSession,
     getActiveSessionType: sessionRouter.getActiveSessionType,
     cleanupPane: (paneId: string) => {
+      terminalsRef.current.delete(paneId);
       lastExitCodeRef.current.delete(paneId); // the pane's shell is gone; so is its `$?`
       sessionRouter.cleanupPane(paneId);
     },

@@ -448,7 +448,7 @@ async function playtest() {
 
   // ── Shutdown for day 1 ──
   step("Day 1 shutdown");
-  r = runner.run("shutdown");
+  r = runner.run("shutdown -h now");
   if (runner.storyFlags.day1_shutdown) {
     ok("day1_shutdown flag set");
   } else {

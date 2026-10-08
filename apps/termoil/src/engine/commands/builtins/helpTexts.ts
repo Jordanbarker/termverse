@@ -109,12 +109,14 @@ export const TERMOIL_HELP_TEXTS: Record<string, string> = {
   ].join("\n"),
 
   shutdown: [
-    "Usage: shutdown [-h now]",
+    "Usage: shutdown [-h] [now] or shutdown -c",
     "",
     "Power off the system.",
     "",
-    "  shutdown          Begin shutdown (60-second delay)",
+    "  shutdown          Schedule poweroff in 60 seconds; keep using the shell",
+    "  shutdown now      Power off immediately",
     "  shutdown -h now   Halt and power off immediately",
+    "  shutdown -c       Cancel a scheduled shutdown",
   ].join("\n"),
 };
 

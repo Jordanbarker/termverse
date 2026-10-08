@@ -80,5 +80,6 @@ export function useCommandLine(deps: CommandLineDeps) {
     [cwdRef, activeComputerRef, getPrompt]
   );
 
-  return { handleData };
+  const reset = useCallback(() => { editorRef.current = null; }, []);
+  return { handleData, reset };
 }

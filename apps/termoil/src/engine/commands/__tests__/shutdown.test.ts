@@ -3,6 +3,8 @@ import { execute } from "@tt/core/commands/registry";
 import { CommandContext } from "@tt/core/commands/types";
 import { VirtualFS } from "@tt/core/filesystem/VirtualFS";
 import { DirectoryNode } from "@tt/core/filesystem/types";
+import { computeEffects } from "@tt/core/commands/applyResult";
+import { processDeliveries } from "../processDeliveries";
 
 import "../builtins";
 
@@ -35,10 +37,14 @@ function day1Ctx(overrides?: Partial<CommandContext>) {
 }
 
 describe("shutdown", () => {
-  it("Day 1: bare shutdown emits gameAction with 60s countdown lines", () => {
+  it("Day 1: bare shutdown schedules poweroff and leaves the shell usable", () => {
     const result = execute("shutdown", [], {}, day1Ctx());
-    expect(result.gameAction).toEqual({ type: "shutdown" });
-    expect(result.incrementalLines?.some((l) => l.text.includes("1 minute"))).toBe(true);
+    expect(result.gameAction).toBeUndefined();
+    expect(result.incrementalLines).toBeUndefined();
+    expect(result.output).toContain("1 minute");
+    expect(result.deferredCommands).toEqual([
+      { type: "schedule", command: "shutdown", args: ["now"], flags: { h: true }, delayMs: 60000 },
+    ]);
   });
 
   it("Day 1: shutdown -h now skips the countdown", () => {
@@ -64,8 +70,8 @@ describe("shutdown", () => {
   it("mid Day 2: home shutdown between day1_shutdown and the debrief is a cosmetic reboot", () => {
     const result = execute(
       "shutdown",
-      [],
-      {},
+      ["now"],
+      { h: true },
       day1Ctx({ storyFlags: { day1_shutdown: true } })
     );
     expect(result.gameAction).toEqual({ type: "reboot" });
@@ -74,21 +80,23 @@ describe("shutdown", () => {
   it("post-debrief: shutdown takes the endgame branch and emits gameAction", () => {
     const result = execute(
       "shutdown",
-      [],
-      {},
+      ["now"],
+      { h: true },
       day1Ctx({ storyFlags: { day1_shutdown: true, read_board_debrief_day2: true } })
     );
     expect(result.gameAction).toEqual({ type: "shutdown" });
   });
 
-  it("post-debrief: bare shutdown skips the 60s countdown (no one else to broadcast to)", () => {
+  it("post-debrief: bare shutdown still schedules the normal one-minute delay", () => {
     const result = execute(
       "shutdown",
       [],
       {},
       day1Ctx({ storyFlags: { day1_shutdown: true, read_board_debrief_day2: true } })
     );
-    expect(result.incrementalLines?.some((l) => l.text.includes("1 minute"))).toBe(false);
+    expect(result.output).toContain("1 minute");
+    expect(result.gameAction).toBeUndefined();
+    expect(result.deferredCommands?.[0].type).toBe("schedule");
   });
 
   it("post-debrief: shutdown -h now still works", () => {
@@ -116,8 +124,10 @@ describe("shutdown", () => {
 
   it("nexacorp: bare shutdown broadcasts a 1-minute countdown", () => {
     const result = execute("shutdown", [], {}, ctx({ activeComputer: "nexacorp" }));
-    expect(result.transitionTo).toBe("home");
-    expect(result.incrementalLines?.some((l) => l.text.includes("1 minute"))).toBe(true);
+    expect(result.transitionTo).toBeUndefined();
+    expect(result.closeTabsForComputer).toBeUndefined();
+    expect(result.output).toContain("root@nexacorp-ws01");
+    expect(result.output).toContain("1 minute");
   });
 
   it("nexacorp post-accusation: shutdown wraps Day 2 like exit does", () => {
@@ -154,9 +164,59 @@ describe("shutdown", () => {
   });
 
   it("rejects unknown argument forms", () => {
-    const result = execute("shutdown", ["now"], {}, ctx());
-    expect(result.output).toContain("Usage");
+    const result = execute("shutdown", ["later"], {}, ctx());
+    expect(result.stderr).toContain("Usage");
+    expect(result.exitCode).toBe(2);
     expect(result.gameAction).toBeUndefined();
     expect(result.transitionTo).toBeUndefined();
+  });
+
+  it("accepts shutdown now without -h", () => {
+    expect(execute("shutdown", ["now"], {}, day1Ctx()).gameAction).toEqual({ type: "shutdown" });
+  });
+
+  it("cancels the machine's pending shutdown", () => {
+    const result = execute("shutdown", [], { c: true }, day1Ctx({ pendingCommands: ["shutdown"] }));
+    expect(result.deferredCommands).toEqual([{ type: "cancel", command: "shutdown" }]);
+    expect(result.output).toContain("cancelled");
+    expect(result.gameAction).toBeUndefined();
+  });
+
+  it("does not replace an already scheduled shutdown", () => {
+    const result = execute("shutdown", [], {}, ctx({ pendingCommands: ["shutdown"] }));
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("already scheduled");
+    expect(result.deferredCommands).toBeUndefined();
+  });
+
+  it.each<{ name: string; flags: Record<string, boolean>; pendingCommands: string[] }>([
+    { name: "scheduling", flags: {}, pendingCommands: [] },
+    { name: "cancelling", flags: { c: true }, pendingCommands: ["shutdown"] },
+    { name: "duplicate requests", flags: {}, pendingCommands: ["shutdown"] },
+  ])("$name cannot advance the story", ({ flags, pendingCommands }) => {
+    const args: string[] = [];
+    const context = day1Ctx({ pendingCommands });
+    const result = execute("shutdown", args, flags, context);
+    const effects = computeEffects(result, {
+      parsedCommand: "shutdown", parsedArgs: args, cwd: context.cwd, homeDir: context.homeDir,
+      activeComputer: "home", username: context.username, fs: context.fs,
+      storyFlags: context.storyFlags!, deliveredEmailIds: [], deliveredPiperIds: [], processDeliveries,
+    });
+    expect(effects.suppressPrompt).toBe(false);
+    expect(effects.events).toEqual([]);
+    expect(effects.storyFlagUpdates).toEqual([]);
+    expect(effects.newDeliveredEmailIds).toEqual([]);
+    expect(effects.newDeliveredPiperIds).toEqual([]);
+  });
+
+  it("immediate poweroff emits the Day-1 completion event", () => {
+    const context = day1Ctx();
+    const effects = computeEffects(execute("shutdown", ["now"], {}, context), {
+      parsedCommand: "shutdown", parsedArgs: ["now"], cwd: context.cwd, homeDir: context.homeDir,
+      activeComputer: "home", username: context.username, fs: context.fs,
+      storyFlags: context.storyFlags!, deliveredEmailIds: [], deliveredPiperIds: [], processDeliveries,
+    });
+    expect(effects.events).toContainEqual({ type: "command_executed", detail: "shutdown" });
+    expect(effects.storyFlagUpdates).toContainEqual(expect.objectContaining({ flag: "day1_shutdown", value: true }));
   });
 });

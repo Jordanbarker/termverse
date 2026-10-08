@@ -245,6 +245,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     // stderr from EVERY stage, not just the last one: `cat nosuch | wc -l` has
     // to show cat's error even though wc produced the segment's stdout.
     const pipelineStderr: string[] = [];
+    const deferredCommands: NonNullable<CommandResult["deferredCommands"]> = [];
 
     for (let pi = 0; pi < pipeline.length; pi++) {
       const p = pipeline[pi];
@@ -268,6 +269,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       }
 
       if (lastResult.stderr) pipelineStderr.push(lastResult.stderr);
+      if (lastResult.deferredCommands) deferredCommands.push(...lastResult.deferredCommands);
 
       if (lastResult.securityViolation && !pipelineViolation) {
         pipelineViolation = lastResult.securityViolation;
@@ -294,6 +296,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     if (allTriggerEvents.length > 0) {
       lastResult = { ...lastResult, triggerEvents: allTriggerEvents };
     }
+    if (deferredCommands.length > 0) lastResult = { ...lastResult, deferredCommands };
 
     if (pipelineViolation && !lastResult.securityViolation) {
       lastResult = { ...lastResult, securityViolation: pipelineViolation };
