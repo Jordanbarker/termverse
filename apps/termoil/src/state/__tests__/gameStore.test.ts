@@ -471,6 +471,19 @@ describe("activeSnowSession", () => {
   });
 });
 
+describe("setPaneCopyMode", () => {
+  it("adds and removes pane ids, ignoring repeats", () => {
+    const { setPaneCopyMode } = useGameStore.getState();
+    setPaneCopyMode("pane-1", true);
+    setPaneCopyMode("pane-1", true);
+    setPaneCopyMode("pane-2", true);
+    expect(useGameStore.getState().copyModePaneIds).toEqual(["pane-1", "pane-2"]);
+    setPaneCopyMode("pane-1", false);
+    setPaneCopyMode("pane-1", false);
+    expect(useGameStore.getState().copyModePaneIds).toEqual(["pane-2"]);
+  });
+});
+
 describe("multi-pane integration", () => {
   it("cross-computer FS isolation", () => {
     const homeFs = useGameStore.getState().computerState.home?.fs;

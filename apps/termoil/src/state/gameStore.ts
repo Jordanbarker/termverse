@@ -123,6 +123,9 @@ interface GameStore {
   notifiedChipTopicIds: string[];
   // UI preference: hide the copy-mode key-hint overlay (toggled with `?` in copy mode).
   copyModeHelpHidden: boolean;
+  // Pane ids currently in tmux copy mode (the ObjectiveTracker hides while the
+  // active window has one, since it would cover the COPY badge). Transient (unsaved).
+  copyModePaneIds: string[];
 
   // Actions
   completeObjective: (id: string) => void;
@@ -173,6 +176,7 @@ interface GameStore {
   removeComputer: (computer: ComputerId) => void;
   setPendingPiperNotification: (value: boolean) => void;
   setCopyModeHelpHidden: (hidden: boolean) => void;
+  setPaneCopyMode: (paneId: string, active: boolean) => void;
 }
 
 function createInitialState(username = PLAYER.username) {
@@ -205,6 +209,7 @@ function createInitialState(username = PLAYER.username) {
     pendingPiperNotification: false,
     notifiedChipTopicIds: [] as string[],
     copyModeHelpHidden: false,
+    copyModePaneIds: [] as string[],
   };
 }
 
@@ -281,6 +286,11 @@ export const useGameStore = create<GameStore>()(
         }),
       setHasSeenIntro: () => set({ hasSeenIntro: true }),
       setCopyModeHelpHidden: (hidden) => set({ copyModeHelpHidden: hidden }),
+      setPaneCopyMode: (paneId, active) => {
+        const ids = get().copyModePaneIds;
+        if (ids.includes(paneId) === active) return;
+        set({ copyModePaneIds: active ? [...ids, paneId] : ids.filter((id) => id !== paneId) });
+      },
       addToast: (message) =>
         set((state) => ({
           toasts: [...state.toasts, { id: String(++toastId), message }],

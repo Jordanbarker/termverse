@@ -155,14 +155,19 @@ export default function TabManager() {
         rt.term.write(getPrompt());
       }
     },
-    onPaneDisposed: (paneId) => cleanupPane(paneId),
+    onPaneDisposed: (paneId) => {
+      cleanupPane(paneId);
+      // Teardown skips onCopyModeChange, so drop a copy-mode pane's id here.
+      useGameStore.getState().setPaneCopyMode(paneId, false);
+    },
     onPaneResized: (paneId) => resizePaneSession(paneId),
     // Leaving copy mode over a full-screen session: have the session re-render so it
     // re-asserts its own screen + cursor visibility (nano shows its cursor; less/piper
     // keep it hidden). exit() writes SHOW_CURSOR/scrollToBottom before firing this, so
     // the redraw cleanly overrides them. Exit only happens by key on the focused pane
     // (pane teardown skips this callback), so the active session is the right one.
-    onCopyModeChange: (_paneId, active) => {
+    onCopyModeChange: (paneId, active) => {
+      useGameStore.getState().setPaneCopyMode(paneId, active);
       if (!active && sessionUsesAltScreen(getActiveSessionType())) resizeActiveSession();
     },
     onYank: (text, ok) => {

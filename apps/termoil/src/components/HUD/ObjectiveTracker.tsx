@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGameStore } from "../../state/gameStore";
+import { allLeaves } from "@tt/core/terminal/paneTypes";
 import { CHAPTERS } from "../../engine/narrative/chapters";
 import {
   resolveObjectives,
@@ -163,6 +164,15 @@ export default function ObjectiveTracker() {
   const storyFlags = useGameStore((s) => s.storyFlags);
   const completedObjectives = useGameStore((s) => s.completedObjectives);
   const deliveredEmailIds = useGameStore((s) => s.deliveredEmailIds);
+  // Get out of the way of the COPY badge (top-right of each pane) and the
+  // scrollback being read. Hidden, not unmounted, so `collapsed` survives.
+  const copyModeInActiveWindow = useGameStore((s) => {
+    if (s.copyModePaneIds.length === 0) return false;
+    const win = s.windows.find((w) => w.id === s.activeWindowId);
+    return !!win && allLeaves(win.root).some((leaf) => s.copyModePaneIds.includes(leaf.id));
+  });
+
+  if (copyModeInActiveWindow) return null;
 
   const chapter = CHAPTERS.find((c) => c.id === currentChapter);
   if (!chapter) return null;
