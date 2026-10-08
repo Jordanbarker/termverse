@@ -65,6 +65,19 @@ function normalizeChordKey(key: string): string {
   return code > 0 && code < 27 ? String.fromCharCode(code + 96) : key.toLowerCase();
 }
 
+/**
+ * Does this raw keydown produce the prefix char? Copy mode swallows keys at the
+ * keydown layer (before xterm emits onData), so it uses this to let the prefix
+ * through to the router. Mirrors parseTmuxPrefix: `\x00` is C-Space, `\x01`-`\x1a` C-a..C-z.
+ */
+export function keyEventMatchesPrefix(e: { key: string; ctrlKey: boolean }, prefixChar: string): boolean {
+  if (!e.ctrlKey) return false;
+  const code = prefixChar.charCodeAt(0);
+  if (code === 0) return e.key === " ";
+  if (code > 0 && code < 27) return e.key.toLowerCase() === String.fromCharCode(code + 96);
+  return false;
+}
+
 export function createTmuxInputRouter(opts: TmuxInputRouterOptions): TmuxInputRouter {
   const repeatMs = opts.repeatMs ?? DEFAULT_REPEAT_MS;
   let prefixArmed = false;

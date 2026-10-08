@@ -160,7 +160,8 @@ export default function TabManager() {
     // Leaving copy mode over a full-screen session: have the session re-render so it
     // re-asserts its own screen + cursor visibility (nano shows its cursor; less/piper
     // keep it hidden). exit() writes SHOW_CURSOR/scrollToBottom before firing this, so
-    // the redraw cleanly overrides them.
+    // the redraw cleanly overrides them. Exit only happens by key on the focused pane
+    // (pane teardown skips this callback), so the active session is the right one.
     onCopyModeChange: (_paneId, active) => {
       if (!active && sessionUsesAltScreen(getActiveSessionType())) resizeActiveSession();
     },
@@ -175,6 +176,7 @@ export default function TabManager() {
       const store = useGameStore.getState();
       store.setCopyModeHelpHidden(!store.copyModeHelpHidden);
     },
+    copyModeHelpHidden,
     digitWindowMax: MAX_WINDOWS,
   };
 
@@ -229,8 +231,6 @@ export default function TabManager() {
           prefixActive={tm.prefixActive}
           closeConfirm={closeConfirm}
           renamePrompt={tm.renamePrompt}
-          copyModeActive={tm.copyModeActive}
-          copyModeHelpHidden={copyModeHelpHidden}
           theme={tm.tabTheme}
           sessionName={attachedSession?.name}
         />

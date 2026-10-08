@@ -63,6 +63,7 @@ The headless runner has **no tab model and no transition animations** — tab su
 
 - **Playwright's synthetic `Control+V` does not paste in Chromium.** Dispatch a real `ClipboardEvent` on `.xterm-helper-textarea`.
 - Grant `clipboard-read`/`clipboard-write` on the context and **verify a yank by reading the clipboard back** — screen-based verification is ambiguous with duplicate scrollback lines.
+- **Copy-mode state is per pane, not in the tab bar.** Each pane container holds a `z-index:5` badge (`COPY offset/history`) + hint strip; `display:block` on the badge means that pane is in copy mode (it persists across window switches).
 - **Copy mode has two coordinate systems.** `g` jumps to the top of *scrollback*; once the viewport has scrolled, a rendered row index is not the cursor's line offset.
 
 ### DOM map

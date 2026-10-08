@@ -22,8 +22,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import type { IDisposable } from "@xterm/xterm";
 import { XTERM_OPTIONS, XTERM_THEME, handleScrollShortcut } from "./xtermDefaults";
 import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, type TabPrefix, type TabBarTheme, type PaneBinding } from "./tmuxConfig";
-import { CopyModeController, COPY_MODE_SELECTION_BG, COPY_MODE_SELECTION_FG } from "./copyMode";
-import { createTmuxInputRouter, type ResizeBinding, type FocusDir, type TmuxInputRouter } from "./tmuxInputRouter";
+import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN, COPY_MODE_SELECTION_BG, COPY_MODE_SELECTION_FG } from "./copyMode";
+import { createTmuxInputRouter, keyEventMatchesPrefix, type ResizeBinding, type FocusDir, type TmuxInputRouter } from "./tmuxInputRouter";
 import { useRenameWindowPrompt } from "./useRenameWindowPrompt";
 import { allLeaves, paneRects, nearestResizableSplit, nodeBox, type WindowState, type SplitDirection } from "./paneTypes";
 import { PANE_CHROME } from "./paneChrome";
@@ -37,6 +37,14 @@ export interface PaneRuntime {
   /** Kept so `disposeRuntime` can detach it; the container outlives React here. */
   onMouseDown: (e: MouseEvent) => void;
   copyMode: CopyModeController;
+  /** Copy-mode chrome overlaid on the pane (never resizes it): `COPY offset/history` badge + key-hint strip. */
+  copyBadgeEl: HTMLDivElement;
+  copyHintEl: HTMLDivElement;
+  copyPos: { offset: number; history: number };
+  /** Set by disposeRuntime so the teardown exit skips app copy-mode side effects. */
+  disposed: boolean;
+  /** Pane's window is hidden (display:none). xterm drops its scroll position + selection while hidden. */
+  hidden: boolean;
   /** Last applied pixel size — lets the layout effect skip redundant fit()/resize(). */
   lastW: number;
   lastH: number;
@@ -101,6 +109,8 @@ export interface TabManagerExtensions {
   onYank?(text: string, ok: boolean): void;
   /** `?` in copy mode toggles the hint; the flag itself is app state (persisted or local). */
   toggleCopyModeHelp(): void;
+  /** That flag: true hides the copy-mode key-hint strip (the badge then shows `? help`). */
+  copyModeHelpHidden?: boolean;
   /** Extra raw-keydown handling after copy-mode/scroll/Ctrl+digit. Same contract as attachCustomKeyEventHandler. */
   customKeydown?(paneId: string, e: KeyboardEvent, term: XTerm): boolean | null;
   /** Highest window number reachable via `<prefix> <digit>` (termoil: MAX_WINDOWS=5). Default 9. */
@@ -121,7 +131,6 @@ export interface UseTabManagerResult {
   wrapperRef: RefObject<HTMLDivElement | null>;
   wrapperSize: { w: number; h: number };
   prefixActive: boolean;
-  copyModeActive: boolean;
   /** Non-null while the rename-window prompt is open — render in the status-bar modal slot. */
   renamePrompt: string | null;
   tabPrefix: TabPrefix;
@@ -143,6 +152,8 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
   extRef.current = ext;
   const prefixCharRef = useRef(tabPrefix.char);
   prefixCharRef.current = tabPrefix.char;
+  const themeRef = useRef(tabTheme);
+  themeRef.current = tabTheme;
   const bindingsRef = useRef(tabBindings);
   bindingsRef.current = tabBindings;
   const windowsRef = useRef(windows);
@@ -156,7 +167,6 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
   // Wrapper pixel size, tracked via ResizeObserver, drives pane geometry.
   const [wrapperSize, setWrapperSize] = useState({ w: 0, h: 0 });
   const [prefixActive, setPrefixActive] = useState(false);
-  const [copyModeActive, setCopyModeActive] = useState(false);
 
   // Track pane IDs seen at mount to tell restored panes from brand-new ones,
   // and whether the one-time first-pane slot (splash) has been consumed.
@@ -253,6 +263,13 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     if (e.interceptAfterRename?.(paneId, rt.term, data)) return;
 
     const result = router.route(data);
+    // In copy mode only the prefix and its chord reach here (see the keydown
+    // handler). Nothing may leak to the session; `<prefix> [` is already satisfied.
+    if (rt.copyMode.isActive()) {
+      if (result.type === "shell" || result.type === "copy-mode") return;
+      // These open a status-line prompt that reads keys copy mode would swallow.
+      if (result.type === "chord" && (result.key === "r" || result.key === "x")) rt.copyMode.exit();
+    }
     switch (result.type) {
       case "consumed":
         return;
@@ -291,15 +308,46 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     // tmux/vi copy mode (entered via `<prefix> [`) — per pane, since each pane
     // owns its own controller. The engine controller owns cursor/selection;
     // clipboard + app side effects live in the callbacks.
+    const copyBadgeEl = document.createElement("div");
+    const copyHintEl = document.createElement("div");
+    for (const el of [copyBadgeEl, copyHintEl]) {
+      el.style.position = "absolute";
+      el.style.zIndex = "5";
+      el.style.pointerEvents = "none";
+      el.style.whiteSpace = "nowrap";
+      el.style.fontFamily = "monospace";
+      el.style.fontSize = "12px";
+      el.style.lineHeight = "1.4";
+      el.style.padding = "0 6px";
+      el.style.display = "none";
+      containerEl.appendChild(el);
+    }
+    // tmux's per-pane copy-mode position marker sits top-right.
+    copyBadgeEl.style.top = "0";
+    copyBadgeEl.style.right = "0";
+    copyBadgeEl.style.fontWeight = "bold";
+    copyBadgeEl.style.backgroundColor = COPY_MODE_SELECTION_BG;
+    copyBadgeEl.style.color = COPY_MODE_SELECTION_FG;
+    copyHintEl.style.left = "0";
+    copyHintEl.style.right = "0";
+    copyHintEl.style.bottom = "0";
+    copyHintEl.style.overflow = "hidden";
+    copyHintEl.style.textOverflow = "ellipsis";
+    copyHintEl.textContent = COPY_MODE_HINT;
+
     const copyMode = new CopyModeController(term, {
       onChange: (active) => {
-        setCopyModeActive(active);
+        syncCopyOverlay(runtime);
         // Brighten the selection to the gold copy-mode accent so the 1-cell
         // cursor (a native selection) is easy to see; restore the base theme on exit.
         term.options.theme = active
           ? { ...XTERM_THEME, selectionBackground: COPY_MODE_SELECTION_BG, selectionForeground: COPY_MODE_SELECTION_FG }
           : XTERM_THEME;
-        extRef.current.onCopyModeChange?.(paneId, active);
+        if (!runtime.disposed) extRef.current.onCopyModeChange?.(paneId, active);
+      },
+      onPosition: (pos) => {
+        runtime.copyPos = pos;
+        syncCopyOverlay(runtime);
       },
       onToggleHelp: () => extRef.current.toggleCopyModeHelp(),
       onYank: (text) => {
@@ -309,19 +357,6 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
 
     // Intercept raw DOM key events for copy mode, scroll shortcuts, and Ctrl+digit chords.
     term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      // While in copy mode, swallow every key (before scroll shortcuts) so nothing
-      // reaches the shell; preventDefault keeps junk out of xterm's hidden textarea.
-      if (copyMode.isActive()) {
-        if (e.type === "keydown") {
-          e.preventDefault();
-          copyMode.handleKeydown(e);
-        }
-        return false;
-      }
-
-      const scrollResult = handleScrollShortcut(e, term);
-      if (scrollResult !== null) return scrollResult;
-
       const digitMax = Math.min(extRef.current.digitWindowMax ?? 9, 9);
       if (router.isPrefixArmed() && e.type === "keydown" && e.key >= "1" && e.key <= String(digitMax)) {
         if (e.ctrlKey) {
@@ -333,6 +368,22 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
         return false; // always block xterm's keydown processing for the digit
       }
 
+      // While in copy mode, swallow every key (before scroll shortcuts) so nothing
+      // reaches the shell; preventDefault keeps junk out of xterm's hidden textarea.
+      // The prefix and the key after it pass through to onData → the router, so
+      // window/pane chords work in copy mode (as in real tmux).
+      if (copyMode.isActive()) {
+        if (router.isPrefixArmed() || keyEventMatchesPrefix(e, prefixCharRef.current)) return true;
+        if (e.type === "keydown") {
+          e.preventDefault();
+          copyMode.handleKeydown(e);
+        }
+        return false;
+      }
+
+      const scrollResult = handleScrollShortcut(e, term);
+      if (scrollResult !== null) return scrollResult;
+
       return extRef.current.customKeydown?.(paneId, e, term) ?? true;
     });
 
@@ -341,6 +392,11 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
       fitAddon,
       containerEl,
       copyMode,
+      copyBadgeEl,
+      copyHintEl,
+      copyPos: { offset: 0, history: 0 },
+      disposed: false,
+      hidden: false,
       onDataDisposable: null as unknown as IDisposable,
       onMouseDown,
       lastW: 0,
@@ -350,7 +406,20 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     return runtime;
   }
 
+  /** Show/hide + fill a pane's copy-mode badge and hint strip from its live state. */
+  function syncCopyOverlay(rt: PaneRuntime) {
+    const active = rt.copyMode.isActive();
+    const helpHidden = extRef.current.copyModeHelpHidden ?? false;
+    const { offset, history } = rt.copyPos;
+    rt.copyBadgeEl.textContent = `COPY ${offset}/${history}${helpHidden ? ` · ${COPY_MODE_HINT_HIDDEN}` : ""}`;
+    rt.copyBadgeEl.style.display = active ? "block" : "none";
+    rt.copyHintEl.style.backgroundColor = themeRef.current.statusBg;
+    rt.copyHintEl.style.color = themeRef.current.statusFg;
+    rt.copyHintEl.style.display = active && !helpHidden ? "block" : "none";
+  }
+
   function disposeRuntime(paneId: string, rt: PaneRuntime) {
+    rt.disposed = true;
     extRef.current.onPaneDisposed?.(paneId);
     if (rt.copyMode.isActive()) rt.copyMode.exit({ refocus: false });
     rt.onDataDisposable.dispose();
@@ -454,12 +523,19 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
       if (!r) {
         // Pane belongs to a non-active window — hide it. Never fit a hidden
         // (0x0) container — xterm would mis-size.
+        // Copy mode survives (per pane, as in real tmux) until the user leaves it.
         rt.containerEl.style.display = "none";
-        if (rt.copyMode.isActive()) rt.copyMode.exit({ refocus: false });
+        rt.hidden = true;
         continue;
       }
       const el = rt.containerEl;
       el.style.display = "block";
+      if (rt.hidden) {
+        rt.hidden = false;
+        // Coming back from display:none, xterm re-syncs its viewport on the next
+        // frame and drops the selection, so restore copy mode's scroll + cursor after it.
+        if (rt.copyMode.isActive()) requestAnimationFrame(() => rt.copyMode.refresh());
+      }
       el.style.left = `${r.x}px`;
       el.style.top = `${r.y}px`;
       el.style.width = `${r.w}px`;
@@ -479,15 +555,19 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
         rt.lastH = r.h;
         try { rt.fitAddon.fit(); } catch { /* size not ready yet */ }
         extRef.current.onPaneResized?.(id);
+        rt.copyMode.refresh();
       }
 
-      if (isActivePane && !rt.copyMode.isActive()) {
-        rt.term.focus();
-      } else if (!isActivePane && rt.copyMode.isActive()) {
-        rt.copyMode.exit({ refocus: false });
-      }
+      // A copy-mode pane keeps focus too: its keydowns must still reach the controller.
+      if (isActivePane) rt.term.focus();
     }
   }, [windows, activeWindowId, wrapperSize]);
+
+  // Re-skin open copy-mode overlays when the help toggle or the status theme changes.
+  useEffect(() => {
+    for (const rt of runtimesRef.current.values()) syncCopyOverlay(rt);
+    // syncCopyOverlay reads refs only; these are the inputs it renders.
+  }, [ext.copyModeHelpHidden, tabTheme]);
 
   // Track wrapper size (drives pane geometry); a single observer covers browser
   // resize, layout shifts, and the tab bar appearing/disappearing.
@@ -505,7 +585,6 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
     wrapperRef,
     wrapperSize,
     prefixActive,
-    copyModeActive,
     renamePrompt,
     tabPrefix,
     tabTheme,

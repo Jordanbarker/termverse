@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createTmuxInputRouter, DEFAULT_REPEAT_MS, type TmuxInputRouter } from "../tmuxInputRouter";
+import { createTmuxInputRouter, keyEventMatchesPrefix, DEFAULT_REPEAT_MS, type TmuxInputRouter } from "../tmuxInputRouter";
 import type { PaneBinding } from "../tmuxConfig";
 
 const PREFIX = "\x00"; // Ctrl+Space
@@ -206,5 +206,19 @@ describe("repeat window (-r binds)", () => {
     expect(router.isPrefixArmed()).toBe(false);
     expect(router.route("H")).toEqual({ type: "shell", data: "H" });
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("keyEventMatchesPrefix", () => {
+  it("matches C-Space against the NUL prefix", () => {
+    expect(keyEventMatchesPrefix({ key: " ", ctrlKey: true }, "\x00")).toBe(true);
+    expect(keyEventMatchesPrefix({ key: " ", ctrlKey: false }, "\x00")).toBe(false);
+  });
+
+  it("matches C-letter case-insensitively against its control char", () => {
+    expect(keyEventMatchesPrefix({ key: "a", ctrlKey: true }, "\x01")).toBe(true);
+    expect(keyEventMatchesPrefix({ key: "B", ctrlKey: true }, "\x02")).toBe(true);
+    expect(keyEventMatchesPrefix({ key: "b", ctrlKey: true }, "\x01")).toBe(false);
+    expect(keyEventMatchesPrefix({ key: "a", ctrlKey: false }, "\x01")).toBe(false);
   });
 });

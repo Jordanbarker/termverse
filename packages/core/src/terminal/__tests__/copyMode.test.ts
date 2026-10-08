@@ -480,3 +480,33 @@ describe("CopyModeController", () => {
     expect(k.preventDefault).toHaveBeenCalled();
   });
 });
+
+describe("CopyModeController position + refresh", () => {
+  it("reports tmux's offset/history position after each repaint", () => {
+    const term = new FakeTerminal({ rows: 5, cursorY: 0, baseY: 20, length: 25 });
+    const onPosition = vi.fn();
+    const controller = new CopyModeController(term, { onChange: vi.fn(), onYank: vi.fn(), onPosition });
+    controller.enter();
+    expect(onPosition).toHaveBeenLastCalledWith({ offset: 0, history: 20 });
+
+    // Moving above the viewport scrolls it up one line.
+    controller.handleKeydown(key("k"));
+    expect(onPosition).toHaveBeenLastCalledWith({ offset: 1, history: 20 });
+  });
+
+  it("refresh re-clamps the cursor after the buffer shrinks (reflow) and is inert when inactive", () => {
+    const term = new FakeTerminal({ cols: 10, rows: 5, cursorX: 8, cursorY: 4, baseY: 10, length: 15 });
+    const controller = new CopyModeController(term, { onChange: vi.fn(), onYank: vi.fn() });
+    controller.refresh();
+    expect(term.selectCalls).toHaveLength(0);
+
+    controller.enter();
+    expect(term.lastSelect()).toEqual([8, 14, 1]);
+    term.cols = 4;
+    term.length = 8;
+    term.baseY = 3;
+    term.viewportY = 3;
+    controller.refresh();
+    expect(term.lastSelect()).toEqual([3, 7, 1]);
+  });
+});

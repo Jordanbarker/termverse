@@ -18,8 +18,6 @@ interface TabBarProps {
   closeConfirm?: string | null;
   /** tmux rename-window inline prompt text; takes over the bar when non-null. */
   renamePrompt?: string | null;
-  copyModeActive: boolean;
-  copyModeHelpHidden: boolean;
   /** Bar colors parsed from `~/.tmux.conf` (drives the inline styles). */
   theme: TabBarTheme;
   /** Attached tmux session name, rendered `[name]` at status-left. */
@@ -33,8 +31,6 @@ export default function TabBar({
   prefixActive,
   closeConfirm,
   renamePrompt,
-  copyModeActive,
-  copyModeHelpHidden,
   theme,
   sessionName,
 }: TabBarProps) {
@@ -93,8 +89,6 @@ export default function TabBar({
       onCloseWindow={onCloseWindow}
       prefixActive={prefixActive}
       modalText={closeConfirm ?? renamePrompt}
-      copyModeActive={copyModeActive}
-      copyModeHelpHidden={copyModeHelpHidden}
       theme={theme}
       sessionName={sessionName}
       trailing={

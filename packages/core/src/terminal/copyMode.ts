@@ -46,6 +46,11 @@ export interface CopyModeCallbacks {
   onYank(text: string): void;
   /** Fired when the user presses `?` to toggle the key-hint overlay. */
   onToggleHelp?(): void;
+  /**
+   * Fired after every repaint with tmux's `[offset/history]` position: how many
+   * lines the viewport is scrolled up from the live bottom, out of the scrollback size.
+   */
+  onPosition?(pos: { offset: number; history: number }): void;
 }
 
 interface KeyEventLike {
@@ -65,11 +70,11 @@ const SHOW_CURSOR = "\x1b[?25h";
 /** Preferred-column sentinel: "stick to end-of-line" on vertical moves (vi `$`). */
 const EOL_COL = Number.MAX_SAFE_INTEGER;
 
-/** One-line key hint shown in the COPY MODE status line (expanded). */
+/** Key hint shown in the copy-mode pane's bottom overlay strip (help expanded). */
 export const COPY_MODE_HINT =
-  " · hjkl move · w/b/e word · 0/^/$ line · g/G top/bot · H/M/L screen · ^u/^d ^b/^f page · v select · y yank · esc exit · ? hide";
-/** Collapsed hint shown when the status-line help is toggled off. */
-export const COPY_MODE_HINT_HIDDEN = " · ? help";
+  "hjkl move · w/b/e word · 0/^/$ line · g/G top/bot · H/M/L screen · ^u/^d ^b/^f page · v select · y yank · esc exit · ? hide";
+/** Collapsed hint appended to the copy-mode pane badge when help is toggled off. */
+export const COPY_MODE_HINT_HIDDEN = "? help";
 
 /**
  * High-contrast selection colors applied while copy mode is active so the
@@ -131,6 +136,27 @@ export class CopyModeController {
     this.term.scrollToBottom();
     if (opts?.refocus !== false) this.term.focus();
     this.callbacks.onChange(false);
+  }
+
+  /**
+   * Re-clamp the cursor and repaint after the terminal was re-fitted (a pane
+   * shown again or resized while in copy mode), since reflow can move rows.
+   */
+  refresh(): void {
+    if (!this.active) return;
+    const buf = this.term.buffer.active;
+    this.cursor = {
+      col: Math.min(this.cursor.col, Math.max(0, this.term.cols - 1)),
+      row: Math.min(this.cursor.row, Math.max(0, buf.length - 1)),
+    };
+    if (this.anchor) {
+      this.anchor = {
+        col: Math.min(this.anchor.col, Math.max(0, this.term.cols - 1)),
+        row: Math.min(this.anchor.row, Math.max(0, buf.length - 1)),
+      };
+    }
+    this.ensureVisible();
+    this.render();
   }
 
   /** Handle a keydown while in copy mode. Returns true if the key was consumed. */
@@ -428,12 +454,14 @@ export class CopyModeController {
     const cols = this.term.cols;
     if (!this.anchor) {
       this.term.select(this.cursor.col, this.cursor.row, 1);
-      return;
+    } else {
+      const a = this.anchor;
+      const b = this.cursor;
+      const [start, end] = a.row * cols + a.col <= b.row * cols + b.col ? [a, b] : [b, a];
+      const length = (end.row - start.row) * cols + (end.col - start.col) + 1;
+      this.term.select(start.col, start.row, length);
     }
-    const a = this.anchor;
-    const b = this.cursor;
-    const [start, end] = a.row * cols + a.col <= b.row * cols + b.col ? [a, b] : [b, a];
-    const length = (end.row - start.row) * cols + (end.col - start.col) + 1;
-    this.term.select(start.col, start.row, length);
+    const buf = this.term.buffer.active;
+    this.callbacks.onPosition?.({ offset: Math.max(0, buf.baseY - buf.viewportY), history: buf.baseY });
   }
 }

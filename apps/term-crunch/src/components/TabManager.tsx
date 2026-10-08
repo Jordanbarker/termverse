@@ -158,6 +158,7 @@ export default function TabManager() {
       sessions.current.delete(paneId);
     },
     toggleCopyModeHelp: () => setCopyModeHelpHidden((v) => !v),
+    copyModeHelpHidden,
     // The clipboard write happens in core; surface whether it landed, since the
     // yank challenge asks the player to paste what they just copied.
     onYank: (text, ok) => {
@@ -193,8 +194,6 @@ export default function TabManager() {
           theme={tm.tabTheme}
           prefixActive={tm.prefixActive}
           renamePrompt={tm.renamePrompt}
-          copyModeActive={tm.copyModeActive}
-          copyModeHelpHidden={copyModeHelpHidden}
           sessionName={attachedSession.name}
           onNewWindow={() => useGameStore.getState().newWindow()}
           onSelectWindow={(id) => useGameStore.getState().selectWindow(id)}
