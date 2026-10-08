@@ -70,16 +70,16 @@ export default function TmuxStatusBar({
 }: TmuxStatusBarProps) {
   return (
     <div
-      className={`flex min-w-0 shrink-0 items-center border-b font-mono text-xs select-none ${modalText || copyModeActive ? "relative z-20" : ""}`}
+      className={`flex min-w-0 shrink-0 items-center border-b font-mono text-sm select-none ${modalText || copyModeActive ? "relative z-20" : ""}`}
       style={{ backgroundColor: theme.statusBg, borderBottomColor: theme.statusBg }}
     >
       {modalText ? (
         // tmux confirm-before-kill / rename-window takes over the status line.
-        <span className="px-2 py-0.5 font-bold" style={{ color: theme.currentFg }}>
+        <span className="px-2 py-1 font-bold" style={{ color: theme.currentFg }}>
           {modalText}
         </span>
       ) : copyModeActive ? (
-        <div className="flex min-w-0 flex-1 items-center whitespace-nowrap px-2 py-0.5">
+        <div className="flex min-w-0 flex-1 items-center whitespace-nowrap px-2 py-1">
           <span className="shrink-0 font-bold" style={{ color: COPY_MODE_SELECTION_BG }}>
             COPY MODE
           </span>
@@ -90,14 +90,14 @@ export default function TmuxStatusBar({
       ) : (
         <>
           {sessionName !== undefined && (
-            <span className="pl-2 py-0.5" style={{ color: theme.statusFg }}>
+            <span className="pl-2 py-1" style={{ color: theme.statusFg }}>
               [{sessionName}]
             </span>
           )}
           {/* tmux status-left: prefix-state indicator. Blank (space reserved) at
               rest; "PREFIX" in blue when armed. */}
           <span
-            className={`px-2 py-0.5 font-bold transition-colors ${prefixActive ? "animate-pulse" : ""}`}
+            className={`px-2 py-1 font-bold transition-colors ${prefixActive ? "animate-pulse" : ""}`}
             style={{
               visibility: prefixActive ? "visible" : "hidden",
               color: PREFIX_BLUE,
@@ -111,7 +111,7 @@ export default function TmuxStatusBar({
               <button
                 key={win.id}
                 onClick={() => onSelectWindow(win.id)}
-                className={`relative flex items-center gap-1.5 px-3 py-0.5 transition-opacity ${
+                className={`relative flex items-center gap-1.5 px-3 py-1 transition-opacity ${
                   isActive ? "font-medium" : "opacity-70 hover:opacity-100"
                 }`}
                 style={
