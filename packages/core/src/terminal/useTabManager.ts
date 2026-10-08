@@ -29,15 +29,29 @@ import { allLeaves, paneRects, nearestResizableSplit, nodeBox, type WindowState,
 import { PANE_CHROME } from "./paneChrome";
 import { copyToClipboard } from "../lib/clipboard";
 
+/** Pixel height of the copy-mode hint strip (one row at the terminal's font size). */
+const COPY_HINT_HEIGHT = Math.ceil(XTERM_OPTIONS.fontSize * 1.4);
+
 export interface PaneRuntime {
   term: XTerm;
   fitAddon: FitAddon;
+  /** The pane box: positioned, clipped and outlined; holds the xterm host + copy-mode chrome. */
   containerEl: HTMLDivElement;
+  /**
+   * What xterm is opened into, inset by `PANE_CHROME.padding`. FitAddon sizes rows
+   * from its parent's computed height and ignores the parent's padding (border-box),
+   * so the usable area must be this element's size: shrink it, never pad it.
+   */
+  termHostEl: HTMLDivElement;
   onDataDisposable: IDisposable;
   /** Kept so `disposeRuntime` can detach it; the container outlives React here. */
   onMouseDown: (e: MouseEvent) => void;
   copyMode: CopyModeController;
-  /** Copy-mode chrome overlaid on the pane (never resizes it): `COPY offset/history` badge + key-hint strip. */
+  /**
+   * Copy-mode chrome: the `COPY offset/history` badge overlays the pane; the
+   * key-hint strip fills a row permanently reserved below `termHostEl`, so copy
+   * mode never resizes the pane.
+   */
   copyBadgeEl: HTMLDivElement;
   copyHintEl: HTMLDivElement;
   copyPos: { offset: number; history: number };
@@ -292,10 +306,20 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
   }
 
   function createPaneRuntime(paneId: string, containerEl: HTMLDivElement): PaneRuntime {
+    const termHostEl = document.createElement("div");
+    termHostEl.style.position = "absolute";
+    termHostEl.style.left = PANE_CHROME.padding;
+    termHostEl.style.top = PANE_CHROME.padding;
+    termHostEl.style.right = PANE_CHROME.padding;
+    // Always leave room for the copy-mode hint strip, so entering copy mode
+    // never shrinks the terminal and shifts its contents.
+    termHostEl.style.bottom = `calc(${PANE_CHROME.padding} + ${COPY_HINT_HEIGHT}px)`;
+    containerEl.appendChild(termHostEl);
+
     const term = new XTerm(XTERM_OPTIONS);
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
-    term.open(containerEl);
+    term.open(termHostEl);
 
     // Clicking a pane focuses it (and makes it the active pane), so input routes
     // to the right session. Without this the single-focused-pane invariant breaks.
@@ -315,9 +339,9 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
       el.style.zIndex = "5";
       el.style.pointerEvents = "none";
       el.style.whiteSpace = "nowrap";
-      el.style.fontFamily = "monospace";
-      el.style.fontSize = "12px";
-      el.style.lineHeight = "1.4";
+      el.style.fontFamily = XTERM_OPTIONS.fontFamily;
+      el.style.fontSize = `${XTERM_OPTIONS.fontSize}px`;
+      el.style.lineHeight = `${COPY_HINT_HEIGHT}px`;
       el.style.padding = "0 6px";
       el.style.display = "none";
       containerEl.appendChild(el);
@@ -391,6 +415,7 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
       term,
       fitAddon,
       containerEl,
+      termHostEl,
       copyMode,
       copyBadgeEl,
       copyHintEl,
@@ -479,7 +504,6 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
         const containerEl = document.createElement("div");
         containerEl.style.position = "absolute";
         containerEl.style.overflow = "hidden";
-        containerEl.style.padding = PANE_CHROME.padding;
         containerEl.style.left = "0";
         containerEl.style.top = "0";
         containerEl.style.width = "100%";
