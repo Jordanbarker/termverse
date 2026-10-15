@@ -20,7 +20,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import type { IDisposable } from "@xterm/xterm";
-import { XTERM_OPTIONS, XTERM_THEME, handleScrollShortcut } from "./xtermDefaults";
+import { XTERM_OPTIONS, XTERM_THEME, handleCopyShortcut, handleScrollShortcut } from "./xtermDefaults";
 import { parseTmuxPrefix, parseTmuxTheme, parseTmuxBindings, type TabPrefix, type TabBarTheme, type PaneBinding } from "./tmuxConfig";
 import { CopyModeController, COPY_MODE_HINT, COPY_MODE_HINT_HIDDEN, COPY_MODE_SELECTION_BG, COPY_MODE_SELECTION_FG } from "./copyMode";
 import { createTmuxInputRouter, keyEventMatchesPrefix, type ResizeBinding, type FocusDir, type TmuxInputRouter } from "./tmuxInputRouter";
@@ -119,7 +119,7 @@ export interface TabManagerExtensions {
   onPaneResized?(paneId: string): void;
   /** Copy-mode enter/exit on a pane (termoil redraws alt-screen sessions on exit). */
   onCopyModeChange?(paneId: string, active: boolean): void;
-  /** Yank side effect after the clipboard write settles (toast). Copy itself is handled here. */
+  /** Copy/yank side effect after the clipboard write settles (toast). Copy itself is handled here. */
   onYank?(text: string, ok: boolean): void;
   /** `?` in copy mode toggles the hint; the flag itself is app state (persisted or local). */
   toggleCopyModeHelp(): void;
@@ -404,6 +404,17 @@ export function useTabManager({ windows, activeWindowId, tmuxConf, adapter, ext 
         }
         return false;
       }
+
+      // Native-style clipboard copying is available even without a tmux session.
+      const copyResult = handleCopyShortcut(e, term, (text) => {
+        void copyToClipboard(text).then((ok) => {
+          if (runtime.disposed) return;
+          // Don't clear a new selection or a copy-mode cursor created while awaiting permission.
+          if (ok && !copyMode.isActive() && term.getSelection() === text) term.clearSelection();
+          extRef.current.onYank?.(text, ok);
+        });
+      });
+      if (copyResult !== null) return copyResult;
 
       const scrollResult = handleScrollShortcut(e, term);
       if (scrollResult !== null) return scrollResult;

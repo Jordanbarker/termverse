@@ -27,6 +27,20 @@ export const XTERM_OPTIONS = {
   allowProposedApi: true,
 };
 
+/** Copy a selection with plain Ctrl+C; without a selection it remains an interrupt. */
+export function handleCopyShortcut(
+  e: KeyboardEvent,
+  term: Pick<XTerm, "getSelection">,
+  onCopy: (text: string) => void,
+): boolean | null {
+  if (e.type !== "keydown" || !e.ctrlKey || e.shiftKey || e.altKey || e.metaKey || e.key.toLowerCase() !== "c") return null;
+  const text = term.getSelection();
+  if (!text) return null;
+  e.preventDefault();
+  onCopy(text);
+  return false;
+}
+
 /** Handle macOS-style scroll shortcuts. Returns false to block xterm, true to pass through, null when unhandled. */
 export function handleScrollShortcut(e: KeyboardEvent, term: XTerm): boolean | null {
   if (e.type !== "keydown") return null;
