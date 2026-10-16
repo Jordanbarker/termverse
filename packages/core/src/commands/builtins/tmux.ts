@@ -131,8 +131,14 @@ const tmux: CommandHandler = (args, _flags, ctx) => {
     }
 
     case "kill-session": {
+      const options = tokens.slice(tokens.indexOf(sub) + 1);
+      if (options.length > 0 && (
+        options.length !== 2 || options[0] !== "-t" || options[1].startsWith("-")
+      )) {
+        return err("usage: kill-session [-t target-session]");
+      }
       if (!serverRunning(state)) return err(NO_SERVER);
-      const explicit = optValue(tokens, "-t");
+      const explicit = options[1] ?? null;
       const target = explicit ?? state.attachedSession ?? lastDetached(state);
       if (target === null || !state.sessions.some((s) => s.name === target)) {
         return err(`can't find session: ${target ?? ""}`);

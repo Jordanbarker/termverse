@@ -182,6 +182,26 @@ describe("tmux kill-session / kill-server", () => {
     expect(run(["kill-session", "-t", "zz"], ATTACHED_0).stderr).toBe("can't find session: zz");
   });
 
+  it("rejects malformed kill-session arguments without killing a session", () => {
+    for (const args of [
+      ["session-name"],
+      ["0"],
+      ["-s", "0"],
+      ["-t"],
+      ["-t", "-s"],
+      ["-t", "0", "extra"],
+      ["-t", "0", "-t", "work"],
+      ["--unknown"],
+    ]) {
+      for (const state of [ATTACHED_0, BARE_WITH_DETACHED, BARE_NO_SERVER]) {
+        const result = run(["kill-session", ...args], state);
+        expect(result.stderr).toBe("usage: kill-session [-t target-session]");
+        expect(result.exitCode).toBe(1);
+        expect(result.tmuxAction).toBeUndefined();
+      }
+    }
+  });
+
   it("kill-server works attached or from the bare shell with detached sessions", () => {
     expect(run(["kill-server"], ATTACHED_0).tmuxAction).toEqual({ type: "kill-server" });
     expect(run(["kill-server"], BARE_WITH_DETACHED).tmuxAction).toEqual({ type: "kill-server" });
