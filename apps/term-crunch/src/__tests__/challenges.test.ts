@@ -1497,11 +1497,12 @@ describe("per-challenge command allowlist", () => {
     expect(isCommandAvailable("clear", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("man", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("shortcuts", CRUNCH_MACHINE)).toBe(true);
-    // ls/pwd/cd are always allowed as harmless orientation, even in a
+    // ls/pwd/cd/cat are always allowed for navigation and file inspection, even in a
     // keyboard-only tmux challenge that lists no shell commands.
     expect(isCommandAvailable("ls", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("pwd", CRUNCH_MACHINE)).toBe(true);
     expect(isCommandAvailable("cd", CRUNCH_MACHINE)).toBe(true);
+    expect(isCommandAvailable("cat", CRUNCH_MACHINE)).toBe(true);
   });
 
   it("allows exactly the listed commands (plus help/clear) and hides the rest", () => {
@@ -1511,10 +1512,10 @@ describe("per-challenge command allowlist", () => {
     }
     expect(isCommandAvailable("git", CRUNCH_MACHINE)).toBe(false);
     expect(isCommandAvailable("rm", CRUNCH_MACHINE)).toBe(false);
-    expect(isCommandAvailable("cat", CRUNCH_MACHINE)).toBe(false);
+    expect(isCommandAvailable("cat", CRUNCH_MACHINE)).toBe(true);
 
     const listed = getAvailableCommands(CRUNCH_MACHINE).map((c) => c.name).sort();
-    expect(listed).toEqual(["cd", "chmod", "clear", "help", "ls", "man", "pwd", "shortcuts", "tmux"]);
+    expect(listed).toEqual(["cat", "cd", "chmod", "clear", "help", "ls", "man", "pwd", "shortcuts", "tmux"]);
   });
 
   it("blocks off-list commands with a friendly hint message", () => {
