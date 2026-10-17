@@ -42,4 +42,4 @@ npm run screenshot:panes  # browser visual harnesses (scripts/visual/, needs a d
 
 ## Deploy
 
-`.github/workflows/deploy.yml` builds **both** apps and assembles one GitHub Pages artifact (`_site/`): a static landing page (`site/index.html` + its og:image `site/og.png` + card clips `site/media/*.mp4`) at `/termverse/`, termoil nested at `/termverse/termoil/`, and term-crunch nested at `/termverse/term-crunch/`. basePath is the repo-name (`termverse`) Pages path, so it is independent of the source directory.
+`.github/workflows/deploy.yml` builds **both** apps and assembles one GitHub Pages artifact (`_site/`): a static landing page (`site/index.html` + `icon.svg` + `sitemap.xml` + card clips `site/media/*.mp4` + the og:image `site/og.png`, which both apps' layouts also use as their absolute og:image) at `/termverse/`, termoil nested at `/termverse/termoil/`, and term-crunch nested at `/termverse/term-crunch/`. basePath is the repo-name (`termverse`) Pages path, so it is independent of the source directory. A new top-level page must be added to `site/sitemap.xml`; a new `site/` file must be added to the workflow's `cp` line.

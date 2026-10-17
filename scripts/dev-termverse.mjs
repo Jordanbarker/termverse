@@ -66,13 +66,15 @@ const children = [
 
 // Landing page: rewrite the two relative game links to the dev-server URLs so the
 // cards actually navigate. site/index.html stays the single source of truth.
+const ASSET_TYPES = { png: "image/png", svg: "image/svg+xml", xml: "application/xml", mp4: "video/mp4" };
 const landing = createServer((req, res) => {
-  // Static assets beside the page (og.png, media/*.mp4). Anything else gets the page.
-  const asset = req.url.split("?")[0].match(/^\/(og\.png|media\/[\w.-]+\.mp4)$/);
+  // Static assets beside the page (og.png, icon.svg, sitemap.xml, media/*.mp4).
+  // Anything else gets the page.
+  const asset = req.url.split("?")[0].match(/^\/(og\.png|icon\.svg|sitemap\.xml|media\/[\w.-]+\.mp4)$/);
   if (asset) {
     try {
       const body = readFileSync(join(ROOT, "site", asset[1]));
-      res.writeHead(200, { "content-type": asset[1].endsWith(".png") ? "image/png" : "video/mp4" });
+      res.writeHead(200, { "content-type": ASSET_TYPES[asset[1].split(".").pop()] });
       return res.end(body);
     } catch {
       res.writeHead(404);

@@ -1,6 +1,6 @@
 # Termverse
 
-Terminal games that run in your browser.
+Free browser games that teach the terminal: practice Linux, git, tmux, and vim in a simulated shell.
 
 **Play them here: https://jordanbarker.github.io/termverse/**
 

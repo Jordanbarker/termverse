@@ -5,6 +5,8 @@ const isProd = process.env.NODE_ENV === "production";
 const SITE_URL = isProd
   ? "https://jordanbarker.github.io/termverse/termoil/"
   : "http://localhost:3000/";
+// The shared termverse card (site/og.png); this app ships no image of its own.
+const OG_IMAGE = "https://jordanbarker.github.io/termverse/og.png";
 
 const TITLE = "Termoil";
 const DESCRIPTION =
@@ -14,15 +16,16 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
+  alternates: { canonical: "./" },
   openGraph: {
     type: "website",
     url: SITE_URL,
-    siteName: TITLE,
+    siteName: "termverse",
     title: TITLE,
     description: DESCRIPTION,
     images: [
       {
-        url: "og-image.png",
+        url: OG_IMAGE,
         width: 1200,
         height: 630,
         alt: "Termoil: a workplace mystery played at the command line",
@@ -33,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
-    images: ["og-image.png"],
+    images: [OG_IMAGE],
   },
 };
 
