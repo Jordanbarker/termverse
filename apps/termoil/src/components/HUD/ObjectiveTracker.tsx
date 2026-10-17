@@ -185,6 +185,7 @@ export default function ObjectiveTracker() {
   if (storyFlags.terminated_for_misconduct) {
     return (
       <div
+        data-hud="objective-tracker"
         className="absolute top-2 right-2 z-10 pointer-events-auto
           bg-[#1a1f29]/85 border border-red-700/60 rounded-md
           backdrop-blur-sm font-mono text-xs select-none
@@ -219,6 +220,7 @@ export default function ObjectiveTracker() {
 
   return (
     <div
+      data-hud="objective-tracker"
       className="absolute top-2 right-2 z-10 pointer-events-auto
         bg-[#1a1f29]/85 border border-[#2a2f3a] rounded-md
         backdrop-blur-sm font-mono text-xs select-none

@@ -22,6 +22,8 @@
     "build:crunch": "npm -w @tt/term-crunch run build",
     "screenshot:panes": "node scripts/visual/pane-dividers.mjs",
     "screenshot:mp-reward": "node scripts/visual/mp-reward.mjs",
+    "screenshot:og": "node scripts/visual/og-thumbnail.mjs",
+    "record:demo": "node scripts/visual/demo-record.mjs all",
     "playtest": "npm -w @tt/termoil run playtest && npm -w @tt/termoil run playtest:arcs && npm -w @tt/termoil run playtest:git && npm -w @tt/term-crunch run playtest",
     "play": "npm -w @tt/termoil run play",
     "play:crunch": "npm -w @tt/term-crunch run play"

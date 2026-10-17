@@ -36,7 +36,7 @@ export default function Toast() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="absolute bottom-12 right-2 z-20 flex flex-col gap-2 pointer-events-none">
+    <div data-hud="toast" className="absolute bottom-12 right-2 z-20 flex flex-col gap-2 pointer-events-none">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} id={toast.id} message={toast.message} />
       ))}

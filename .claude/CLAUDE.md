@@ -37,9 +37,9 @@ npm run test         # Vitest (or: npx vitest run)
 npm run play         # termoil headless REPL (play:crunch for term-crunch)
 npm run playtest     # asserting playtests: termoil playtest/:arcs/:git + term-crunch tracks
 npm run check        # Combined lint + typecheck + test + playtest + build:all (also run in CI)
-npm run screenshot:panes  # browser visual harnesses (scripts/visual/, needs a dev server); also screenshot:mp-reward
+npm run screenshot:panes  # browser visual harnesses (scripts/visual/, needs a dev server); also screenshot:mp-reward, screenshot:og (regenerates site/og.png, needs `npm run dev`), record:demo (re-records the README clips in `.assets/` + landing-page clips in `site/media/`; needs `npm run dev`, ffmpeg, and img2webp)
 ```
 
 ## Deploy
 
-`.github/workflows/deploy.yml` builds **both** apps and assembles one GitHub Pages artifact (`_site/`): a static landing page (`site/index.html`) at `/termverse/`, termoil nested at `/termverse/termoil/`, and term-crunch nested at `/termverse/term-crunch/`. basePath is the repo-name (`termverse`) Pages path, so it is independent of the source directory.
+`.github/workflows/deploy.yml` builds **both** apps and assembles one GitHub Pages artifact (`_site/`): a static landing page (`site/index.html` + its og:image `site/og.png` + card clips `site/media/*.mp4`) at `/termverse/`, termoil nested at `/termverse/termoil/`, and term-crunch nested at `/termverse/term-crunch/`. basePath is the repo-name (`termverse`) Pages path, so it is independent of the source directory.

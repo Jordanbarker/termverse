@@ -67,6 +67,18 @@ const children = [
 // Landing page: rewrite the two relative game links to the dev-server URLs so the
 // cards actually navigate. site/index.html stays the single source of truth.
 const landing = createServer((req, res) => {
+  // Static assets beside the page (og.png, media/*.mp4). Anything else gets the page.
+  const asset = req.url.split("?")[0].match(/^\/(og\.png|media\/[\w.-]+\.mp4)$/);
+  if (asset) {
+    try {
+      const body = readFileSync(join(ROOT, "site", asset[1]));
+      res.writeHead(200, { "content-type": asset[1].endsWith(".png") ? "image/png" : "video/mp4" });
+      return res.end(body);
+    } catch {
+      res.writeHead(404);
+      return res.end();
+    }
+  }
   try {
     const html = readFileSync(join(ROOT, "site", "index.html"), "utf8")
       .replaceAll('href="./termoil/"', `href="${TERMOIL_URL}/"`)

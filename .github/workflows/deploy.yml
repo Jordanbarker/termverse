@@ -32,7 +32,8 @@ jobs:
       - name: Assemble Pages site
         run: |
           mkdir -p _site
-          cp site/index.html _site/
+          cp site/index.html site/og.png _site/
+          cp -r site/media _site/media
           mkdir -p _site/termoil
           cp -r apps/termoil/out/. _site/termoil/
           mkdir -p _site/term-crunch
