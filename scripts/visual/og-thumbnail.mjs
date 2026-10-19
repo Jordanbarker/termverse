@@ -116,7 +116,7 @@ const card = `<!doctype html><html><head><style>
   .bar .name { color: #f0b429; font-size: 17px; margin-left: 8px; }
   .win img { display: block; width: 100%; }
 </style></head><body>
-  <h1><span class="prompt">$</span> termverse</h1>
+  <h1><span class="prompt">&gt;</span> termverse</h1>
   <p class="tagline">Terminal based browser games.</p>
   <div class="row">
     <div class="win"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">termoil</span></div>
