@@ -16,6 +16,9 @@
  * boots from that save. Its README clip hides the HUD and is cropped to the
  * xterm screen, so it reads as a bare shell.
  *
+ * term-crunch is just the git track's first challenge (add + commit), reached
+ * by seeding `activeCategory: "git"` in the progress save.
+ *
  * Outputs:
  *   screenshots/demo/<game>.webm      raw recording (gitignored)
  *   .assets/termoil-demo.webp         README embed (bare terminal, animated webp)
@@ -192,25 +195,21 @@ async function recordTermoil(browser) {
 }
 
 async function recordCrunch(browser) {
-  // Seeded 30 MP shy of a level, so the git clear fires the level-up callout.
+  // Boots straight onto the git track's first challenge, seeded 30 MP shy of a
+  // level so the clear fires the level-up callout.
   const s = await open(browser, process.env.CRUNCH_URL || "http://localhost:3001/", CRUNCH_VIEWPORT, {
     init: [
       [
         () =>
-          localStorage.setItem("term-crunch-progress", JSON.stringify({ state: { mastery: { mp: 470 } }, version: 1 })),
+          localStorage.setItem(
+            "term-crunch-progress",
+            JSON.stringify({ state: { activeCategory: "git", mastery: { mp: 470 } }, version: 1 })
+          ),
       ],
     ],
   });
-  const { page, type, chord } = s;
+  const { type } = s;
   await sleep(1500);
-  // Challenge 0 (panes-split): prefix | then prefix -.
-  await chord("|");
-  await sleep(900);
-  await chord("-");
-  await sleep(2600);
-  await page.keyboard.press("Enter");
-  await sleep(1000);
-  await type("track git", 1000);
   await type("git add README.md", 900);
   await type('git commit -m "init"', 3500);
   return { name: "term-crunch", lead: s.lead, webm: await finish(s, "term-crunch") };
